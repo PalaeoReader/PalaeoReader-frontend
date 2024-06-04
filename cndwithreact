@@ -1,0 +1,15 @@
+<!DOCTYPE html> 
+<html> 
+   <head> 
+      <meta charset="UTF-8" /> 
+      <title>CND with React</title> 
+
+    <!-- Include React and ReactDOM via CDN -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script crossorigin src="https://unpkg.com/reactdom@18/umd/react-dom.development.js"></script>
+
+</head>
+<body>
+    <div id="Palaeography"></div>
+
+</html>
