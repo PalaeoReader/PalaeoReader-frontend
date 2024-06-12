@@ -1,7 +1,9 @@
 import React from 'react';
 import { createRoot } from 'react-dom/client';
+import NavBar from './Components/NavBar';
 import './index.css';
 import ArtifactList from './Components/ArtifactList';
+import Login from './Components/Login';
 
 // Clear the existing HTML content
 document.body.innerHTML = '<div id="root"></div>';
@@ -16,7 +18,7 @@ const root = createRoot(domNode);
 
 function App() {
   return (
-    <div className="container">
+    <div className="container" color="#FBFFF1">
       <header className="header">
         <h1>Artifacts</h1>
       </header>
