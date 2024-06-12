@@ -20,9 +20,9 @@ function App() {
   return (
     <div className="container" color="#FBFFF1">
       <header className="header">
-        <h1>Artifacts</h1>
+        <h1>Log in</h1>
       </header>
-      <ArtifactList />
+      <Login />
     </div>
   );
 }
