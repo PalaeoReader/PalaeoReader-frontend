@@ -1,60 +1,58 @@
-import React , { useState} /*, useEffect }*/ from 'react';
+import React , { useState} from 'react';
 
-//  function Login() {
-  //const [data, setData] = useState(null);
-
-  /* useEffect(() => {
-    fetch('/.backend/app/api/routes/login.py')
-      .then(response => response.json())
-      .then(json => setData(json))
-      .catch(error => console.error(error));
-  }, []);
-
-  return (
-    <div>
-      {data ? <pre>{JSON.stringify(data, null, 2)}</pre> : 'Loading...'}
-    </div>
-  );
-}*/
-
-//import React, { useState } from 'react'
-//import { useNavigate } from 'react-router-dom'
-
-const Login = (props) => {
-  const [email, setEmail] = useState('')
+function Login() { 
+  
+  //(props) => {
+  const [user, setUser] = useState('')
   const [password, setPassword] = useState('')
-  const [emailError, setEmailError] = useState('')
-  const [passwordError, setPasswordError] = useState('')
+  var token = useState('')
+      
+ // }
 
-
-  const onButtonClick = () => {
-    // You'll update this function later...
-  }
+  const onButtonClick = (callback) => {
+      // fetching token from backend
+      fetch('http://localhost:8000/api/login/access-token', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({user, password}),
+      })
+        .then((r) => r.json())
+        .then((r) => {
+          if (r === token) {
+            localStorage.setItem('user', JSON.stringify({user}))
+            props.setLoggedIn(true)
+            props.setUser(user)
+            navigate('/')
+          } else {
+            window.alert('Wrong username or password')
+          }
+        })
+    }
 
   return (
     <div className={'mainContainer'}>
       <div className={'titleContainer'}>
-        <div>Login</div>
+        <div></div>
       </div>
       <br />
       <div className={'inputContainer'}>
         <input
-          value={email}
-          placeholder="Enter your email here"
-          onChange={(ev) => setEmail(ev.target.value)}
+          value={user}
+          placeholder="Enter your username here"
+          onChange={(ev) => setUser(ev.target.value)}
           className={'inputBox'}
         />
-        <label className="errorLabel">{emailError}</label>
       </div>
       <br />
       <div className={'inputContainer'}>
         <input
           value={password}
           placeholder="Enter your password here"
-          onChange={(ev) => setPassword(ev.target.value)}
+         onChange={(ev) => setPassword(ev.target.value)}
           className={'inputBox'}
         />
-        <label className="errorLabel">{passwordError}</label>
       </div>
       <br />
       <div className={'inputContainer'}>
