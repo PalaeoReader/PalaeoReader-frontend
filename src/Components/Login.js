@@ -1,12 +1,12 @@
 import React , { useState} from 'react';
 
-const Login = () => { 
-  
+const Login = () => {
+
   //(props) => {
   const [username, setUser] = useState('')
   const [password, setPassword] = useState('')
   var token = useState('')
-      
+
  // }
 
   const onButtonClick = (callback) => {
@@ -14,9 +14,12 @@ const Login = () => {
       fetch('http://localhost:8000/api/login/access-token', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
+          'Content-Type': 'application/x-www-form-urlencoded',
         },
-        body: JSON.stringify({username, password}),
+        body: new URLSearchParams({
+          'username': username,
+          'password': password
+        })
       })
         .then((r) => r.json())
         .then((r) => {
