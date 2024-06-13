@@ -34,13 +34,13 @@ function Login() {
   return (
     <div className={'mainContainer'}>
       <div className={'titleContainer'}>
-        <div></div>
+        <div>Welcome</div>
       </div>
       <br />
       <div className={'inputContainer'}>
         <input
           value={user}
-          placeholder="Enter your username here"
+          placeholder="Username"
           onChange={(ev) => setUser(ev.target.value)}
           className={'inputBox'}
         />
@@ -49,8 +49,8 @@ function Login() {
       <div className={'inputContainer'}>
         <input
           value={password}
-          placeholder="Enter your password here"
-         onChange={(ev) => setPassword(ev.target.value)}
+          placeholder="Password"
+          onChange={(ev) => setPassword(ev.target.value)}
           className={'inputBox'}
         />
       </div>

@@ -50,7 +50,7 @@ header {
   
   .artifact {
     background-color: #ecefe4;
-    border: 3px solid #c9c5c5;
+    border: 3px solid #c9c5c5; /*doesn't work for some reason...*/
     border-radius: 5px;
     padding: 1rem 0;
     margin: 5px;
@@ -97,12 +97,14 @@ header {
     align-items: center;
     justify-content: center;
     height: 100vh;
+    
   }
   
   .titleContainer {
     display: flex;
     flex-direction: column;
-    font-size: 64px;
+    font-size: 40px;
+    padding-bottom: 10px;
     font-weight: bolder;
     align-items: center;
     justify-content: center;
@@ -114,17 +116,23 @@ header {
     align-items: center;
     justify-content: center;
     height: 260px;
+   
   }
 
   input[type='button'] {
     border: none;
-    background: cornflowerblue;
-    color: white;
+    background: #ecefe4;
+    color: black; /* change this color */
     padding: 12px 24px;
     margin: 8px;
     font-size: 24px;
     border-radius: 8px;
     cursor: pointer;
+    font-family: serif, Garamond;
+    border-width: 2px;
+    border-color: #b5b2b2;
+    border-style: groove;
+
   }
 
   .inputContainer {
@@ -132,6 +140,7 @@ header {
     flex-direction: column;
     align-items: flex-start;
     justify-content: center;
+    padding: 5px;
   }
   
   .inputContainer > .errorLabel {
@@ -140,10 +149,19 @@ header {
   }
 
   .inputBox {
-    height: 48px;
-    width: 400px;
+    height: 40px;
+    width: 350px;
     font-size: large;
     border-radius: 8px;
     border: 1px solid grey;
     padding-left: 8px;
+    padding-bottom: 0px;
   }
+
+  .inputButton:hover {
+    background: #d1d3cc
+  }
+
+  /*NavBar here!*/
+
+  
