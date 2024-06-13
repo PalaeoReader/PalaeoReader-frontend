@@ -20,7 +20,6 @@ function App() {
   return (
     <div className="container" color="#FBFFF1">
       <header className="header">
-        <NavBar />
         <br />
         <h1>Sign in</h1>
       </header>

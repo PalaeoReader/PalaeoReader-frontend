@@ -39,7 +39,7 @@ const Login = () => {
       <br />
       <div className={'inputContainer'}>
         <input
-          value={user}
+          value={username}
           placeholder="Username"
           onChange={(ev) => setUser(ev.target.value)}
           className={'inputBox'}
