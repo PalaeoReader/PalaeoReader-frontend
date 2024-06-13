@@ -1,7 +1,8 @@
 import React from 'react';
+import NavMenu from './NavMenu';
 
 function NavBar() {
-    const pages = ['home', 'index', 'map', 'about', 'contact'];
+    const pages = [<NavMenu />];
     const navLinks = pages.map(page => {
     return (
         <a href={'/' + page}>

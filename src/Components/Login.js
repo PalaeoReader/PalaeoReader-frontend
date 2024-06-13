@@ -3,7 +3,7 @@ import React , { useState} from 'react';
 const Login = () => { 
   
   //(props) => {
-  const [user, setUser] = useState('')
+  const [username, setUser] = useState('')
   const [password, setPassword] = useState('')
   var token = useState('')
       
@@ -16,14 +16,14 @@ const Login = () => {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({user, password}),
+        body: JSON.stringify({username, password}),
       })
         .then((r) => r.json())
         .then((r) => {
           if (r === token) {
-            localStorage.setItem('user', JSON.stringify({user}))
+            localStorage.setItem('username', JSON.stringify({username}))
             props.setLoggedIn(true)
-            props.setUser(user)
+            props.setUser(username)
             navigate('/')
           } else {
             window.alert('Wrong username or password')

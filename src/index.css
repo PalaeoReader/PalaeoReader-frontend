@@ -164,4 +164,11 @@ header {
 
   /*NavBar here!*/
 
-  
+  .Navlinks {
+    font-family:Georgia, 'Times New Roman', Times, serif;
+    font-size: 10px;
+  }
+
+  a {
+    padding-left: 30px;
+  }
