@@ -1,18 +1,38 @@
-import React from 'react';
+export const NavMenu = () => [
+    {
+        title: "Home",
+        url: "#",
+        cName: "nav-links"
+    },
 
-const NavMenu = () => {
-    return (
-        <div className = "NavHeader">
-            <div className = "Navlinks">
-                <a>Home</a>
-                <a>Directory</a>
-                <a>Map</a>
-                <a>About us</a>
-                <a>Contact</a>
-                <a>Log in</a>
-            </div>
-        </div>
-    );
-}
+    {
+        title: "Directory",
+        url: "#",
+        cName: "nav-links"
+    },
 
-export default NavMenu;
+    {
+        title: "Map",
+        url: "#",
+        cName: "nav-links"
+    },
+
+    {
+        title: "About Us",
+        url: "#",
+        cName: "nav-links"
+    },
+
+    {
+        title: "Contact",
+        url: "#",
+        cName: "nav-links"
+    },
+
+    {
+        title: "Log in",
+        url: "#",
+        cName: "nav-links"
+    },
+
+]

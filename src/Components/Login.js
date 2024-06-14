@@ -23,14 +23,18 @@ const Login = () => {
       })
         .then((r) => r.json())
         .then((r) => {
-          if (r === token) {
+          if (!r.includes(token)) {
             localStorage.setItem('username', JSON.stringify({username}))
             props.setLoggedIn(true)
             props.setUser(username)
             navigate('/')
+            
+          } else if (r.includes("HTTP 400")) {
+            window.alert('Wrong username or password')
           } else {
             window.alert('Wrong username or password')
           }
+
         })
     }
 
