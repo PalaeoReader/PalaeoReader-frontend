@@ -33,6 +33,6 @@ export const NavMenu = () => [
         title: "Log in",
         url: "#",
         cName: "nav-links"
-    },
+    }
 
 ]
