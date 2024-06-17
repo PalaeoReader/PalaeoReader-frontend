@@ -2,12 +2,20 @@ import React, {Component} from 'react';
 import {NavMenu} from './NavMenu';
 
 class NavBar extends Component {
+  state = {clicked:false }
+
+  handleClick = () => {
+    this.setState ({clicked: !this.state.clicked})
+  }
+
   render() {
     return (
       <nav className="NavbarItems">
-          <h1 className="NavbarLogo">React</h1>
-          <div className="MenuIcon"></div>
-          <ul>
+          <h1 className="NavbarLogo">Site<i className="fab fa-react"></i></h1>
+          <div className="MenuIcon" onClick={this.handleClick}>
+            <i className={this.state.clicked ? 'fa-solid fa-xmark' : 'fa-solid fa-bars'}></i>
+          </div>
+          <ul className={this.state.clicked ? 'nav-menu active' : 'nav-menu'}>
             {NavMenu.map((item, index)=> {
               return (
                 <li key={index}>

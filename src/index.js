@@ -21,7 +21,6 @@ function App() {
     <div className="container" color="#FBFFF1">
       <header className="header">
         <NavBar />
-        <h1>Sign in</h1>
       </header>
       <Login />
     </div>

@@ -9,17 +9,20 @@
 
 header {
     padding: 6px 0;
-    background-color: #ecefe4;
     text-align: left;
     border: 3px;
+    border-color: black;
     border-start-end-radius: 20px 20px;
     border-start-start-radius: 20px 20px;
     border-end-start-radius: 20px 20px;
     border-end-end-radius: 20px 20px;
+    padding-top: 0px;
+    padding-left: 0px;
+    padding-right: 0px;
   }
 
   h1 {
-    margin-top: 15px;
+    margin-top: 0px;
     margin-left: 15px;
     font-size: 30px;
     font: Garamond;
@@ -97,7 +100,7 @@ header {
     align-items: center;
     justify-content: center;
     height: 100vh;
-    
+    background-color: white;
   }
   
   .titleContainer {
@@ -170,17 +173,46 @@ header {
 
   /*NavBar here!*/
 
-  .NavBarItems {
-    background: linear-gradient(90deg, rbg(110,94,254) 0%, rgba(73,63,252,1)100%);
+  .NavbarItems{
+    background-color: #ecefe4;
     height: 70px;
     font-family:Georgia, 'Times New Roman', Times, serif;
-    font-size: 20px;
+    font-size: 18px;
     color: black;
-    text-align: right;
     display: flex;
-    justify-content: right;
+    justify-content: center;
+    align-items: center;
   }
 
+  .NavbarLogo {
+    padding-top: 30px;
+  }
+
+ .nav-menu{
+    list-style-type: none;
+    display: grid;
+    grid-template-columns: repeat(6, auto);
+    grid-gap: 10px;
+    text-align: center;
+    width: 90vw;
+    justify-content: end;
+    margin-right: 2rem;
+  }
+
+  .nav-links {
+    color: black;
+    text-decoration: none;
+    padding: 0.5rem 1rem;
+  }
+
+  .nav-links:hover {
+    background-color: #d1d3cc;
+    border-radius: 4px;
+  }
+
+  .fa-bars {
+    color: white;
+  }
  /* a {
     padding-left: 30px;
   }
