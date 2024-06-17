@@ -26,16 +26,16 @@ const Login = () => {
           if (response.detail === "Incorrect username or password") {
             console.log(response.detail);
             window.alert('Incorrect username or password')
-            localStorage.setItem('username', JSON.stringify({username}))
             
 
-          } else if (response.detail === "undefined" | response.detail === "400 Bad Request") {
+          } else if (response.detail === "undefined" | response.detail === "400 Bad Request") { /*this might need fixing*/
             console.log(response.detail)
             window.alert('Try again later.')
 
           } else {
             console.log(response.detail)
             window.alert('Successfully logged in.')
+            localStorage.setItem('username', JSON.stringify({username}))
             //props.setLoggedIn(true)
             //props.setUser(username)
             //navigate('/')
