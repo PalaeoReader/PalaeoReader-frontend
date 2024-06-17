@@ -3,9 +3,9 @@ import React , { useState} from 'react';
 const Login = () => {
 
   //(props) => {
-  const [username, setUser] = useState('')
-  const [password, setPassword] = useState('')
-  var token = useState('')
+  const [username, setUser] = useState("")
+  const [password, setPassword] = useState("")
+  var token = new String(useState(""))
 
  // }
 
@@ -21,20 +21,27 @@ const Login = () => {
           'password': password
         })
       })
-        .then((r) => r.json())
-        .then((r) => {
-          if (!r.includes(token)) {
+        .then((response) => response.json())
+        .then((response) => {
+          if (response.detail === "Incorrect username or password") {
+            console.log(response.detail);
+            window.alert('Incorrect username or password')
             localStorage.setItem('username', JSON.stringify({username}))
-            props.setLoggedIn(true)
-            props.setUser(username)
-            navigate('/')
             
-          } else if (r.includes("HTTP 400")) {
-            window.alert('Wrong username or password')
-          } else {
-            window.alert('Wrong username or password')
-          }
 
+          } else if (response.detail === "undefined" | response.detail === "400 Bad Request") {
+            console.log(response.detail)
+            window.alert('Try again later.')
+
+          } else {
+            console.log(response.detail)
+            window.alert('Successfully logged in.')
+            //props.setLoggedIn(true)
+            //props.setUser(username)
+            //navigate('/')
+            
+          }
+          
         })
     }
 
