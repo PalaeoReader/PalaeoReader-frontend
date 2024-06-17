@@ -162,6 +162,12 @@ header {
     background: #d1d3cc
   }
 
+  /*Login here!*/
+  .showPwLabel {
+    font-family: Georgia, 'Times New Roman', Times, serif;
+    text-align: right;
+  }
+
   /*NavBar here!*/
 
   .NavBarItems {

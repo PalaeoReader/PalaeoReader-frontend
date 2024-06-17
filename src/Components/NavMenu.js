@@ -1,4 +1,4 @@
-export const NavMenu = () => [
+export const NavMenu = (callback) => [
     {
         title: "Home",
         url: "#",
@@ -36,3 +36,5 @@ export const NavMenu = () => [
     }
 
 ]
+
+export default NavMenu;

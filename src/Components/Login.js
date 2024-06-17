@@ -6,6 +6,7 @@ const Login = () => {
   const [username, setUser] = useState("")
   const [password, setPassword] = useState("")
   var token = new String(useState(""))
+  const [showPassword, setShowPassword] = useState(false);
 
  // }
 
@@ -64,10 +65,25 @@ const Login = () => {
         <input
           value={password}
           placeholder="Password"
+          type={
+            showPassword ? "text" : "password"
+        }
           onChange={(ev) => setPassword(ev.target.value)}
           className={'inputBox'}
         />
       </div>
+      <br />
+      <br />
+      <label className="showPwLabel" for="check">Show Password</label>
+                <input
+                    id="check"
+                    type="checkbox"
+                    value={showPassword}
+                    onChange={() =>
+                        setShowPassword((prev) => !prev)
+                    }
+                    
+                />
       <br />
       <div className={'inputContainer'}>
         <input className={'inputButton'} type="button" onClick={onButtonClick} value={'Log in'} />
