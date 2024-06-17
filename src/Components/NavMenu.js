@@ -1,4 +1,4 @@
-export const NavMenu = (callback) => [
+export const NavMenu = () => [
     {
         title: "Home",
         url: "#",
