@@ -8,13 +8,10 @@ import Login from './Components/Login';
 // Clear the existing HTML content
 document.body.innerHTML = '<div id="root"></div>';
 
-// Render your React component instead
-//const root = createRoot(document.getElementById('app'));
-//root.render(<h1>Hello, world</h1>);
-
 //window.addEventListener("load");
 const domNode = document.getElementById('root');
 const root = createRoot(domNode);
+
 
 function App() {
   return (
@@ -22,7 +19,7 @@ function App() {
       <header className="header">
         <NavBar />
       </header>
-      <Login />
+      <ArtifactList />
     </div>
   );
 }

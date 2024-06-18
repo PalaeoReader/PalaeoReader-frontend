@@ -11,9 +11,9 @@ class NavBar extends Component {
   render() {
     return (
       <nav className="NavbarItems">
-          <h1 className="NavbarLogo">Site<i className="fab fa-react"></i></h1>
+          <h1 className="NavbarLogo">Site<i className=""></i></h1>
           <div className="MenuIcon" onClick={this.handleClick}>
-            <i className={this.state.clicked ? 'fa-solid fa-xmark' : 'fa-solid fa-bars'}></i>
+            <i className={this.state.clicked ? 'fa-solid fa-bars' : 'fa-solid fa-xmark'}></i>
           </div>
           <ul className={this.state.clicked ? 'nav-menu active' : 'nav-menu'}>
             {NavMenu.map((item, index)=> {
@@ -32,19 +32,6 @@ class NavBar extends Component {
     )
   }
 }
-
-/*function NavBar() {
-    const pages = [NavMenu];
-    const navLinks = pages.map(page => {
-    return (
-        <a href={'/' + page}>
-          &nbsp;{page}
-        </a>
-    )
-    });
-
-    return <nav>{navLinks}</nav>;
-}*/
 
 
 export default NavBar;
