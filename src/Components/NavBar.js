@@ -1,5 +1,6 @@
 import React, {Component} from 'react';
 import {NavMenu} from './NavMenu';
+import {Button} from './Button';
 
 class NavBar extends Component {
   state = {clicked:false }
@@ -13,7 +14,7 @@ class NavBar extends Component {
       <nav className="NavbarItems">
           <h1 className="NavbarLogo">Site<i className=""></i></h1>
           <div className="MenuIcon" onClick={this.handleClick}>
-            <i className={this.state.clicked ? 'fa-solid fa-bars' : 'fa-solid fa-xmark'}></i>
+            <i className={this.state.clicked ? 'fa-solid fa-xmark' : 'fa-solid fa-bars'}></i>
           </div>
           <ul className={this.state.clicked ? 'nav-menu active' : 'nav-menu'}>
             {NavMenu.map((item, index)=> {
@@ -28,6 +29,7 @@ class NavBar extends Component {
             })}
             
           </ul>
+          <Button></Button>
       </nav>
     )
   }
