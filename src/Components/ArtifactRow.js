@@ -1,4 +1,5 @@
 import React from 'react';
+import {GetArtifact} from './GetArtifact';
 
 const ArtifactRow = () => {
   return (
@@ -7,7 +8,8 @@ const ArtifactRow = () => {
         <img src="https://image.hurimg.com/i/hurriyet/75/0x0/5c14ad0ec03c0e2ab815636a.jpg" alt="Sample Image" height="225" border="solid" border-color="black"/>
       </div>
       <div className="artifact-detail">
-        <h4>Old Turkic Artifact</h4>
+      
+        <h4>{<GetArtifact />}</h4>
         <p>Here's a description of the artifact.</p>
       </div>
       <div className="original-date">

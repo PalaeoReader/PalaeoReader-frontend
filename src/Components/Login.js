@@ -1,29 +1,20 @@
 import React , { useState} from 'react';
+import {fetchAccess} from './API.js';
 
 const Login = () => {
 
-  //(props) => {
-  const [username, setUser] = useState("")
-  const [password, setPassword] = useState("")
-  var token = new String(useState(""))
+ // (props) => {
+  const [setUser] = useState("");
+  const [setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
 
- // }
+  //}
 
   const onButtonClick = (callback) => {
       // fetching token from backend
-      fetch('http://localhost:8000/api/login/access-token', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-        },
-        body: new URLSearchParams({
-          'username': username,
-          'password': password
-        })
-      })
-        .then((response) => response.json())
-        .then((response) => {
+  
+        fetchAccess.then((response) => response.json())
+        fetchAccess.then((response) => {
           if (response.detail === "Incorrect username or password") {
             console.log(response.detail);
             window.alert('Incorrect username or password')

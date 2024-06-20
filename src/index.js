@@ -10,7 +10,7 @@ document.body.innerHTML = '<div id="root"></div>';
 
 //window.addEventListener("load");
 const domNode = document.getElementById('root');
-const root = createRoot(domNode);
+export const root = createRoot(domNode);
 
 
 function App() {
