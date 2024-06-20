@@ -1,9 +1,13 @@
 import React, {useState} from 'react';
-import {root} from '../index';
-import {fetchLabel} from './API';
+import {fetchArtifactData} from '../API';
 
 export function GetArtifact () {
-    const [label] = useState("")
+    const label = new Proxy(new URLSearchParams("label"), {
+      get: (searchParams, prop) => searchParams.get(prop)
+    });
+    // Get the value of "some_key" in eg "https://example.com/?some_key=some_value"
+    let value = label.toString; // "some_value"
+    
     /*const [description, setDescription] = useState("")
     const [CoverImage, setCoverImage] = useState("")
     const [OriginDate, setOriginDate] = useState("")
@@ -12,16 +16,15 @@ export function GetArtifact () {
 
 
 
-fetchLabel.then((response) => response.clone().json())
-fetchLabel.then((response) => {
-  if (response === label) {
-    response.json()
+fetchArtifactData.then((response) => response.clone().json())
+fetchArtifactData.then((response) => {
+  if (typeof label != "undefined") {
+    console.log(label)
   } else {
-    
+    console.log(label)
   }
-    //console.log(response))
 })
-
+  
 return (
   window.addEventListener("load", GetArtifact)
 )

@@ -1,6 +1,6 @@
 import React from 'react';
 
-export function fetchAccess () {
+export default function fetchAccess () {
   const [username] = useState("");
   const [password] = useState("");
 
@@ -19,11 +19,12 @@ export function fetchAccess () {
 
 }
 
-let fetchLabel = fetch('http://localhost:8000/api/artifacts', {
+let fetchArtifactData = fetch('http://localhost:8000/api/artifacts', {
   method: 'GET', 
   headers: {'Content-Type': 'application/json'}
 })
 
 export {
-  fetchLabel
+  fetchAccess,
+  fetchArtifactData
 }

@@ -1,5 +1,5 @@
 import React , { useState} from 'react';
-import {fetchAccess} from './API.js';
+import {fetchAccess} from '../API.js';
 
 const Login = () => {
 
