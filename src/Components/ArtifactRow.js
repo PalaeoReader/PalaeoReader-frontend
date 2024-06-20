@@ -9,7 +9,7 @@ const ArtifactRow = () => {
       </div>
       <div className="artifact-detail">
       
-        <h4>{<GetArtifact />}</h4>
+        <a>{<GetArtifact />}</a>
         <p>Here's a description of the artifact.</p>
       </div>
       <div className="original-date">

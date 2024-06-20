@@ -1,6 +1,6 @@
 import React from 'react';
 import { createRoot } from 'react-dom/client';
-import NavBar from './Components/NavBar';
+import NavBar from './Components/NavBar/NavBar';
 import './index.css';
 import ArtifactList from './Components/ArtifactList';
 import Login from './Components/Login';
