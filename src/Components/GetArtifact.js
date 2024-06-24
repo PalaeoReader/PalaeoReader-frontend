@@ -7,18 +7,19 @@ export function GetArtifact () {
     .then((response) => response.clone().json())
     .then((response) => {
       const dat = response.data;
+      console.log(dat);
       let rows = '';
-      dat.foreach(data => {
+      dat.forEach(data => {
         rows += <><h4 className="artifact-name">${dat.label}</h4>
                 <p className="artifact-description">${dat.description}</p>
-                <div className="original-date">${dat.origin-date}</div>
-                <div className="artifact-date">${dat.discovery-date}</div>
-                <div className="artifact-location">${dat.discovery-location}</div></>
+                <div className="original-date">${dat.origin_date}</div>
+                <div className="artifact-date">${dat.discovery_date}</div>
+                <div className="artifact-location">${dat.discovery_location}</div></>
       });
       console.log(rows);
       document.getElementById('artifact-detail').innerHTML = rows;
     })
-  fetchArtifactData
+  fetchArtifactData()
     .catch(error => console.log(error))
 
 }
