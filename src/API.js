@@ -15,15 +15,17 @@ export default function fetchAccess () {
         'password': {password}
       })
     })
-);
-
+  );
 }
 
 function fetchArtifactData () {
-  fetch('http://localhost:8000/api/artifacts')
-    ,{ method: 'GET', headers: {'Content-Type': 'application/x-www-form-urlencoded'} }
-    
-  }
+  return (
+    fetch(
+      'http://localhost:8000/api/artifacts',
+      { method: 'GET' }
+    )
+  );
+}
 
 export {
   fetchAccess,
