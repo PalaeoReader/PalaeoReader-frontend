@@ -3,7 +3,7 @@ import {fetchArtifactData} from '../API';
 
 export function GetArtifact () {
 
-  fetchArtifactData
+  fetchArtifactData()
     .then((response) => response.clone().json())
     .then((response) => {
       const dat = response.data;
