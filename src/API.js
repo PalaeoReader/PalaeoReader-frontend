@@ -20,10 +20,12 @@ export default function fetchAccess () {
 }
 
 function fetchArtifactData () {
-  fetch('http://localhost:8000/api/artifacts')
-    ,{ method: 'GET', headers: {'Content-Type': 'application/x-www-form-urlencoded'} }
-    
+  fetch('http://localhost:8000/api/artifacts'),{ 
+    method: 'GET', 
+    headers: {'Content-Type': 'application/json'} 
   }
+    
+}
 
 export {
   fetchAccess,
