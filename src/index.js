@@ -2,8 +2,11 @@ import React from 'react';
 import { createRoot } from 'react-dom/client';
 import NavBar from './Components/NavBar/NavBar';
 import './index.css';
+import './Components/NavBar/NavBar.css'
+import './Components/Login/Login.css';
 import ArtifactList from './Components/ArtifactList';
-import Login from './Components/Login';
+import Login from './Components/Login/Login';
+import ArtifactRow from './Components/ArtifactRow';
 
 // Clear the existing HTML content
 document.body.innerHTML = '<div id="root"></div>';
@@ -19,7 +22,7 @@ function App() {
       <header className="header">
         <NavBar />
       </header>
-      <ArtifactList />
+      <ArtifactList/>
     </div>
   );
 }

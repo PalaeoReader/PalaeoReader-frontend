@@ -16,6 +16,7 @@ class ArtifactList extends Component {
         <ArtifactRow />
         <ArtifactRow />
         <ArtifactRow />
+        <ArtifactRow />
       </div>
     );
   }

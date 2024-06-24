@@ -1,11 +1,11 @@
 import React , { useState} from 'react';
-import {fetchAccess} from '../API.js';
+import {fetchAccess} from '../../API.js';
 
 const Login = () => {
 
  // (props) => {
-  const [setUser] = useState("");
-  const [setPassword] = useState("");
+  const [username, setUser] = useState("");
+  const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
 
   //}
@@ -66,15 +66,15 @@ const Login = () => {
       <br />
       <br />
       <label className="showPwLabel" for="check">Show Password</label>
-                <input
-                    id="check"
+                <div id="check"><input
+                    className="showPwBox"
                     type="checkbox"
                     value={showPassword}
                     onChange={() =>
                         setShowPassword((prev) => !prev)
                     }
                     
-                />
+                /> </div>
       <br />
       <div className={'inputContainer'}>
         <input className={'inputButton'} type="button" onClick={onButtonClick} value={'Log in'} />

@@ -34,7 +34,6 @@ export const NavMenu = [
         url: "#",
         cName: "nav-links"
     }
-
 ]
 
 export default NavMenu;

@@ -21,13 +21,13 @@ class NavBar extends Component {
               return (
                 <li key={index}>
                   <a className={item.cName} href={item.url}>
-                    {item.title}
+                    {item.title} {item.icon}
                   </a>
                 </li>
               )
 
             })}
-            
+            <li><i class="fa-solid fa-magnifying-glass"></i> </li>
           </ul>
           <Button></Button>
       </nav>

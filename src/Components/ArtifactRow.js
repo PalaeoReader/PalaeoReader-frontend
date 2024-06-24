@@ -8,15 +8,16 @@ const ArtifactRow = () => {
         <img src="https://image.hurimg.com/i/hurriyet/75/0x0/5c14ad0ec03c0e2ab815636a.jpg" alt="Sample Image" height="225" border="solid" border-color="black"/>
       </div>
       <div className="artifact-detail">
-      
-        <h4 src={<GetArtifact />}>At</h4>
-        <p>Here's a description of the artifact.</p>
+        <GetArtifact/>
+        <h4 className="artifact-name"></h4>
+
+        <p className="artifact-description"></p>
       </div>
       <div className="original-date">
-        Document date:
+        Document date: 
       </div>
       <div className="artifact-date">
-        Date found:
+        Date found: 
       </div>
       <div className="artifact-location">
         Location found:
