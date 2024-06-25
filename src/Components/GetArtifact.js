@@ -7,6 +7,7 @@ export function GetArtifact () {
   useEffect(() => {
     fetchArtifactData.then((response) => response.clone().json())
     .then(data => setData(data))
+    .then(console.log(data))
     .catch(err => console.log(err))
     
   }, ([])
