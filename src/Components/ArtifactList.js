@@ -10,13 +10,6 @@ class ArtifactList extends Component {
     return (
       <div className="container main-content">
         <ArtifactRow />
-        <ArtifactRow />
-        <ArtifactRow />
-        <ArtifactRow />
-        <ArtifactRow />
-        <ArtifactRow />
-        <ArtifactRow />
-        <ArtifactRow />
       </div>
     );
   }

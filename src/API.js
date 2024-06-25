@@ -18,11 +18,6 @@ export default function fetchAccess () {
 }
 
 function fetchArtifactData () {
-  fetch('http://localhost:8000/api/artifacts'),{ 
-    method: 'GET', 
-    headers: {'Content-Type': 'application/json'} 
-  }
-    
   var fetchData = fetch(
       'http://localhost:8000/api/artifacts',
       { method: 'GET' }

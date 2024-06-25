@@ -89,4 +89,8 @@ header {
     font-family: serif, Garamond;
   }
   
+  li {
+    list-style-type: none;
+    display:contents;
+  }
   

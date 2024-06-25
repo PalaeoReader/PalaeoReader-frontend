@@ -9,9 +9,6 @@ const ArtifactRow = () => {
       </div>
       <div className="artifact-detail">
         <GetArtifact/>
-        <h4 className="artifact-name"></h4>
-
-        <p className="artifact-description"></p>
       </div>
       <div className="original-date">
         Document date: 
