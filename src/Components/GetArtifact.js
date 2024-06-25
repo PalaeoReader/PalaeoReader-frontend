@@ -10,14 +10,12 @@ export function GetArtifact () {
     .then((response) => response.clone().json())
     .then(data => setData(data))
     .then(console.log(data))
+    .then(console.log([data].label))
     .catch(err => console.log(err))
     
   }, ([])
-
-    /*.then((response) => response.clone().json())
-    .then((response) => {
-      const dat = response.data;
-      console.log(dat);
+    /*
+      console.log(data);
       let rows = '';
       dat.forEach(data => {
         rows += <><h4 className="artifact-name">${dat.label}</h4>
@@ -27,8 +25,6 @@ export function GetArtifact () {
                 <div className="artifact-location">${dat.discovery_location}</div></>
       });
     */
-
-
   )
 
   return (
