@@ -27,7 +27,7 @@ class NavBar extends Component {
               )
 
             })}
-            <li><i class="fa-solid fa-magnifying-glass"></i> </li>
+            <li><i className="fa-solid fa-magnifying-glass"></i> </li>
           </ul>
           <Button></Button>
       </nav>
