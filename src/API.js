@@ -22,10 +22,20 @@ function fetchArtifactData () {
       'http://localhost:8000/api/artifacts',
       { method: 'GET' }
     );
+    console.log(fetchData);
+  return fetchData;
+}
+
+function fetchArtifactImage () {
+  var fetchData = fetch(
+    'http://localhost:8000/api/{dir}/{image_uri}',
+    {method: 'GET'}
+  );
   return fetchData;
 }
 
 export {
   fetchAccess,
-  fetchArtifactData
+  fetchArtifactData,
+  fetchArtifactImage
 }

@@ -24,6 +24,7 @@ function App() {
         <NavBar />
       </header>
       <ArtifactList/>
+      
     </div>
   );
 }

@@ -27,7 +27,7 @@ class NavBar extends Component {
               )
 
             })}
-            <li><i className="fa-solid fa-magnifying-glass"></i> </li>
+            
           </ul>
           <Button></Button>
       </nav>
@@ -37,3 +37,5 @@ class NavBar extends Component {
 
 
 export default NavBar;
+
+/* goes on line 30 above closing </ul> tag --- <li><i className="fa-solid fa-magnifying-glass"></i> </li> */
