@@ -14,8 +14,9 @@ import { APIgetArtifacts } from '../APIurls';
 
     if (error) return <div className="failed">failed to load</div>;
     if (isValidating) return <div className="loading">Loading...</div>;
-    const label = JSON.stringify([data.label]);
-    console.log(label);
+   // else (console.log([data]))
+    //const label = JSON.stringify([data.label]);
+    //console.log(label);
   
 
   return (
