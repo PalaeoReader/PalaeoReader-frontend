@@ -8,6 +8,9 @@ import ArtifactList from './Components/ArtifactList';
 import Login from './Components/Login/Login';
 import ArtifactRow from './Components/ArtifactRow';
 import './API';
+import './APIurls';
+import ArtifactDisplay from './Components/ArtifactDisplay';
+import SwrImageData from './Components/ArtifactDisplay';
 
 // Clear the existing HTML content
 document.body.innerHTML = '<div id="root"></div>';
@@ -23,7 +26,7 @@ function App() {
       <header className="header">
         <NavBar />
       </header>
-      <ArtifactList/>
+      <SwrImageData/>
       
     </div>
   );

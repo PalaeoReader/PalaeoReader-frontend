@@ -17,14 +17,14 @@ export default function fetchAccess () {
   return fetchData;
 }
 
-function fetchArtifactData () {
+/*function fetchArtifactData () {
   var fetchData = fetch(
       'http://localhost:8000/api/artifacts',
       { method: 'GET' }
     );
     console.log(fetchData);
   return fetchData;
-}
+} */
 
 function fetchArtifactImage () {
   var fetchData = fetch(
@@ -36,6 +36,6 @@ function fetchArtifactImage () {
 
 export {
   fetchAccess,
-  fetchArtifactData,
+  //fetchArtifactData,
   fetchArtifactImage
 }

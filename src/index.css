@@ -55,6 +55,8 @@ header {
 
   .artifact-image {
     padding-bottom: 0px;
+    alt:"Sample image";
+    
   }
   
   .artifact-detail {
@@ -91,6 +93,6 @@ header {
   
   li {
     list-style-type: none;
-    display:contents;
+    padding:0px;
   }
   

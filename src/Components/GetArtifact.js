@@ -10,31 +10,37 @@ import { APIgetArtifacts } from '../APIurls';
     const{
       data: data, 
       error, isValidating
-    } = useSWR(APIgetArtifacts, fetcher); //fix this part
+    } = useSWR(APIgetArtifacts, fetcher);
 
     if (error) return <div className="failed">failed to load</div>;
     if (isValidating) return <div className="loading">Loading...</div>;
-   // else (console.log([data]))
-    //const label = JSON.stringify([data.label]);
-    //console.log(label);
   
 
   return (
    <>
     <div>
-          {[data].map((id, data, label, origindate, description) => (
-              <div>
-                <li key={id}> <h4 className="artifact-name">{[data.label]}</h4> </li>
-                <br></br>
+            
+            {data.data.map((artifact, bar) => (
 
-              </div> 
-          )) 
-          .filter(data => typeof data ==='string')
-              
-            }
-      
+              <div>
+                <li key={artifact.id}> <div className="artifact-image"> {artifact.cover_image}</div> </li>
+                <li key={artifact.id}> <h4 className="artifact-name" href=''>{artifact.label}</h4> </li>
+                <li key={artifact.id}> <p className="artifact-description">{artifact.description}</p> </li>
+                <li key={artifact.id}> <div className="original-date">Document date: {artifact.origin_date}</div></li>
+                <li key={artifact.id}> <div className="artifact-date">Date found: {artifact.discovery_date}</div></li>
+                <li key={artifact.id}> <div className="artifact-location">Location found: {artifact.discovery_location}</div></li>
+
+              </div>
+
+  )) 
+
+          
+}
     </div>
+
     </>
+
+
   );
 
 };
@@ -42,10 +48,20 @@ import { APIgetArtifacts } from '../APIurls';
 
 export default Swr;
 
-/*
-                <li key={id}> <div className="original-date"> Document date: {data.origindate}</div></li>
+/*{[data].map((id, data, label, origindate, description) => (
+              <div>
+                <li key={id}> <h4 className="artifact-name">{[data.label]}</h4> </li>
                 <br></br>
-                <li key={id}> <p className="artifact-description"{data.description}></p> </li>
+
+              </div> 
+          )) 
+              
+            }
+
+
+                
+                <br></br>
+                
                   <h4 className="artifact-name">{data.label}</h4>
-                <div className="artifact-date">{data.discovery-date}</div>
-                <div className="artifact-location">${dat.discovery-location}</div> */
+                
+                 */
