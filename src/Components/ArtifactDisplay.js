@@ -28,21 +28,23 @@ const fetcherImage = (APIgetArtifactImagesGrp1) => fetch(APIgetArtifactImagesGrp
             <div className=''>
                 <h4 bottom-padding="20px" top-padding="20px">Artifact 1</h4>
 
-                <button onClick={()=>setOpen(true)}>Open images</button>
+                <button onClick={() => setOpen(true)}>Open images</button>
                 <Lightbox 
-                  open={Open}
-                  close={() => setOpen(false)}
-                  plugins={[Captions]}
-                  slides={(data.data.map((foo) =>  [
-                    {
-                      src: (foo.uri),
-                      alt: (foo.alt),
-                      description: (foo.caption)
-                    }
-                  
-                  ]))
+                    open={Open}
+                    close={() => setOpen(false)}
+                    plugins={[Captions]}
+                    slides={(data.data.map((artifact, index) =>  
+                                  [
+                                    {
+                                      src:  (artifact.uri),
+                                      alt: (artifact.alt),
+                                      description: (artifact.caption)
+                                    }
+                              
+                                  ]
+                              ))
                     
-                }
+                            }
                     
                   />
                   
