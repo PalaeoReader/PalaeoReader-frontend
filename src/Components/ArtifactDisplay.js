@@ -30,10 +30,10 @@ const fetcherImage = (APIgetArtifactImagesGrp1) => fetch(APIgetArtifactImagesGrp
 					))
 	 console.log(imageList)
 
-	const images = data.data.map((image, index) => 
-		<div><img src={"http://localhost:8000/api/images/"+image.uri} width="50%" alt={image.alt}/><br/>{image.caption}</div>
-	);
-	const lightBox = (
+	//const images = data.data.map((image, index) => 
+	//	<div><img src={"http://localhost:8000/api/images/"+image.uri} width="50%" alt={image.alt}/><br/>{image.caption}</div>
+	//);
+	const lightBoxElem = (
 		<Lightbox 
 			open={Open}
 			close={() => setOpen(false)}
@@ -44,18 +44,11 @@ const fetcherImage = (APIgetArtifactImagesGrp1) => fetch(APIgetArtifactImagesGrp
 
   return (
         <div className=''>
-		  	{lightBox}
             <div className=''>
                 <h4 bottom-padding="20px" top-padding="20px">Artifact 1</h4>
 
                 <button onClick={() => setOpen(true)}>Open images</button>
-                <Lightbox 
-                    open={Open}
-                    close={() => setOpen(false)}
-                    plugins={[Captions]}
-                    slides={imageList}
-                    
-                  />
+		  				{lightBoxElem}
                   
         </div>
         <br />
