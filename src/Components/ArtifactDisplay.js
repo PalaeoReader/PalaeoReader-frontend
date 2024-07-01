@@ -20,11 +20,31 @@ const fetcherImage = (APIgetArtifactImagesGrp1) => fetch(APIgetArtifactImagesGrp
 
     if (error) return <div className="failed">failed to load</div>;
     if (isValidating) return <div className="loading">Loading...</div>;
-    console.log(data)
+    //console.log(data.data[0])
+	 const imageList = data.data.map((artifact, index) => (
+						{
+							src:  "http://localhost:8000/api/images/"+artifact.uri,
+							alt: (artifact.alt),
+							description: (artifact.caption)
+						}
+					))
+	 console.log(imageList)
 
+	const images = data.data.map((image, index) => 
+		<div><img src={"http://localhost:8000/api/images/"+image.uri} width="50%" alt={image.alt}/><br/>{image.caption}</div>
+	);
+	const lightBox = (
+		<Lightbox 
+			open={Open}
+			close={() => setOpen(false)}
+			plugins={[Captions]}
+			slides={imageList}
+		/>
+	);
 
   return (
         <div className=''>
+		  	{lightBox}
             <div className=''>
                 <h4 bottom-padding="20px" top-padding="20px">Artifact 1</h4>
 
@@ -33,18 +53,7 @@ const fetcherImage = (APIgetArtifactImagesGrp1) => fetch(APIgetArtifactImagesGrp
                     open={Open}
                     close={() => setOpen(false)}
                     plugins={[Captions]}
-                    slides={(data.data.map((artifact, index) =>  
-                                  [
-                                    {
-                                      src:  (artifact.uri),
-                                      alt: (artifact.alt),
-                                      description: (artifact.caption)
-                                    }
-                              
-                                  ]
-                              ))
-                    
-                            }
+                    slides={imageList}
                     
                   />
                   
@@ -52,6 +61,7 @@ const fetcherImage = (APIgetArtifactImagesGrp1) => fetch(APIgetArtifactImagesGrp
         <br />
         <ul>
         <div className=''></div>
+		  <div></div>
         </ul>
         
         <br />
