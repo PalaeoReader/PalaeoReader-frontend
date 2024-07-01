@@ -11,57 +11,63 @@ import "yet-another-react-lightbox/plugins/captions.css";
 
 //const fetcherData = (APIgetArtifacts) => fetch(APIgetArtifacts).then((res) => res.json());
 const fetcherImage = (APIgetArtifactImagesGrp1) => fetch(APIgetArtifactImagesGrp1).then((res) => res.json());
-    const SwrImageData = () => {
-      const [Open, setOpen] = useState(false)
+
+const SwrImageData = () => {
+      
+    const [Open, setOpen] = useState(false)
+    
     const{
-      data: data, 
-      error, isValidating
-    } = useSWR(APIgetArtifactImagesGrp1, fetcherImage);
+        data: data, 
+              error, isValidating
+
+          } = useSWR(APIgetArtifactImagesGrp1, fetcherImage);
 
     if (error) return <div className="failed">failed to load</div>;
     if (isValidating) return <div className="loading">Loading...</div>;
+
     console.log(data)
 
 
-  return (
+    return (
         <div className=''>
-            <div className=''>
-                <h4 bottom-padding="20px" top-padding="20px">Artifact 1</h4>
+        <div className=''>
+        <h4 bottom-padding="20px" top-padding="20px">Artifact 1</h4>
 
-                <button onClick={() => setOpen(true)}>Open images</button>
-                <Lightbox 
-                    open={Open}
-                    close={() => setOpen(false)}
-                    plugins={[Captions]}
-                    slides={(data.data.map((artifact, index) =>  
-                                  [
-                                    {
-                                      src:  (artifact.uri),
-                                      alt: (artifact.alt),
-                                      description: (artifact.caption)
-                                    }
+        <button onClick={() => setOpen(true)}>Open images</button>
+        <Lightbox 
+         open={Open}
+         close={() => setOpen(false)}
+                                plugins={[Captions]}
+                                slides={(data.data.map((artifact, index) =>  
+                                              [
+                                                {
+                                                  src:  (artifact.uri),
+                                                  alt: (artifact.alt),
+                                                  description: (artifact.caption)
+                                                }
+                                          
+                                              ]
+                                                      )
+                                        )
+                                
+                                        }
+                                
+                              />
                               
-                                  ]
-                              ))
+                    </div>
+                    <br />
+                    <ul>
+                    <div className=''></div>
+                    </ul>
                     
-                            }
-                    
-                  />
+                    <br />
+                    <div className=''>
                   
-        </div>
-        <br />
-        <ul>
-        <div className=''></div>
-        </ul>
-        
-        <br />
-        <div className=''>
-       
-        </div>
-       
-        </div>
-        )
-      }
-     //}
+                    </div>
+                  
+                    </div>
+                    )
+                  }
+          //}
 
   export default SwrImageData;
