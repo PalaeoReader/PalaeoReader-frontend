@@ -8,6 +8,7 @@ import Download from "yet-another-react-lightbox/plugins/download";
 import Fullscreen from "yet-another-react-lightbox/plugins/fullscreen";
 import Thumbnails from "yet-another-react-lightbox/plugins/thumbnails";
 import Zoom from "yet-another-react-lightbox/plugins/zoom";
+import Inline from "yet-another-react-lightbox/plugins/inline";
 import "yet-another-react-lightbox/plugins/captions.css";
 import "yet-another-react-lightbox/plugins/thumbnails.css";
 
@@ -48,8 +49,11 @@ const SwrImageData = () => {
       <Lightbox 
         open={Open}
         close={() => setOpen(false)}
-        plugins={[Captions, Download, Fullscreen, Thumbnails, Zoom]}
+        plugins={[Captions, Download, Fullscreen, Thumbnails, Zoom, Inline]}
         slides={imageList}
+        inline={{
+          style: { width: "100%", maxWidth: "900px", aspectRatio: "3 / 2" },
+        }}
       />
     );
 
