@@ -47,8 +47,7 @@ const SwrImageData = () => {
 	//);
     const lightBoxElem = (
       <Lightbox 
-        open={Open}
-        close={() => setOpen(false)}
+
         plugins={[Captions, Download, Fullscreen, Thumbnails, Zoom, Inline]}
         slides={imageList}
         inline={{
@@ -62,7 +61,6 @@ const SwrImageData = () => {
             <div className=''>
                 <h4 bottom-padding="20px" top-padding="20px">Artifact 1</h4>
 
-                <button onClick={() => setOpen(true)}>Artifact Images</button>
 		  				{lightBoxElem}
                   
             </div>
