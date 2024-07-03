@@ -26,8 +26,7 @@ function App() {
       <header className="header">
         <NavBar />
       </header>
-      <SwrImageData/>
-      
+      <ArtifactDisplay/>
     </div>
   );
 }

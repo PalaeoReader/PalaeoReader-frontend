@@ -11,17 +11,16 @@ import Zoom from "yet-another-react-lightbox/plugins/zoom";
 import Inline from "yet-another-react-lightbox/plugins/inline";
 import "yet-another-react-lightbox/plugins/captions.css";
 import "yet-another-react-lightbox/plugins/thumbnails.css";
-
-
-//export function ArtifactDisplay() {
+import Swr from './GetArtifact';
   
 
-//const fetcherData = (APIgetArtifacts) => fetch(APIgetArtifacts).then((res) => res.json());
+const fetcherData = (APIgetArtifacts) => fetch(APIgetArtifacts).then((res) => res.json());
 const fetcherImage = (APIgetArtifactImagesGrp1) => fetch(APIgetArtifactImagesGrp1).then((res) => res.json());
     
-const SwrImageData = () => {
+export const ArtifactDisplay = () => {
       
   const [Open, setOpen] = useState(false)
+  const [index, setIndex] = React.useState(-1);
     
   const{
       data: data, 
@@ -40,28 +39,34 @@ const SwrImageData = () => {
 							description: (artifact.caption)
 						}
 					))
-	 console.log(imageList)
+	// console.log(imageList)
 
 	//const images = data.data.map((image, index) => 
 	//	<div><img src={"http://localhost:8000/api/images/"+image.uri} width="50%" alt={image.alt}/><br/>{image.caption}</div>
 	//);
     const lightBoxElem = (
       <Lightbox 
-
+        index={index}
         plugins={[Captions, Download, Fullscreen, Thumbnails, Zoom, Inline]}
         slides={imageList}
         inline={{
-          style: { width: "100%", maxWidth: "900px", aspectRatio: "3 / 2" },
+          style: { width: "100%", maxWidth: "800px", aspectRatio: "3 / 2", imagefit: "cover"},
         }}
+        open={index >= 0}
+        close={() => setIndex(-1)}
       />
     );
+
+      
+      
 
   return (
         <div className=''>
             <div className=''>
                 <h4 bottom-padding="20px" top-padding="20px">Artifact 1</h4>
 
-		  				{lightBoxElem}
+              {lightBoxElem}
+              <Swr/>
                   
             </div>
 
@@ -83,4 +88,4 @@ const SwrImageData = () => {
       }
      //}
 
-  export default SwrImageData;
+  export default ArtifactDisplay;
