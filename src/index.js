@@ -4,9 +4,9 @@ import NavBar from './Components/NavBar/NavBar';
 import './index.css';
 import './Components/NavBar/NavBar.css'
 import './Components/Login/Login.css';
-import ArtifactList from './Components/ArtifactList';
+import ArtifactList from './Components/ArtifactDirectory/ArtifactList';
 import Login from './Components/Login/Login';
-import ArtifactRow from './Components/ArtifactRow';
+import ArtifactRow from './Components/ArtifactDirectory/ArtifactRow';
 import './API';
 import './APIurls';
 import ArtifactDisplay from './Components/ArtifactDisplay';
@@ -31,4 +31,4 @@ function App() {
   );
 }
 
-root.render(<App />);
+root.render(<App/>);

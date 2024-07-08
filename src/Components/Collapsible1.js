@@ -1,0 +1,76 @@
+import React, { useState } from 'react';
+import { useCollapse } from 'react-collapsed';
+import '../index.css'; 
+import useSWR from 'swr';
+import Lightbox from 'yet-another-react-lightbox';
+import "yet-another-react-lightbox/styles.css";
+import { APIgetArtifactImagesGrp1 } from '../APIurls';
+import Captions from "yet-another-react-lightbox/plugins/captions";
+import Download from "yet-another-react-lightbox/plugins/download";
+import Fullscreen from "yet-another-react-lightbox/plugins/fullscreen";
+import Thumbnails from "yet-another-react-lightbox/plugins/thumbnails";
+import Zoom from "yet-another-react-lightbox/plugins/zoom";
+import { Inline } from 'yet-another-react-lightbox/plugins';
+import "yet-another-react-lightbox/plugins/captions.css";
+import "yet-another-react-lightbox/plugins/thumbnails.css";
+
+const config = {
+    duration: 1000
+};
+
+const fetcherImageGrp1 = (APIgetArtifactImagesGrp1) => fetch(APIgetArtifactImagesGrp1).then((res) => res.json());
+
+function Collapsible1() {
+    const { getCollapseProps, getToggleProps, isExpanded } = useCollapse(config);
+    const [index, setIndex] = React.useState(-1);
+
+    const{
+        data: data, 
+        error, isValidating
+      } = useSWR(APIgetArtifactImagesGrp1, fetcherImageGrp1);
+  
+      if (error) return <div className="failed">failed to load</div>;
+      if (isValidating) return <div className="loading">Loading...</div>;
+    
+  
+      const imageList = data.data.map((artifact, index) => (
+                          {
+                            src: "http://localhost:8000/api/images/"+artifact.uri,
+                            alt: (artifact.alt),
+                            downloadUrl: (artifact.uri),
+                            description: (artifact.caption)
+                          }
+                      ))
+  
+      const lightBoxElem1 = (
+        <Lightbox 
+          index={index}
+          plugins={[Captions, Download, Fullscreen, Thumbnails, Zoom, Inline]}
+          slides={imageList}
+          open={index >= 0}
+          close={() => setIndex(-1)}
+          inline={{
+            style: { width: "50%", maxWidth: "700px", aspectRatio: "3 / 2" },
+          }}
+        />
+      )
+
+return (
+    <div className="collapsible">
+        <div className="header" {...getToggleProps()}>
+            {isExpanded ? 'Collapse' : 'Expand'}
+        </div>
+        <div {...getCollapseProps()}>
+            <div className="content">
+                {lightBoxElem1}
+
+                <br></br>
+                Click <i>Collapse</i> to hide this content...
+            </div>
+        </div>
+    </div>
+    );
+}
+
+
+export default Collapsible1;

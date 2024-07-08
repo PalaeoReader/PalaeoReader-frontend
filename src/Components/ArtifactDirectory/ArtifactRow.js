@@ -1,5 +1,5 @@
 import React from 'react';
-import {Swr} from './GetArtifact';
+import ArtifactMetadata from '../GetArtifact';
 
 const ArtifactRow = () => {
   return (
@@ -8,7 +8,7 @@ const ArtifactRow = () => {
         <img src="https://image.hurimg.com/i/hurriyet/75/0x0/5c14ad0ec03c0e2ab815636a.jpg" alt="Sample image" height="225"/>
       </div>
       <div className="artifact-detail">
-        <Swr/>
+        <ArtifactMetadata/>
       </div>
     </div>
   );

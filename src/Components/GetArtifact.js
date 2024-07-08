@@ -6,7 +6,7 @@ import { APIgetArtifacts } from '../APIurls';
   // created function to handle API request
   const fetcher = (APIgetArtifacts) => fetch(APIgetArtifacts).then((res) => res.json());
 
-  export const Swr = () => {
+  export const ArtifactMetadata = () => {
     const{
       data: data, 
       error, isValidating
@@ -46,7 +46,7 @@ import { APIgetArtifacts } from '../APIurls';
 };
 
 
-export default Swr;
+export default ArtifactMetadata;
 
 /*{[data].map((id, data, label, origindate, description) => (
               <div>

@@ -58,6 +58,7 @@ header {
     alt:"Sample image";
     
   }
+
   
   .artifact-detail {
     padding-left: 5px;
@@ -95,4 +96,24 @@ header {
     list-style-type: none;
     padding:0px;
   }
+
+  .artifact-metadata{
+    padding-top: 15px;
+    padding-bottom: 15px;
+    background-color: #e4efef;
+    border-width: 10px;
+    border-color: black;
+    border-radius: 30px;
+    margin-inline-start: 300px;
+    margin-inline-end: 300px;
+  }
   
+.collapsible .content {
+    padding: 6px;
+    background-color: #eeeeee;
+}
+.collapsible .header {
+    background-color: #e4efef;
+    padding: 6px;
+    cursor: pointer;
+}
