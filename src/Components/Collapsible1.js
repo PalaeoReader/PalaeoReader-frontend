@@ -13,6 +13,7 @@ import Zoom from "yet-another-react-lightbox/plugins/zoom";
 import { Inline } from 'yet-another-react-lightbox/plugins';
 import "yet-another-react-lightbox/plugins/captions.css";
 import "yet-another-react-lightbox/plugins/thumbnails.css";
+import { Gallery } from "react-grid-gallery";
 
 const config = {
     duration: 1000
@@ -47,16 +48,19 @@ function Collapsible1() {
       ))
   
       const lightBoxElem1 = (
-        <Lightbox 
-          index={index}
-          plugins={[Captions, Download, Fullscreen, Thumbnails, Zoom, Inline]}
-          slides={imageList}
-          open={index >= 0}
-          close={() => setIndex(-1)}
-          inline={{
-            style: { width: "50%", maxWidth: "700px", aspectRatio: "3 / 2" },
-          }}
+        <Gallery
+        images={imageList}  
         />
+
+        /*<Lightbox
+                    index={index}
+                    plugins={[Captions, Download, Fullscreen, Thumbnails, Zoom, Inline]}
+                    slides={imageList}
+                    open={index >= 0}
+                    close={() => setIndex(-1)}
+                    inline={{
+                      style: { width: "50%", maxWidth: "700px", aspectRatio: "3 / 2" },
+                    }}/>*/
       )
 
 return (
