@@ -33,7 +33,7 @@ function Collapsible2() {
       if (isValidating) return <div className="loading">Loading...</div>;
     
   
-      const imageList = data.data.map((artifact, index) => (
+      const imageList = data.images.map((artifact, index) => (
                           {
                             src: "http://localhost:8000/api/images/"+artifact.uri,
                             alt: (artifact.alt),
@@ -42,7 +42,7 @@ function Collapsible2() {
                           }
                       ))
   
-      const lightBoxElem1 = (
+      const lightBoxElem2 = (
         <Lightbox 
           index={index}
           plugins={[Captions, Download, Fullscreen, Thumbnails, Zoom, Inline]}
@@ -54,14 +54,16 @@ function Collapsible2() {
           }}
         />
       )*/
+
 return (
     <div className="collapsible">
         <div className="header" {...getToggleProps()}>
-            {isExpanded ? 'Collapse' : 'Expand'}
+          {isExpanded ? <i class="fa-solid fa-caret-down"></i> : <i class="fa-solid fa-caret-up"></i>}
         </div>
         <div {...getCollapseProps()}>
             <div className="content">
                 Now you can see the hidden content. <br/><br/>
+                
                 Click <i>Collapse</i> to hide this content... <br/><br/>
             </div>
         </div>

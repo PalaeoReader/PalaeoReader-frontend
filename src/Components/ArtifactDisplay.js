@@ -41,10 +41,7 @@ const ArtifactDisplay = () => {
                 </div>
         
             <br />
-
-            <div className=''>
-       
-            </div>
+      
        
         </div>
         )

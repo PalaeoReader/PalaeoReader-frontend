@@ -33,7 +33,7 @@ function Collapsible1() {
       if (isValidating) return <div className="loading">Loading...</div>;
     
   
-      const imageList = data.data.map((artifact, index) => (
+      const imageList = data.images.map((artifact, index) => (
                           {
                             src: "http://localhost:8000/api/images/"+artifact.uri,
                             alt: (artifact.alt),
@@ -41,6 +41,10 @@ function Collapsible1() {
                             description: (artifact.caption)
                           }
                       ))
+
+      const groupName = [data].map((artifact, index) => (
+                          <div key ={artifact.id} className="imageGroupName">{artifact.name}</div>
+      ))
   
       const lightBoxElem1 = (
         <Lightbox 
@@ -58,7 +62,10 @@ function Collapsible1() {
 return (
     <div className="collapsible">
         <div className="header" {...getToggleProps()}>
-            {isExpanded ? 'Collapse' : 'Expand'}
+          
+          {isExpanded ? <i class="fa-solid fa-caret-down"></i> : <i class="fa-solid fa-caret-up"></i> }
+          {groupName}
+            
         </div>
         <div {...getCollapseProps()}>
             <div className="content">
