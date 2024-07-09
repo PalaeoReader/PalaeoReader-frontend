@@ -107,13 +107,26 @@ header {
     margin-inline-start: 300px;
     margin-inline-end: 300px;
   }
-  
+
+/*collapsible*/
+
 .collapsible .content {
-    padding: 6px;
+    padding: 4px;
     background-color: #eeeeee;
 }
 .collapsible .header {
     background-color: #e4efef;
-    padding: 6px;
+    padding: 4px;
     cursor: pointer;
+}
+
+.fa-caret-down:hover {
+    background-color: grey;
+    border-radius: 300;
+}
+
+.fa-caret-up:hover {
+    background-color: grey;
+    border-radius: 300;
+    border-width: 3;
 }

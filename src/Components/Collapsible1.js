@@ -4,7 +4,7 @@ import '../index.css';
 import useSWR from 'swr';
 import Lightbox from 'yet-another-react-lightbox';
 import "yet-another-react-lightbox/styles.css";
-import { APIgetArtifactImagesGrp1 } from '../APIurls';
+import { APIgetArtifactImageGrp1 } from '../APIurls';
 import Captions from "yet-another-react-lightbox/plugins/captions";
 import Download from "yet-another-react-lightbox/plugins/download";
 import Fullscreen from "yet-another-react-lightbox/plugins/fullscreen";
@@ -19,22 +19,21 @@ const config = {
     duration: 1000
 };
 
-const fetcherImageGrp1 = (APIgetArtifactImagesGrp1) => fetch(APIgetArtifactImagesGrp1).then((res) => res.json());
+const fetcherImageGrp1 = (APIgetArtifactImageGrp1) => fetch(APIgetArtifactImageGrp1).then((res) => res.json());
 
 function Collapsible1() {
     const { getCollapseProps, getToggleProps, isExpanded } = useCollapse(config);
-    const [index, setIndex] = React.useState(-1);
+    const [index, setIndex] = useState(-1);
 
     const{
         data: data, 
         error, isValidating
-      } = useSWR(APIgetArtifactImagesGrp1, fetcherImageGrp1);
+      } = useSWR(APIgetArtifactImageGrp1, fetcherImageGrp1);
   
       if (error) return <div className="failed">failed to load</div>;
       if (isValidating) return <div className="loading">Loading...</div>;
     
-  
-      const imageList = data.images.map((artifact, index) => (
+    const imageList = data.images.map((artifact, index) => (
                           {
                             src: "http://localhost:8000/api/images/"+artifact.uri,
                             alt: (artifact.alt),
@@ -43,24 +42,30 @@ function Collapsible1() {
                           }
                       ))
 
-      const groupName = [data].map((artifact, index) => (
+    const groupName = [data].map((artifact, index) => (
                           <div key ={artifact.id} className="imageGroupName">{artifact.name}</div>
       ))
-  
-      const lightBoxElem1 = (
-        <Gallery
-        images={imageList}  
-        />
+      
+    //const handleClick = {({index: >=0}) => setIndex(index)};
 
-        /*<Lightbox
-                    index={index}
-                    plugins={[Captions, Download, Fullscreen, Thumbnails, Zoom, Inline]}
-                    slides={imageList}
-                    open={index >= 0}
-                    close={() => setIndex(-1)}
-                    inline={{
-                      style: { width: "50%", maxWidth: "700px", aspectRatio: "3 / 2" },
-                    }}/>*/
+    const lightBoxElem1 = (
+        <Lightbox
+            index={index}
+            plugins={[Captions, Download, Fullscreen, Thumbnails, Zoom, Inline]}
+            slides={imageList}
+            open={index >= 0}
+            close={() => setIndex(-1)}
+            />
+        
+      )
+
+    const galleryElem1 = (
+        <Gallery
+            images={imageList}
+            //onClick={handleClick}
+            enableImageSelection={false}
+            
+        />
       )
 
 return (
@@ -68,12 +73,13 @@ return (
         <div className="header" {...getToggleProps()}>
           
           {isExpanded ? <i class="fa-solid fa-caret-down"></i> : <i class="fa-solid fa-caret-up"></i> }
-          {groupName}
+          <h3>{groupName}</h3>
             
         </div>
         <div {...getCollapseProps()}>
             <div className="content">
-                {lightBoxElem1}
+                {galleryElem1}
+                
 
                 <br></br>
                 Click <i>Collapse</i> to hide this content...
