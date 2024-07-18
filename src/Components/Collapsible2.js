@@ -3,7 +3,7 @@ import { useCollapse } from 'react-collapsed';
 import useSWR from 'swr';
 import Lightbox from 'yet-another-react-lightbox';
 import "yet-another-react-lightbox/styles.css";
-import { APIgetArtifactImagesGrp2 } from '../APIurls';
+import { APIgetArtifactImageGrp } from '../APIurls';
 import Captions from "yet-another-react-lightbox/plugins/captions";
 import Download from "yet-another-react-lightbox/plugins/download";
 import Fullscreen from "yet-another-react-lightbox/plugins/fullscreen";
@@ -17,17 +17,18 @@ const config = {
     duration: 1000
 };
 
-const fetcherImageGrp2 = (APIgetArtifactImagesGrp2) => fetch(APIgetArtifactImagesGrp2).then((res) => res.json());
+const fetcherImageGrp2 = (APIgetArtifactImageGrp) => fetch(APIgetArtifactImageGrp).then((res) => res.json());
 
 
 function Collapsible2() {
     const { getCollapseProps, getToggleProps, isExpanded } = useCollapse(config);
-    /*const [index, setIndex] = React.useState(-1);
+    const [index, setIndex] = React.useState(-1);
+    const artifactID = '2';
 
     const{
         data: data, 
         error, isValidating
-      } = useSWR(APIgetArtifactImagesGrp2, fetcherImageGrp2);
+      } = useSWR(APIgetArtifactImageGrp+artifactID, fetcherImageGrp2);
   
       if (error) return <div className="failed">failed to load</div>;
       if (isValidating) return <div className="loading">Loading...</div>;
@@ -53,7 +54,7 @@ function Collapsible2() {
             style: { width: "50%", maxWidth: "700px", aspectRatio: "3 / 2" },
           }}
         />
-      )*/
+      )
 
 return (
     <div className="collapsible">

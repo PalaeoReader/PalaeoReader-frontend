@@ -17,7 +17,7 @@ const ArtifactDisplay = () => {
     )
 
   const collapsible2Elem = (
-      <Collapsible2/>
+      <Collapsible1/>
     )
       
 

@@ -29,6 +29,11 @@ import { APIgetArtifacts } from '../APIurls';
                 <li key={artifact.id}> <div className="original-date">Document date: {artifact.origin_date}</div></li>
                 <li key={artifact.id}> <div className="artifact-date">Date found: {artifact.discovery_date}</div></li>
                 <li key={artifact.id}> <div className="artifact-location">Location found: {artifact.discovery_location}</div></li>
+                <li key={artifact.id}> <div className="artifact-language">Language: {artifact.language}</div></li>
+                <li key={artifact.id}> <div className="artifact-script">Script: {artifact.script}</div></li>
+                <li key={artifact.id}> <div className="artifact-material">Material: {artifact.material}</div></li>
+                <li key={artifact.id}> <div className="artifact-dimensions">Dimensions: {artifact.dimensions}</div></li>
+                <li key={artifact.id}> <div className="artifact-current-location">Current location: {artifact.current_location}</div></li>
 
               </div>
 
