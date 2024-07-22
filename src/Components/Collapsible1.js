@@ -25,17 +25,10 @@ const fetcherImageGrp = (APIgetArtifactImageGrp) => fetch(APIgetArtifactImageGrp
 
 function Collapsible1() {
     const { getCollapseProps, getToggleProps, isExpanded } = useCollapse(config);
-    const [open, setOpen] = useState(false);
-    const [index, setIndex] = useState(-1);
+    //const [open, setOpen] = useState(false);
+    const [index, setIndex] = useState(null);
     const [auto, setAuto] = useState(false);
     const [showLightbox, setShowLightbox] = useState(false)
-
-    const handleClick = () => {
-      setAuto(true)
-      setShowLightbox(true)
-      setOpen(true)
-
-    }
 
     const fullscreenRef = useRef(null);
     const captionsRef = useRef(null);
@@ -61,20 +54,27 @@ function Collapsible1() {
     const groupName = [data].map((artifact) => (
                           <div key ={artifact.id} className="imageGroupName">{artifact.name}</div>
       ))
-    
+
+    const handleClick = () => {
+        setAuto(true)
+        setShowLightbox(true)
+        setIndex(index)
+        //setOpen(true)
+  
+      }
     const LightBoxElem1 = () => (
       <Lightbox
           index={index}
           plugins={[Captions, Download, Fullscreen, Thumbnails, Zoom, Inline]}
           slides={imageList}
           fullscreen={{ auto }}
-          captions={{ ref: captionsRef }}
+          captions={{ auto }}
           on={{ 
-            //view: ({ index: index }) => setIndex(index), 
-            //click: () => {fullscreenRef.current?.enter()}
+            //view: , 
+            click: () => ({ index: index }) => setIndex(index)
           }}
           open={index >= 0}
-          close={() => setIndex(4)}
+          //close={() => setIndex(-1)}
           />
       
     )
@@ -88,7 +88,6 @@ function Collapsible1() {
             images={imageList}
             enableImageSelection={false}
             onClick={handleClick}
-            
             
         />
       )
