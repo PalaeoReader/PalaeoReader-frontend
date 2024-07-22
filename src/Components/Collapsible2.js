@@ -30,20 +30,20 @@ function Collapsible2() {
         error, isValidating
       } = useSWR(APIgetArtifactImageGrp+artifactID, fetcherImageGrp2);
   
-      if (error) return <div className="failed">failed to load</div>;
-      if (isValidating) return <div className="loading">Loading...</div>;
+    if (error) return <div className="failed">failed to load</div>;
+    if (isValidating) return <div className="loading">Loading...</div>;
     
   
-      const imageList = data.images.map((artifact, index) => (
-                          {
+    const imageList = data.images.map((artifact, index) => (
+                        {
                             src: "http://localhost:8000/api/images/"+artifact.uri,
                             alt: (artifact.alt),
                             downloadUrl: (artifact.uri),
                             description: (artifact.caption)
-                          }
-                      ))
+                        }
+                      ));
   
-      const lightBoxElem2 = (
+    const lightBoxElem2 = (
         <Lightbox 
           index={index}
           plugins={[Captions, Download, Fullscreen, Thumbnails, Zoom, Inline]}
@@ -54,21 +54,21 @@ function Collapsible2() {
             style: { width: "50%", maxWidth: "700px", aspectRatio: "3 / 2" },
           }}
         />
-      )
+    )
 
-return (
-    <div className="collapsible">
-        <div className="header" {...getToggleProps()}>
-          {isExpanded ? <i class="fa-solid fa-caret-down"></i> : <i class="fa-solid fa-caret-up"></i>}
-        </div>
-        <div {...getCollapseProps()}>
-            <div className="content">
-                Now you can see the hidden content. <br/><br/>
-                
-                Click <i>Collapse</i> to hide this content... <br/><br/>
+    return (
+        <div className="collapsible">
+            <div className="header" {...getToggleProps()}>
+              {isExpanded ? <i class="fa-solid fa-caret-down"></i> : <i class="fa-solid fa-caret-up"></i>}
+            </div>
+            <div {...getCollapseProps()}>
+                <div className="content">
+                    Now you can see the hidden content. <br/><br/>
+                    
+                    Click <i>Collapse</i> to hide this content... <br/><br/>
+                </div>
             </div>
         </div>
-    </div>
     );
 }
 
