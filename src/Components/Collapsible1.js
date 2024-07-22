@@ -26,9 +26,7 @@ const fetcherImageGrp = (APIgetArtifactImageGrp) => fetch(APIgetArtifactImageGrp
 function Collapsible1() {
     const { getCollapseProps, getToggleProps, isExpanded } = useCollapse(config);
     //const [open, setOpen] = useState(false);
-    const [index, setIndex] = useState(null);
-    const [auto, setAuto] = useState(false);
-    const [showLightbox, setShowLightbox] = useState(false)
+    const [index, setIndex] = useState(-1);
 
     const fullscreenRef = useRef(null);
     const captionsRef = useRef(null);
@@ -39,76 +37,57 @@ function Collapsible1() {
         error, isValidating
       } = useSWR((APIgetArtifactImageGrp+artifactID/*+'/imagegroups'*/), fetcherImageGrp);
   
-      if (error) return <div className="failed">failed to load</div>;
-      if (isValidating) return <div className="loading">Loading...</div>;
+    if (error) return <div className="failed">failed to load</div>;
+    if (isValidating) return <div className="loading">Loading...</div>;
     
-    const imageList = data.images.map((artifact) => (
-                          {
-                            src: "http://localhost:8000/api/images/"+artifact.uri,
-                            alt: (artifact.alt),
-                            downloadUrl: (artifact.uri),
-                            description: (artifact.caption)
-                          }
+    const imageList = data.images.map((img) => (
+                        {
+                            src: "http://localhost:8000/api/images/"+img.uri,
+                            alt: (img.alt),
+                            downloadUrl: (img.uri),
+                            caption: (img.caption),
+                        }
                       ))
+
+    const handleClick = (index: number, item: CustomImage) => setIndex(index);
 
     const groupName = [data].map((artifact) => (
                           <div key ={artifact.id} className="imageGroupName">{artifact.name}</div>
-      ))
+                      ))
 
-    const handleClick = () => {
-        setAuto(true)
-        setShowLightbox(true)
-        setIndex(index)
-        //setOpen(true)
-  
-      }
     const LightBoxElem1 = () => (
-      <Lightbox
-          index={index}
-          plugins={[Captions, Download, Fullscreen, Thumbnails, Zoom, Inline]}
-          slides={imageList}
-          fullscreen={{ auto }}
-          captions={{ auto }}
-          on={{ 
-            //view: , 
-            click: () => ({ index: index }) => setIndex(index)
-          }}
-          open={index >= 0}
-          //close={() => setIndex(-1)}
-          />
-      
-    )
+        <Lightbox
+            plugins={[Captions, Download, Fullscreen, Thumbnails, Zoom]}
+            slides={imageList}
+            open={index >= 0}
+            index={index}
+            close={() => setIndex(-1)}
+        />
+      )
    
-    console.log(index)
-    
-
     const galleryElem1 = (
-      
         <Gallery
             images={imageList}
-            enableImageSelection={false}
             onClick={handleClick}
-            
+            enableImageSelection={false}
         />
       )
 
-return (
-    <div className="collapsible">
-        <div className="header" {...getToggleProps()}> 
-          
-          {isExpanded ? <i class="fa-solid fa-caret-down"></i> : <i class="fa-solid fa-caret-right"></i> }
-          {groupName}
+    return (
+        <div className="collapsible">
+            <div className="header" {...getToggleProps()}> 
+
+              {isExpanded ? <i class="fa-solid fa-caret-down"></i> : <i class="fa-solid fa-caret-right"></i> }
+              {groupName}
             
-        </div>
-        <div {...getCollapseProps()}>
-            <div className="content">
-                {galleryElem1}
-                { showLightbox ? <LightBoxElem1 /> : null }
-                
-                <br></br>
+            </div>
+            <div {...getCollapseProps()}>
+                <div className="content">
+                    {galleryElem1}
+                    <LightBoxElem1/>
+                </div>
             </div>
         </div>
-    </div>
     );
 }
 
