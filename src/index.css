@@ -55,6 +55,7 @@ header {
 
   .artifact-image {
     padding-bottom: 0px;
+    padding-left: 0px;
     alt:"Sample image";
     
   }
@@ -64,6 +65,7 @@ header {
     font-family: serif, Garamond;
     font-size: 15px;
     column-span: all;
+    padding-top: 0px;
   }
   
   li {

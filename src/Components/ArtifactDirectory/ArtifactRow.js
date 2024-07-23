@@ -19,8 +19,6 @@ export const ArtifactRow = () => {
     <div className="row artifact">
      
       <div className="artifact-detail">
-
-        <div>
             
             {data.data.map((artifact, bar) => (
 
@@ -41,7 +39,7 @@ export const ArtifactRow = () => {
                   ))
                           
                 }
-        </div>
+        
       </div>
     </div>
   );

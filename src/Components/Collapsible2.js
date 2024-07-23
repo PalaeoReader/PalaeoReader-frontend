@@ -12,6 +12,7 @@ import Zoom from "yet-another-react-lightbox/plugins/zoom";
 import { Inline } from 'yet-another-react-lightbox/plugins';
 import "yet-another-react-lightbox/plugins/captions.css";
 import "yet-another-react-lightbox/plugins/thumbnails.css";
+import { Gallery } from "react-grid-gallery";
 
 const config = {
     duration: 1000
@@ -25,6 +26,8 @@ function Collapsible2() {
     const [index, setIndex] = React.useState(-1);
     const artifactID = '2';
 
+    const handleClick = (index: number, item: CustomImage) => setIndex(index);
+
     const{
         data: data, 
         error, isValidating
@@ -34,38 +37,49 @@ function Collapsible2() {
     if (isValidating) return <div className="loading">Loading...</div>;
     
   
-    const imageList = data.images.map((artifact, index) => (
+    const imageList = data.images.map((img, index) => (
                         {
-                            src: "http://localhost:8000/api/images/"+artifact.uri,
-                            alt: (artifact.alt),
-                            downloadUrl: (artifact.uri),
-                            description: (artifact.caption)
+                            src: "http://localhost:8000/api/images/"+img.uri,
+                            alt: (img.alt),
+                            downloadUrl: (img.uri),
+                            description: (img.caption)
                         }
                       ));
   
-    const lightBoxElem2 = (
-        <Lightbox 
-          index={index}
-          plugins={[Captions, Download, Fullscreen, Thumbnails, Zoom, Inline]}
-          slides={imageList}
-          open={index >= 0}
-          close={() => setIndex(-1)}
-          inline={{
-            style: { width: "50%", maxWidth: "700px", aspectRatio: "3 / 2" },
-          }}
-        />
+    const LightBoxElem2 = () => (
+        <Lightbox
+        plugins={[Captions, Download, Fullscreen, Thumbnails, Zoom]}
+        slides={imageList}
+        open={index >= 0}
+        index={index}
+        close={() => setIndex(-1)}
+      />
     )
+
+    const galleryElem2 = (
+      <Gallery
+          images={imageList}
+          onClick={handleClick}
+          enableImageSelection={false}
+      />
+    )
+
+    const groupName = [data].map((artifact) => (
+      <div key ={artifact.id} className="imageGroupName">{artifact.name}</div>
+  ))
 
     return (
         <div className="collapsible">
             <div className="header" {...getToggleProps()}>
-              {isExpanded ? <i class="fa-solid fa-caret-down"></i> : <i class="fa-solid fa-caret-up"></i>}
+
+              {isExpanded ? <i class="fa-solid fa-caret-down"></i> : <i class="fa-solid fa-caret-right"></i> }
+              {groupName}
+
             </div>
             <div {...getCollapseProps()}>
                 <div className="content">
-                    Now you can see the hidden content. <br/><br/>
-                    
-                    Click <i>Collapse</i> to hide this content... <br/><br/>
+                    {galleryElem2}
+                    <LightBoxElem2/>
                 </div>
             </div>
         </div>

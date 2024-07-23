@@ -52,21 +52,3 @@ import { APIgetArtifacts } from '../APIurls';
 
 
 export default ArtifactMetadata;
-
-/*{[data].map((id, data, label, origindate, description) => (
-              <div>
-                <li key={id}> <h4 className="artifact-name">{[data.label]}</h4> </li>
-                <br></br>
-
-              </div> 
-          )) 
-              
-            }
-
-
-                
-                <br></br>
-                
-                  <h4 className="artifact-name">{data.label}</h4>
-                
-                 */
