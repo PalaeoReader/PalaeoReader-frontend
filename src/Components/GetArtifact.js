@@ -20,7 +20,7 @@ import { APIgetArtifacts } from '../APIurls';
    <>
     <div>
             
-            {data.data.map((artifact, bar) => (
+            {data.data.map((artifact, index) => (
 
               <div>
                 <li key={artifact.id}> <div className="artifact-image"> {artifact.cover_image}</div> </li>
