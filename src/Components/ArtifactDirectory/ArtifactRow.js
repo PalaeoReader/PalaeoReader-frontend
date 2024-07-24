@@ -21,7 +21,7 @@ export const ArtifactRow = () => {
 
     <div className="flexdiv">
 
-      {data.data.map((artifact, index) => (
+      {[data].map((artifact, index) => (
 
         <div className="artifact">
         
