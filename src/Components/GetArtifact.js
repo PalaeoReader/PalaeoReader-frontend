@@ -4,27 +4,33 @@ import { APIgetArtifacts } from '../APIurls';
 //import { fetchArtifactData } from '../API';
 
   // created function to handle API request
+  //const artifactID = '1';
   const fetcher = (APIgetArtifacts) => fetch(APIgetArtifacts).then((res) => res.json());
+  
 
   export const ArtifactMetadata = () => {
     const{
       data: data, 
       error, isValidating
-    } = useSWR(APIgetArtifacts, fetcher);
+    } = useSWR(APIgetArtifacts/*+artifactID*/, fetcher);
 
     if (error) return <div className="failed">failed to load</div>;
     if (isValidating) return <div className="loading">Loading...</div>;
-  
+
+    
 
   return (
-   <>
-    <div>
+   <div>
+
+                {data.data.map(artifact => (
+
+      <div>
             
-            {data.data.map((artifact, index) => (
+            
 
               <div>
-                <li key={artifact.id}> <div className="artifact-image"> {artifact.cover_image}</div> </li>
-                <li key={artifact.id}> <h4 className="artifact-name" href=''>{artifact.label}</h4> </li>
+                <li key={artifact.id}> <img className="artifact-image" src={artifact.cover_image}/></li>
+                <li key={artifact.id}> <h4 className="artifact-name">{artifact.label}</h4> </li>
                 <li key={artifact.id}> <p className="artifact-description">{artifact.description}</p> </li>
                 <li key={artifact.id}> <div className="original-date">Document date: {artifact.origin_date}</div></li>
                 <li key={artifact.id}> <div className="artifact-date">Date found: {artifact.discovery_date}</div></li>
@@ -37,13 +43,14 @@ import { APIgetArtifacts } from '../APIurls';
 
               </div>
 
-  )) 
+               
+      </div>
+                           )) 
 
-          
-}
+                        
+              }
+
     </div>
-
-    </>
 
 
   );

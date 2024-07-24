@@ -24,6 +24,7 @@ header {
     font-size: 20px;
     font: Garamond;
     text-align: center;
+    padding-top: 0px;
   }
 
 /*Artifact Row*/
@@ -39,9 +40,8 @@ header {
     padding-left: 51px;
     padding-right: 51px;
     display: flex;
-    align-items: center;
-    justify-content: left;
-    flex-wrap: wrap;
+    flex-flow: row wrap;
+    align-content: flex-start;
   }
   
   .artifact {
@@ -50,13 +50,19 @@ header {
     border-radius: 5px;
     padding: 1rem 0;
     margin: 5px;
-    
+    max-width: 360px;
+    display: flex;
+    flex-flow: row wrap;
+    align-content: flex-start;
+    padding-top: 10px;
   }
 
   .artifact-image {
     padding-bottom: 0px;
     padding-left: 0px;
-    alt:"Sample image";
+    border-style:solid;
+    border-color:black;
+    border: 10px;
     
   }
   
@@ -66,6 +72,14 @@ header {
     font-size: 15px;
     column-span: all;
     padding-top: 0px;
+    display: flex;
+    flex-flow: row wrap;
+    align-content: flex-start;
+    
+  }
+
+  .artifact-description {
+    text-wrap: balance;
   }
   
   li {
@@ -82,7 +96,7 @@ header {
     margin-inline-start: 300px;
     margin-inline-end: 300px;
     padding-left: 20px;
-    font-weight:lighter;
+    font-weight: lighter;
     font-size: 15px;
     text-align: left;
     font-family: serif, Garamond;

@@ -8,7 +8,7 @@ class ArtifactList extends Component {
 
   render() {
     return (
-      <div className="container main-content">
+      <div className="main-content">
         <ArtifactRow />
       </div>
     );

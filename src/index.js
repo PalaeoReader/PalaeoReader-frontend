@@ -26,7 +26,7 @@ function App() {
       <header className="header">
         <NavBar />
       </header>
-      <ArtifactDisplay/>
+      <ArtifactList/>
     </div>
   );
 }
