@@ -4,7 +4,7 @@ import { APIgetArtifacts } from '../APIurls';
 //import { fetchArtifactData } from '../API';
 
   // created function to handle API request
-  //const artifactID = '1';
+  const artifactID = '1';
   const fetcher = (APIgetArtifacts) => fetch(APIgetArtifacts).then((res) => res.json());
   
 
@@ -12,7 +12,7 @@ import { APIgetArtifacts } from '../APIurls';
     const{
       data: data, 
       error, isValidating
-    } = useSWR(APIgetArtifacts/*+artifactID*/, fetcher);
+    } = useSWR(APIgetArtifacts+artifactID, fetcher);
 
     if (error) return <div className="failed">failed to load</div>;
     if (isValidating) return <div className="loading">Loading...</div>;
@@ -20,14 +20,13 @@ import { APIgetArtifacts } from '../APIurls';
     
 
   return (
-   <div>
+    <div>
 
-                {data.data.map(artifact => (
+      {[data].map(artifact => (
 
-      <div>
-            
-            
+        <div className="artifact-data">
 
+          
               <div>
                 <li key={artifact.id}> <img className="artifact-image" src={artifact.cover_image}/></li>
                 <li key={artifact.id}> <h4 className="artifact-name">{artifact.label}</h4> </li>
@@ -43,17 +42,16 @@ import { APIgetArtifacts } from '../APIurls';
 
               </div>
 
-               
-      </div>
-                           )) 
+  
+        </div>
+                       )) 
 
                         
-              }
+           }
 
     </div>
-
-
   );
+  
 
 };
 

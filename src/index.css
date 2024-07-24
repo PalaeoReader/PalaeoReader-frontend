@@ -37,11 +37,7 @@ header {
 
   .main-content {
     padding-top: 10px;
-    padding-left: 51px;
-    padding-right: 51px;
-    display: flex;
-    flex-flow: row wrap;
-    align-content: flex-start;
+    
   }
   
   .artifact {
@@ -51,10 +47,16 @@ header {
     padding: 1rem 0;
     margin: 5px;
     max-width: 360px;
+    padding-top: 10px;
+   
+  }
+
+  .flexdiv {
     display: flex;
     flex-flow: row wrap;
-    align-content: flex-start;
-    padding-top: 10px;
+    align-items: flex-start;
+    text-wrap: balance;
+    justify-items:auto;
   }
 
   .artifact-image {
@@ -72,21 +74,14 @@ header {
     font-size: 15px;
     column-span: all;
     padding-top: 0px;
-    display: flex;
-    flex-flow: row wrap;
-    align-content: flex-start;
     
-  }
-
-  .artifact-description {
-    text-wrap: balance;
   }
   
   li {
     list-style-type: none;
   }
 
-  .artifact-metadata{
+  .artifact-data{
     padding-top: 15px;
     padding-bottom: 15px;
     background-color: #e4efef;
