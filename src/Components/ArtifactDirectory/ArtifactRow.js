@@ -5,11 +5,6 @@ import { APIgetArtifacts } from '../../APIurls';
 
   // created function to handle API request
   const fetcher = (APIgetArtifacts) => fetch(APIgetArtifacts).then((res) => res.json());
-  //const [imgSrc, setImgSrc] = useState("")
-
-  //if imgSrc = "http://localhost:8000/api/images/null" {
-    
-  //}
 
 export const ArtifactRow = () => {
     const{
@@ -20,7 +15,10 @@ export const ArtifactRow = () => {
     if (error) return <div className="failed">failed to load</div>;
     if (isValidating) return <div className="loading">Loading...</div>;
 
-    //const coverImage = () => "http://localhost:8000/api/images/"+{artifact.coverimage};
+    const addDefaultImg = ev => {
+          ev.target.src = "https://image.hurimg.com/i/hurriyet/75/0x0/5c14ad0ec03c0e2ab815636a.jpg"
+       }
+
 
   return (
 
@@ -35,7 +33,7 @@ export const ArtifactRow = () => {
                 <div>
 
                   <div key={artifact.id} className="artifact-image">
-                      <img src={"http://localhost:8000/api/images/"+artifact.cover_image} /*onError= {() => setImgSrc("https://image.hurimg.com/i/hurriyet/75/0x0/5c14ad0ec03c0e2ab815636a.jpg")}*/ height="225" width="350"/>
+                      <img src={"http://localhost:8000/api/images/"+artifact.cover_image} onError={addDefaultImg} alt="cover-image" height="225" width="350"/>
                   </div>
 
                   <li key={artifact.id}> <h4 className="artifact-name" href=''>{artifact.label}</h4> </li>
