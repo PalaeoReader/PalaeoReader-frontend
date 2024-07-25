@@ -1,4 +1,4 @@
-import React, {useState} from 'react';
+import React from 'react';
 import ArtifactMetadata from '../GetArtifact';
 import useSWR from 'swr';
 import { APIgetArtifacts } from '../../APIurls';
