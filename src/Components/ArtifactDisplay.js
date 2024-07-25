@@ -1,15 +1,12 @@
 import React, { useState } from 'react';
 import ArtifactMetadata from './GetArtifact';
-import { APIgetArtifacts } from '../APIurls';
 import Collapsible1 from './Collapsible1';
 import Collapsible2 from './Collapsible2';
+import TextAnalyses from './TextAnalyses';
 
-
-const fetcherData = (APIgetArtifacts) => fetch(APIgetArtifacts).then((res) => res.json());
     
 const ArtifactDisplay = () => {
-      
-  const [Open, setOpen] = useState(false)
+
     
   const collapsible1Elem = (
       <Collapsible1 
@@ -19,6 +16,10 @@ const ArtifactDisplay = () => {
   const collapsible2Elem = (
       <Collapsible2/>
     )
+
+  const textContent = (
+      <TextAnalyses/>
+  )
       
 
   return (
@@ -28,6 +29,10 @@ const ArtifactDisplay = () => {
               <ArtifactMetadata/>
                   
             </div>
+
+            <br />
+
+            {textContent}
 
             <br />
            
