@@ -11,6 +11,11 @@ import './API';
 import './APIurls';
 import ArtifactDisplay from './Components/ArtifactDisplay';
 import SwrImageData from './Components/ArtifactDisplay';
+import {
+  BrowserRouter as Router,
+  Routes,
+  Route,
+} from "react-router-dom";
 
 // Clear the existing HTML content
 document.body.innerHTML = '<div id="root"></div>';
@@ -23,10 +28,20 @@ export const root = createRoot(domNode);
 function App() {
   return (
     <div className="container" color="#FBFFF1">
+      <Router>
       <header className="header">
         <NavBar />
       </header>
-      <ArtifactDisplay/>
+            <Routes>
+                <Route exact path="/" element={<ArtifactList />} />
+                <Route
+                    path="/irq-bitiq"
+                    element={<ArtifactDisplay />}
+                />
+                <Route path="/log-in" element={<Login />} />
+
+            </Routes>
+        </Router>
     </div>
   );
 }
