@@ -115,6 +115,10 @@ header {
 
 /*collapsible*/
 
+.image-groups-title{
+  text-align: center;
+}
+
 .collapsible .content {
     padding: 4px;
     background-color: #eeeeee;

@@ -17,6 +17,9 @@ export const TextAnalyses = () => {
     
 return (
     <div className="text-analyses-div">
+        <div className="text-analyses-title">
+            <h3>Text Analyses</h3>
+        </div>
         <div className="contents-div">
             {data.contents.map(object => (
                 <div>
