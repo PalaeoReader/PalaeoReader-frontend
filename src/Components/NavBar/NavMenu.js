@@ -1,13 +1,13 @@
 export const NavMenu = [
     {
         title: "Home",
-        url: "#",
+        url: "http://localhost:3000/",
         cName: "nav-links"
     },
 
     {
         title: "Directory",
-        url: "#",
+        url: "http://localhost:3000/directory",
         cName: "nav-links"
     },
 
@@ -31,7 +31,7 @@ export const NavMenu = [
 
     {
         title: "Log in",
-        url: "#",
+        url: "http://localhost:3000/login",
         cName: "nav-links"
     }
 ]

@@ -11,6 +11,7 @@ import './API';
 import './APIurls';
 import ArtifactDisplay from './Components/ArtifactDisplay';
 import SwrImageData from './Components/ArtifactDisplay';
+import MainPage from './Components/MainPage';
 import {
   BrowserRouter as Router,
   Routes,
@@ -33,12 +34,13 @@ function App() {
         <NavBar />
       </header>
             <Routes>
-                <Route exact path="/" element={<ArtifactList />} />
+                <Route exact path="/" element={<MainPage/>}/>
+                <Route exact path="/directory" element={<ArtifactList />} />
                 <Route
-                    path="/irq-bitiq"
+                    path="/irq-bitig"
                     element={<ArtifactDisplay />}
                 />
-                <Route path="/log-in" element={<Login />} />
+                <Route path="/login" element={<Login />} />
 
             </Routes>
         </Router>
