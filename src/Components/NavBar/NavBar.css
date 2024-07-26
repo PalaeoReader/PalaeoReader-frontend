@@ -45,6 +45,14 @@
     display: none;
   }
 
+  .a:link{
+    text-decoration: none;
+  }
+
+  a:visited {
+    text-decoration: none;
+  }
+
 @media screen and (max-width: 960px){
     .NavbarItems {
       position: relative;

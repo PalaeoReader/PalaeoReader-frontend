@@ -37,7 +37,8 @@ export const ArtifactRow = () => {
                   </div>
 
                   <li key={artifact.id}> <h4 className="artifact-name"><a href={'http://localhost:3000/'+artifact.shortname}>{artifact.label}</a></h4></li>
-                  <li key={artifact.id}> <p className="artifact-description">{artifact.description}</p> </li>
+                  <li key={artifact.id}> 
+                    <p className="artifact-description">{artifact.description.length > 50 ? `${artifact.description.substring(0, 50)}...` : artifact.description}</p> </li>
                   <li key={artifact.id}> <div className="original-date">Document date: {artifact.origin_date}</div></li>
                   <li key={artifact.id}> <div className="artifact-location">Location found: {artifact.location}</div></li>
                   <li key={artifact.id}> <div className="artifact-script">Script: {artifact.script}</div></li>

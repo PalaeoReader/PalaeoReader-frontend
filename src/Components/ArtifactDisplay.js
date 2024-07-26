@@ -24,26 +24,30 @@ const ArtifactDisplay = () => {
 
   return (
         <div className=''>
+
             <div className='artifact-metadata'>
-                
               <ArtifactMetadata/>
-                  
             </div>
 
             <br />
 
-            {textContent}
+            <div className="textContent-div">
+              {textContent}
+            </div>
 
             <br />
            
+            <div>
+              <h3 className="image-groups-title">Images</h3>
+            </div>
 
-		            <div className='collapsible-div'>
-                {collapsible1Elem}
+		        <div className='collapsible-div'>
+              {collapsible1Elem}
 
-                <br></br>
+              <br></br>
 
-                {collapsible2Elem}
-                </div>
+              {collapsible2Elem}
+            </div>
         
             <br />
       
