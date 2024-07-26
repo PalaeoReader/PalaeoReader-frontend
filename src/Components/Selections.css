@@ -1,0 +1,25 @@
+.selection {
+    position: absolute;
+    opacity: 100%;
+    border: 1px solid yellow;
+    outline: 1px solid black;
+}
+
+.selection:hover {
+    border: 1px solid orangered;
+}
+
+.selectedImage {
+    position: relative;
+    top: 0;
+    left: 0;
+    width: 75%;
+}
+
+.selectedImageImage {
+    position: relative;
+    top: 0;
+    left: 0;
+    width: 100%;
+    margin: 0;
+}

@@ -7,6 +7,7 @@ import './Components/Login/Login.css';
 import ArtifactList from './Components/ArtifactDirectory/ArtifactList';
 import Login from './Components/Login/Login';
 import ArtifactRow from './Components/ArtifactDirectory/ArtifactRow';
+import Selection from './Components/Selections';
 import './API';
 import './APIurls';
 import ArtifactDisplay from './Components/ArtifactDisplay';
@@ -41,7 +42,7 @@ function App() {
                     element={<ArtifactDisplay />}
                 />
                 <Route path="/login" element={<Login />} />
-
+                <Route path="/image/:id" element={<Selection />} />
             </Routes>
         </Router>
     </div>
