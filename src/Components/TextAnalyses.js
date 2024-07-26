@@ -30,7 +30,7 @@ return (
 
         <div className="tokens-div">
             {data.tokens.map(object => (
-                <div>
+                <div className="individual-token-div">
                     <li key={object.id}>{object.text}</li>
                 </div>
             ))}
