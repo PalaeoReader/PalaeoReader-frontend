@@ -27,12 +27,13 @@ header {
     padding-top: 0px;
   }
 
-  .a:link{
+  a:link{
     text-decoration: none;
   }
 
   a:visited {
     text-decoration: none;
+    color:currentColor;
   }
 
 /*Artifact Row*/
@@ -200,4 +201,39 @@ header {
   font-size: 15px;
   text-align: left;
   font-family: serif, Garamond;
+}
+
+/*main page*/
+.main-page-div{
+  padding-top: 15px;
+  padding-bottom: 15px;
+  background-color: #e4efef;
+  border-width: 10px;
+  border-color: black;
+  border-radius: 30px;
+  padding-left: 20px;
+  font-weight: lighter;
+  font-size: 15px;
+  text-align: left;
+  font-family: serif, Garamond;
+  display: grid;
+  grid-template-columns: repeat(2, auto);
+  margin-inline-start: 400px;
+  margin-inline-end: 400px;
+}
+
+.welcome-title{
+  text-align: center;
+}
+
+.directory-title{
+  display:block;
+  border-width: 3px;
+  border-color: black;
+}
+
+.login-title{
+  display:block;
+  border-width: 3px;
+  border-color: black;
 }
