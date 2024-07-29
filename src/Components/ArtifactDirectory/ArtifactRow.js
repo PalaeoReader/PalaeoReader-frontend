@@ -1,5 +1,5 @@
 import React from 'react';
-import ArtifactMetadata from '../GetArtifact';
+import ArtifactMetadata from '../ArtifactPage/GetArtifact';
 import useSWR from 'swr';
 import { APIgetArtifacts } from '../../APIurls';
 

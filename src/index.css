@@ -230,6 +230,7 @@ header {
   display:block;
   border-width: 3px;
   border-color: black;
+  border-radius:2px;
 }
 
 .login-title{

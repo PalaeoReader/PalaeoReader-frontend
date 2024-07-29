@@ -40,7 +40,7 @@ const Login = () => {
   return (
     <div className={'mainContainer'}>
       <div className={'titleContainer'}>
-        <div>Welcome</div>
+        <div>Log in</div>
       </div>
       <br />
       <div className={'inputContainer'}>

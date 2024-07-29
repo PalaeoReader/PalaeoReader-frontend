@@ -1,6 +1,7 @@
 import React from 'react';
 import useSWR from 'swr';
-import { APIgetArtifacts } from '../APIurls';
+import { APIgetArtifacts } from '../../APIurls';
+import ArtifactIds from '../ArtifactIds';
 //import { fetchArtifactData } from '../API';
 
   // created function to handle API request

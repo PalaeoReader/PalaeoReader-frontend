@@ -1,16 +1,15 @@
 import React, { useState, useRef} from 'react';
 import { useCollapse } from 'react-collapsed';
-import '../index.css'; 
+import '../../index.css'; 
 import useSWR from 'swr';
 import Lightbox from 'yet-another-react-lightbox';
 import "yet-another-react-lightbox/styles.css";
-import { APIgetArtifacts , APIgetArtifactImageGrp} from '../APIurls';
+import { APIgetArtifacts , APIgetArtifactImageGrp} from '../../APIurls';
 import Captions from "yet-another-react-lightbox/plugins/captions";
 import Download from "yet-another-react-lightbox/plugins/download";
 import Fullscreen from "yet-another-react-lightbox/plugins/fullscreen";
 import Thumbnails from "yet-another-react-lightbox/plugins/thumbnails";
 import Zoom from "yet-another-react-lightbox/plugins/zoom";
-import { Inline } from 'yet-another-react-lightbox/plugins';
 import "yet-another-react-lightbox/plugins/captions.css";
 import "yet-another-react-lightbox/plugins/thumbnails.css";
 import { Gallery } from "react-grid-gallery";

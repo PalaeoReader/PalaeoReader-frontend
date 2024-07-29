@@ -1,5 +1,5 @@
 import React from 'react';
-import { APIgetArtifactContentSets } from '../APIurls';
+import { APIgetArtifactContentSets } from '../../APIurls';
 import useSWR from 'swr';
 
 const sourceID = '1';

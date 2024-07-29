@@ -6,13 +6,11 @@ import './Components/NavBar/NavBar.css'
 import './Components/Login/Login.css';
 import ArtifactList from './Components/ArtifactDirectory/ArtifactList';
 import Login from './Components/Login/Login';
-import ArtifactRow from './Components/ArtifactDirectory/ArtifactRow';
 import Selection from './Components/Selections';
 import './API';
 import './APIurls';
-import ArtifactDisplay from './Components/ArtifactDisplay';
-import SwrImageData from './Components/ArtifactDisplay';
-import MainPage from './Components/MainPage';
+import ArtifactDisplay from './Components/ArtifactPage/ArtifactDisplay';
+import MainPage from './Components/Home/MainPage';
 import {
   BrowserRouter as Router,
   Routes,
