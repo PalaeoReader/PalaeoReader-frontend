@@ -3,8 +3,23 @@ import React from 'react';
 function MainPage () {
     return(
         <div>
-            <p>Sorry, the main page is under construction right now.</p>
-            <a href="http://localhost:3000/directory"><button>All Artifacts Directory</button></a>
+            <h2 className="welcome-title">Welcome!</h2>
+
+            <div className="main-page-div">
+
+                <div className="directory-div">
+                    <span className="directory-title" >Directory</span>
+                    <br />
+                    <a href="http://localhost:3000/directory"><button>Click to see all of the artifacts in our directory</button></a>
+                </div>
+
+                <div className="login-div">
+                    <span className="login-title">Login</span>
+                    <br />
+                    <a href="http://localhost:3000/login"><button>Click to log in</button></a>
+                </div>
+                
+            </div>
         </div>
     )
 }
