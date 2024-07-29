@@ -46,10 +46,10 @@ export default function Selection () {
     const selections = [];
     for (let i = 0; i < selectionData.length; i++) {
         selections.push(SelectionRect({
-            top: selectionData[i].n,
-            left: selectionData[i].w,
-            width: selectionData[i].e,
-            height: selectionData[i].s
+            top: selectionData[i].top,
+            left: selectionData[i].left,
+            width: selectionData[i].width,
+            height: selectionData[i].height
         }))
     }
 
