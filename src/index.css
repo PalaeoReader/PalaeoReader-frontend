@@ -27,12 +27,13 @@ header {
     padding-top: 0px;
   }
 
-  .a:link{
+  a:link{
     text-decoration: none;
   }
 
   a:visited {
     text-decoration: none;
+    color:currentColor;
   }
 
 /*Artifact Row*/
