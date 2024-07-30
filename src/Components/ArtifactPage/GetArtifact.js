@@ -1,23 +1,23 @@
 import React from 'react';
 import useSWR from 'swr';
 import { APIgetArtifacts } from '../../APIurls';
-import ArtifactIds from '../ArtifactIds';
-//import { fetchArtifactData } from '../API';
+import { useParams } from 'react-router-dom';
 
   // created function to handle API request
-  const artifactID = '1';
+
   const fetcher = (APIgetArtifacts) => fetch(APIgetArtifacts).then((res) => res.json());
-  
+  //const fetcherShortName = ()
 
   export const ArtifactMetadata = () => {
+    const {shortName} =  useParams();
+
     const{
       data: data, 
       error, isValidating
-    } = useSWR(APIgetArtifacts+artifactID, fetcher);
+    } = useSWR(APIgetArtifacts+shortName, fetcher);
 
     if (error) return <div className="failed">failed to load</div>;
     if (isValidating) return <div className="loading">Loading...</div>;
-
     
 
   return (

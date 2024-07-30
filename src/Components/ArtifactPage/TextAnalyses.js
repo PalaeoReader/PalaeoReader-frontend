@@ -1,11 +1,15 @@
 import React from 'react';
 import { APIgetArtifactContentSets } from '../../APIurls';
 import useSWR from 'swr';
+import { useParams } from 'react-router-dom';
 
 const sourceID = '1';
 const fetcher = (APIgetArtifactContentSets) => fetch(APIgetArtifactContentSets).then((res) => res.json());
 
 export const TextAnalyses = () => {
+    //const sourceID = useParams();
+
+    //console.log(useParams());
 
     const{
         data: data, 

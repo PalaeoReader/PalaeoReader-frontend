@@ -16,14 +16,13 @@ import {
   Routes,
   Route,
 } from "react-router-dom";
+import { useParams } from 'react-router-dom';
 
 // Clear the existing HTML content
 document.body.innerHTML = '<div id="root"></div>';
 
-//window.addEventListener("load");
 const domNode = document.getElementById('root');
 export const root = createRoot(domNode);
-
 
 function App() {
   return (
@@ -36,7 +35,7 @@ function App() {
                 <Route exact path="/" element={<MainPage/>}/>
                 <Route exact path="/directory" element={<ArtifactList />} />
                 <Route
-                    path="/irq-bitig"
+                    path="/:shortName"
                     element={<ArtifactDisplay />}
                 />
                 <Route path="/login" element={<Login />} />

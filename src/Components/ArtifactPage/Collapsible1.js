@@ -24,7 +24,6 @@ const fetcherImageGrp = (APIgetArtifactImageGrp) => fetch(APIgetArtifactImageGrp
 
 function Collapsible1() {
     const { getCollapseProps, getToggleProps, isExpanded } = useCollapse(config);
-    //const [open, setOpen] = useState(false);
     const [index, setIndex] = useState(-1);
 
     const fullscreenRef = useRef(null);
