@@ -5,6 +5,7 @@ const APIgetArtifacts = 'http://localhost:8000/api/artifacts/'
 const APIgetArtifactImageGrp = 'http://localhost:8000/api/images/groups/'
 const APIgetArtifactContentSets = 'http://localhost:8000/api/content/sets/'
 const APIgetImage = 'http://localhost:8000/api/images/'
+const APIgetMorphGroup = 'http://localhost:8000/api/content/morphs/groups/'
 //const APIgetArtifactContentSources = ''
 
 export {
@@ -12,5 +13,6 @@ export {
     APIgetArtifactImageGrp,
     APIgetArtifacts,
     APIgetArtifactContentSets,
-    APIgetImage
+    APIgetImage,
+    APIgetMorphGroup
 }

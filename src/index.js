@@ -7,6 +7,7 @@ import './Components/Login/Login.css';
 import ArtifactList from './Components/ArtifactDirectory/ArtifactList';
 import Login from './Components/Login/Login';
 import Selection from './Components/Selections';
+import MorphGroup from './Components/Morphs';
 import './API';
 import './APIurls';
 import ArtifactDisplay from './Components/ArtifactPage/ArtifactDisplay';
@@ -40,6 +41,7 @@ function App() {
                 />
                 <Route path="/login" element={<Login />} />
                 <Route path="/image/:id" element={<Selection />} />
+                <Route path="/morphs/:id" element={<MorphGroup />} />
             </Routes>
         </Router>
     </div>
