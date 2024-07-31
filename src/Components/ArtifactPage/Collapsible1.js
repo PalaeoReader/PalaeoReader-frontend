@@ -13,6 +13,7 @@ import Zoom from "yet-another-react-lightbox/plugins/zoom";
 import "yet-another-react-lightbox/plugins/captions.css";
 import "yet-another-react-lightbox/plugins/thumbnails.css";
 import { Gallery } from "react-grid-gallery";
+import { useParams } from 'react-router-dom';
 
 const config= {
     duration: 1000
@@ -29,6 +30,7 @@ function Collapsible1() {
     const fullscreenRef = useRef(null);
     const captionsRef = useRef(null);
     const artifactID = '1';
+    //const artifactID = useParams();
 
     const{
         data: data, 

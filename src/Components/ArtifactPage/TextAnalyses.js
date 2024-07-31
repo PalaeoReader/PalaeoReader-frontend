@@ -11,6 +11,15 @@ export const TextAnalyses = () => {
 
     //console.log(useParams());
 
+    function mapInSlices(array, sliceSize, sliceFunc) {
+        const out = [];
+        for (var i = 0; i < array.length; i += sliceSize) {
+          const slice = array.slice(i, i + sliceSize);
+          out.push(sliceFunc(slice, i));
+        }
+        return out;
+      }
+
     const{
         data: data, 
         error, isValidating
@@ -27,8 +36,9 @@ return (
         <div className="contents-div">
             {data.contents.map(object => (
                 <div>
-                    <li key={object.id}>{object.text}</li>
-                    
+                    <li key={object.id} className="tooltip"><b>{object.set_id}:{object.id}</b> {object.text}</li>
+                    <br />
+                    <br />
                 </div>
 
             ))
@@ -45,7 +55,7 @@ return (
 
         <div className="morphs-div">
             {data.morphs.map(object => (
-                <div>
+                <div className="individual-morphs-div">
                     <li key={object.id}>{object.text}</li>
                 </div>
             ))}

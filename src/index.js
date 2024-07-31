@@ -36,7 +36,7 @@ function App() {
                 <Route exact path="/" element={<MainPage/>}/>
                 <Route exact path="/directory" element={<ArtifactList />} />
                 <Route
-                    path="/:shortName"
+                    path="/artifact/:shortName"
                     element={<ArtifactDisplay />}
                 />
                 <Route path="/login" element={<Login />} />

@@ -29,6 +29,7 @@ header {
 
   a:link{
     text-decoration: none;
+    color:currentColor;
   }
 
   a:visited {
@@ -36,6 +37,13 @@ header {
     color:currentColor;
   }
 
+  b{
+    font-weight: bold;
+  }
+
+  @media screen and (max-width: 960px) {
+
+  }
 /*Artifact Row*/
   
   .image{
@@ -79,9 +87,10 @@ header {
   }
 
   .artifact-image-on-page {
-    display: flex;
-    padding-left: 270px;
-    padding-bottom: 10px;
+    display: block;
+    margin-left: auto;
+    margin-right: auto;
+
   }
   
   .artifact-detail {
@@ -107,6 +116,7 @@ header {
     margin-inline-start: 300px;
     margin-inline-end: 300px;
     padding-left: 20px;
+    padding-right:20px;
     font-weight: lighter;
     font-size: 15px;
     text-align: left;
@@ -165,10 +175,12 @@ header {
   margin-inline-start: 300px;
   margin-inline-end: 300px;
   padding-left: 20px;
+  padding-right:20px;
   font-weight: lighter;
   font-size: 15px;
   text-align: left;
   font-family: serif, Garamond;
+  word-spacing:5px;
 }
 
 .tokens-div{
@@ -185,6 +197,7 @@ header {
   font-size: 15px;
   text-align: left;
   font-family: serif, Garamond;
+  float:left;
 }
 
 .morphs-div{
@@ -202,6 +215,38 @@ header {
   text-align: left;
   font-family: serif, Garamond;
 }
+
+.tooltip {
+  position: relative;
+  display: inline-block;
+  border-bottom: 1px dotted black;
+}
+
+.tooltip .tooltiptext {
+  visibility: hidden;
+  width: 120px;
+  background-color: black;
+  color: #fff;
+  text-align: center;
+  border-radius: 6px;
+  padding: 5px 0;
+  position: absolute;
+  z-index: 1;
+}
+
+.tooltip:hover .tooltiptext {
+  visibility: visible;
+}
+
+.tooltip .tooltiptext {
+  top: -5px;
+  right: 105%;
+}
+
+/*.individual-morphs-div{
+  float:left;
+  word-spacing: 5px;
+}*/
 
 /*main page*/
 .main-page-div{

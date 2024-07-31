@@ -33,10 +33,10 @@ export const ArtifactRow = () => {
                 <div>
 
                   <div key={artifact.id} className="artifact-image">
-                      <img src={"http://localhost:8000/api/images/"+artifact.cover_image} onError={addDefaultImg} alt="cover-image" height="225" width="350"/>
+                      <a href={'http://localhost:3000/artifact/'+artifact.shortname}><img src={"http://localhost:8000/api/images/"+artifact.cover_image} onError={addDefaultImg} alt="cover-image" height="225" width="350"/></a>
                   </div>
 
-                  <li key={artifact.id}> <h4 className="artifact-name"><a href={'http://localhost:3000/'+artifact.shortname}>{artifact.label}</a></h4></li>
+                  <li key={artifact.id}> <h4 className="artifact-name"><a href={'http://localhost:3000/artifact/'+artifact.shortname}>{artifact.label}</a></h4></li>
                   <li key={artifact.id}> 
                     <p className="artifact-description">{artifact.description.length > 50 ? `${artifact.description.substring(0, 50)}...` : artifact.description}</p> </li>
                   <li key={artifact.id}> <div className="original-date">Document date: {artifact.origin_date}</div></li>
