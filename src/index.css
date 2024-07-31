@@ -117,11 +117,14 @@ header {
     margin-inline-end: 300px;
     padding-left: 20px;
     padding-right:20px;
-    font-weight: lighter;
     font-size: 15px;
     text-align: left;
     font-family: serif, Garamond;
     column-span: all;
+  }
+
+  .artifact_metadata_titles{
+    font-weight: lighter;
   }
 
 /*collapsible*/
@@ -176,7 +179,6 @@ header {
   margin-inline-end: 300px;
   padding-left: 20px;
   padding-right:20px;
-  font-weight: lighter;
   font-size: 15px;
   text-align: left;
   font-family: serif, Garamond;
@@ -193,7 +195,6 @@ header {
   margin-inline-start: 300px;
   margin-inline-end: 300px;
   padding-left: 20px;
-  font-weight: lighter;
   font-size: 15px;
   text-align: left;
   font-family: serif, Garamond;
@@ -210,7 +211,6 @@ header {
   margin-inline-start: 300px;
   margin-inline-end: 300px;
   padding-left: 20px;
-  font-weight: lighter;
   font-size: 15px;
   text-align: left;
   font-family: Garamond, serif;
@@ -257,7 +257,6 @@ header {
   border-color: black;
   border-radius: 30px;
   padding-left: 20px;
-  font-weight: lighter;
   font-size: 15px;
   text-align: left;
   font-family: serif, Garamond;
