@@ -213,7 +213,7 @@ header {
   font-weight: lighter;
   font-size: 15px;
   text-align: left;
-  font-family: serif, Garamond;
+  font-family: Garamond, serif;
 }
 
 .tooltip {

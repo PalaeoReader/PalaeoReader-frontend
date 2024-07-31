@@ -19,7 +19,6 @@ export const ArtifactRow = () => {
           ev.target.src = "https://image.hurimg.com/i/hurriyet/75/0x0/5c14ad0ec03c0e2ab815636a.jpg"
        }
 
-
   return (
 
     <div className="flexdiv">
@@ -39,11 +38,12 @@ export const ArtifactRow = () => {
                   <li key={artifact.id}> <h4 className="artifact-name"><a href={'http://localhost:3000/artifact/'+artifact.shortname}>{artifact.label}</a></h4></li>
                   <li key={artifact.id}> 
                     <p className="artifact-description" 
-                       dangerouslySetInnerHTML={{__html:artifact.description.length > 70 ? `${artifact.description.substring(0, 70)}...` : artifact.description}}></p>
+                       dangerouslySetInnerHTML={{__html:artifact.description.length > 90 ? `${artifact.description.substring(0, 90)}...` : artifact.description}}
+                    ></p>
                   </li>
-                  <li key={artifact.id}> <div className="original-date">Document date: {artifact.origin_date}</div></li>
-                  <li key={artifact.id}> <div className="artifact-script">Script: {artifact.script}</div></li>
-                  <li key={artifact.id}> <div className="artifact-material">Material: {artifact.material}</div></li>
+                  <li key={artifact.id}> <div className="original-date">{artifact.origin_date}</div></li>
+                  <li key={artifact.id}> <div className="artifact-script">{artifact.script}</div></li>
+                  <li key={artifact.id}> <div className="artifact-material">{artifact.material}</div></li>
 
                 </div>
 
