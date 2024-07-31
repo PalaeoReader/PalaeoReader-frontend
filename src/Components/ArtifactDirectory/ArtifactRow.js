@@ -42,7 +42,6 @@ export const ArtifactRow = () => {
                        dangerouslySetInnerHTML={{__html:artifact.description.length > 70 ? `${artifact.description.substring(0, 70)}...` : artifact.description}}></p>
                   </li>
                   <li key={artifact.id}> <div className="original-date">Document date: {artifact.origin_date}</div></li>
-                  <li key={artifact.id}> <div className="artifact-location">Location found: {artifact.location}</div></li>
                   <li key={artifact.id}> <div className="artifact-script">Script: {artifact.script}</div></li>
                   <li key={artifact.id}> <div className="artifact-material">Material: {artifact.material}</div></li>
 
