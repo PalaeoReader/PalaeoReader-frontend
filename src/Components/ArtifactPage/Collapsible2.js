@@ -68,9 +68,10 @@ function Collapsible2() {
       />
     )
 
-    const groupName = data.map((artifact, bar) => (
-        console.log(artifact.name),
-        <div key ={artifact.id} className="imageGroupName">{artifact.name}</div>
+    // This creates two divs, because there are two groupNames.  This is the type of iteration you want to be doing, but in a ginel Collapsible file, creating a gallery for each element.
+    const groupName = data.map((imageGroup, bar) => (
+        console.log(imageGroup.name),
+        <div key ={imageGroup.id} className="imageGroupName">{imageGroup.name}</div>
     ));
 
     return (

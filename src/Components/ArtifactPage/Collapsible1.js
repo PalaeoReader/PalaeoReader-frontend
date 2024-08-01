@@ -53,10 +53,10 @@ function Collapsible1() {
 
     const handleClick = (index: number, item: CustomImage) => setIndex(index);
 
-    const groupName = data.map((artifact) => (
-                          <div key ={artifact.id} className="imageGroupName">{artifact.name}</div>
-                      ))
-
+    const groupName = data.map((imageGroup, bar) => (
+        <div key ={imageGroup.id} className="imageGroupName">{imageGroup.name}</div>
+    ));
+   
     const LightBoxElem1 = () => (
         <Lightbox
             plugins={[Captions, Download, Fullscreen, Thumbnails, Zoom]}
