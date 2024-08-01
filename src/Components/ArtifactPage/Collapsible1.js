@@ -41,13 +41,15 @@ function Collapsible1() {
     if (isValidating) return <div className="loading">Loading...</div>;
     
     const imageList = [data].map((img) => (
-                        {
-                            src: "http://localhost:8000/api/images/"+img.uri,
-                            alt: (img.alt),
-                            downloadUrl: (img.uri),
-                            caption: (img.caption),
-                        }
-                      ))
+                        artifact.images.map((img) => (
+                            {
+                                src: "http://localhost:8000/api/images/"+img.uri,
+                                alt: (img.alt),
+                                downloadUrl: (img.uri),
+                                description: (img.caption)
+                            }
+                        ))
+                    ));
 
     const handleClick = (index: number, item: CustomImage) => setIndex(index);
 
