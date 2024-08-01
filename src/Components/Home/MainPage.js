@@ -8,13 +8,13 @@ function MainPage () {
             <div className="main-page-div">
 
                 <div className="directory-div">
-                    <span className="directory-title" >Directory</span>
+                    <p className="directory-title" >Directory</p>
                     <br />
                     <a href="http://localhost:3000/directory"><button>Click to see all of the artifacts in our directory</button></a>
                 </div>
 
                 <div className="login-div">
-                    <span className="login-title">Login</span>
+                    <p className="login-title">Login</p>
                     <br />
                     <a href="http://localhost:3000/login"><button>Click to log in</button></a>
                 </div>

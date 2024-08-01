@@ -29,18 +29,18 @@ function Collapsible1() {
 
     const fullscreenRef = useRef(null);
     const captionsRef = useRef(null);
-    const artifactID = '1';
-    //const artifactID = useParams();
+    //const artifactID = '1';
+    const {shortName} = useParams();
 
     const{
         data: data, 
         error, isValidating
-      } = useSWR((APIgetArtifactImageGrp+artifactID/*+'/imagegroups'*/), fetcherImageGrp);
+      } = useSWR((APIgetArtifacts+shortName+'/image_groups'), fetcherData);
   
     if (error) return <div className="failed">failed to load</div>;
     if (isValidating) return <div className="loading">Loading...</div>;
     
-    const imageList = data.images.map((img) => (
+    const imageList = [data].map((img) => (
                         {
                             src: "http://localhost:8000/api/images/"+img.uri,
                             alt: (img.alt),
@@ -51,7 +51,7 @@ function Collapsible1() {
 
     const handleClick = (index: number, item: CustomImage) => setIndex(index);
 
-    const groupName = [data].map((artifact) => (
+    const groupName = data.map((artifact) => (
                           <div key ={artifact.id} className="imageGroupName">{artifact.name}</div>
                       ))
 
