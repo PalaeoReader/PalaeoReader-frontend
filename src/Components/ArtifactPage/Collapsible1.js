@@ -40,7 +40,7 @@ function Collapsible1() {
     if (error) return <div className="failed">failed to load</div>;
     if (isValidating) return <div className="loading">Loading...</div>;
     
-    const imageList = [data].map((artifact) => (
+    const imageList = data.map((artifact) => (
                         artifact.images.map((img) => (
                             {
                                 src: "http://localhost:8000/api/images/"+img.uri,
