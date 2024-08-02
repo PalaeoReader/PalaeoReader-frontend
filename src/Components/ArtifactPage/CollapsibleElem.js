@@ -41,7 +41,7 @@ function CollapsibleElem() {
     const imageLists = data.map((imageGroup) => (
                         imageGroup.images.map((img) => (
                             {
-										id: (img.id),
+                                id: (img.id),
                                 src: "http://localhost:8000/api/images/"+img.uri,
                                 alt: (img.alt),
                                 downloadUrl: "http://localhost:8000/api/images/"+img.uri,
@@ -80,18 +80,18 @@ function CollapsibleElem() {
             </div>
             <div {...getCollapseProps()}>
 
-<Gallery
-          images={imageList}
-          onClick={handleClick}
-          enableImageSelection={false}
-      />
-        <Lightbox
-        plugins={[Captions, Download, Fullscreen, Thumbnails, Zoom]}
-        slides={imageList}
-        open={index >= 0}
-        index={index}
-        close={() => setIndex(-1)}
-      />
+            <Gallery
+              images={imageList}
+              onClick={handleClick}
+              enableImageSelection={false}
+            />
+            <Lightbox
+              plugins={[Captions, Download, Fullscreen, Thumbnails, Zoom]}
+              slides={imageList}
+              open={index >= 0}
+              index={index}
+              close={() => setIndex(-1)}
+            />
             </div>
             <br />
             </>
