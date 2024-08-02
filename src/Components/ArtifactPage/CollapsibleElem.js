@@ -38,18 +38,19 @@ function CollapsibleElem() {
     if (isValidating) return <div className="loading">Loading...</div>;
     
   
-    const imageList = data.map((imageGroup) => (
+    const imageLists = data.map((imageGroup) => (
                         imageGroup.images.map((img) => (
                             {
+										id: (img.id),
                                 src: "http://localhost:8000/api/images/"+img.uri,
                                 alt: (img.alt),
-                                downloadUrl: (img.uri),
+                                downloadUrl: "http://localhost:8000/api/images/"+img.uri,
                                 description: (img.caption)
                             }
                         ))
                     ));
 
-    const LightBoxElem = () => (
+/*    const LightBoxElem = () => (
         <Lightbox
         plugins={[Captions, Download, Fullscreen, Thumbnails, Zoom]}
         slides={imageList}
@@ -66,20 +67,31 @@ function CollapsibleElem() {
           enableImageSelection={false}
       />
     )
+	 */
+	 console.log(imageLists, data);
 
-    const collapsibleElem = data.map((imageGroup) => (
+    const collapsibleElem = imageLists.map((imageList, imageListId) => (
         <>
         <div className="header" {...getToggleProps()}>
 
               {isExpanded ? <i class="fa-solid fa-caret-down"></i> : <i class="fa-solid fa-caret-right"></i> }
-              <div key={imageGroup.id} className="imageGroupName">{imageGroup.name}</div>
+              <div key={imageListId} className="imageGroupName">{data[imageListId].name}</div>
 
             </div>
             <div {...getCollapseProps()}>
-                <div className="content">
-                    {galleryElem}
-                    <LightBoxElem/>
-                </div>
+
+<Gallery
+          images={imageList}
+          onClick={handleClick}
+          enableImageSelection={false}
+      />
+        <Lightbox
+        plugins={[Captions, Download, Fullscreen, Thumbnails, Zoom]}
+        slides={imageList}
+        open={index >= 0}
+        index={index}
+        close={() => setIndex(-1)}
+      />
             </div>
             <br />
             </>
