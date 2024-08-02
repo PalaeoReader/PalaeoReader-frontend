@@ -49,7 +49,7 @@ function MorphOccurrenceToken (props) {
 		<span className={spanClasses}>
 		{props.token.types.map(type => (
 			<>
-			{type.type === 'original' ? <MorphOccurrenceTokenType type={type} /> : ""
+			{type.type === 'transcription[Turkological]' ? <MorphOccurrenceTokenType type={type} /> : ""
 			}
 			</>
 		))}
