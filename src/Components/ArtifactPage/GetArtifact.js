@@ -1,5 +1,6 @@
 import React from 'react';
 import useSWR from 'swr';
+import { useCollapse } from 'react-collapsed';
 import { APIgetArtifacts } from '../../APIurls';
 import { useParams } from 'react-router-dom';
 

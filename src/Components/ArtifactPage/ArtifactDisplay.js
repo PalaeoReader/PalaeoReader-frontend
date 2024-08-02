@@ -1,21 +1,30 @@
 import React, { useState } from 'react';
 import ArtifactMetadata from './GetArtifact';
-import Collapsible1 from './Collapsible1';
-import Collapsible2 from './Collapsible2';
+import CollapsibleElem from './CollapsibleElem';
 import TextAnalyses from './TextAnalyses';
+import useSWR from 'swr';
+import { APIgetArtifacts } from '../../APIurls';
+import { useParams } from 'react-router-dom';
+
+const fetcherData = (APIgetArtifacts) => fetch(APIgetArtifacts).then((res) => res.json());
 
     
 const ArtifactDisplay = () => {
+  const {shortName} = useParams();
 
-    
-  const collapsible1Elem = (
-      <Collapsible1 
+  const{
+        data: data, 
+        error, isValidating
+      } = useSWR(APIgetArtifacts+shortName+'/image_groups', fetcherData);
+  
+    if (error) return <div className="failed">failed to load</div>;
+    if (isValidating) return <div className="loading">Loading...</div>;
+  
+  const collapsibleElem = (
+      <CollapsibleElem
       />
     )
 
-  const collapsible2Elem = (
-      <Collapsible2/>
-    )
 
   const textContent = (
       <TextAnalyses/>
@@ -42,11 +51,8 @@ const ArtifactDisplay = () => {
             </div>
 
 		        <div className='collapsible-div'>
-              {collapsible1Elem}
+              {collapsibleElem}
 
-              <br></br>
-
-              {collapsible2Elem}
             </div>
         
             <br />

@@ -7,18 +7,13 @@ const sourceID = '1';
 const fetcher = (APIgetArtifactContentSets) => fetch(APIgetArtifactContentSets).then((res) => res.json());
 
 export const TextAnalyses = () => {
-    //const sourceID = useParams();
+   /* const chunkSize = 2;
 
-    //console.log(useParams());
-
-    function mapInSlices(array, sliceSize, sliceFunc) {
-        const out = [];
-        for (var i = 0; i < array.length; i += sliceSize) {
-          const slice = array.slice(i, i + sliceSize);
-          out.push(sliceFunc(slice, i));
-        }
-        return out;
-      }
+    for (let i = 0; i < array.length; i += chunkSize) {
+        const chunk = array.slice(i, i + chunkSize);
+        // do whatever
+      }*/
+      
 
     const{
         data: data, 
@@ -48,7 +43,7 @@ return (
         <div className="tokens-div">
             {data.tokens.map(object => (
                 <div className="individual-token-div">
-                    <li key={object.id}>{object.text}</li>
+                    <li key={object.seq}>{object.seq} {object.text}</li>
                 </div>
             ))}
         </div>
@@ -56,7 +51,7 @@ return (
         <div className="morphs-div">
             {data.morphs.map(object => (
                 <div className="individual-morphs-div">
-                    <li key={object.id}>{object.text}</li>
+                    <li key={object.id}>{object.seq} {object.id} {object.text}</li>
                 </div>
             ))}
         </div>
