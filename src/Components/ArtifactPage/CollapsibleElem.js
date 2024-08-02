@@ -40,7 +40,6 @@ function CollapsibleElem() {
   
     const imageList = data.map((imageGroup) => (
                         imageGroup.images.map((img) => (
-                            console.log("http://localhost:8000/api/images/"+img.uri),
                             {
                                 src: "http://localhost:8000/api/images/"+img.uri,
                                 alt: (img.alt),
@@ -49,7 +48,7 @@ function CollapsibleElem() {
                             }
                         ))
                     ));
-  
+
     const LightBoxElem = () => (
         <Lightbox
         plugins={[Captions, Download, Fullscreen, Thumbnails, Zoom]}
