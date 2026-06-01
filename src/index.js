@@ -9,6 +9,7 @@ import ArtifactDisplay from './Components/ArtifactPage/ArtifactDisplay';
 import MapPage from './Components/Map/MapPage';
 import DictionaryPage from './Components/Dictionary/DictionaryPage';
 import SourcesPage from './Components/Sources/SourcesPage';
+import ConcordancePage from './Components/Concordance/ConcordancePage';
 import Login from './Components/Login/Login';
 import './Components/Login/Login.css';
 import {
@@ -35,6 +36,7 @@ function App() {
           <Route path="/map"                 element={<MapPage />}        />
           <Route path="/dictionary"          element={<DictionaryPage />} />
           <Route path="/sources"             element={<SourcesPage />}    />
+          <Route path="/concordance"         element={<ConcordancePage />}/>
           <Route path="/login"               element={<Login />}          />
         </Routes>
       </Router>

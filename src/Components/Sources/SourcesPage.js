@@ -1,7 +1,7 @@
 import React from 'react';
 import useSWR from 'swr';
 
-const fetcher = url => fetch(url).then(r => r.json()); // TODO: references are present in the artifact data, so we can fetch them all at once instead of one by one here. This is just a quick implementation for now.
+const fetcher = url => fetch(url).then(r => r.json());
 
 const SOURCE_IDS = [1, 2, 3, 4];
 

@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 
-/* ── plain fetch hook (no SWR) ─────────────────────────── */
 function useGet(url) {
   const [data, setData]       = useState(null);
   const [loading, setLoading] = useState(true);
@@ -16,7 +15,6 @@ function useGet(url) {
   return { data, loading, error };
 }
 
-/* ── content-type → display label + CSS class ─────────── */
 const TYPE_META = {
   'original':                          { label: 'Original script',             cls: 'row-original'        },
   'transliteration':                   { label: 'Transliteration',             cls: 'row-transliteration' },
@@ -42,7 +40,6 @@ const sortContents = arr =>
     return (ia === -1 ? 99 : ia) - (ib === -1 ? 99 : ib);
   });
 
-/* ── word-click popup ──────────────────────────────────── */
 function WordPopup({ token, morphs, onClose }) {
   const mine = (morphs || []).filter(m => m.token_seq === token.seq);
   return (
@@ -86,7 +83,6 @@ function WordPopup({ token, morphs, onClose }) {
   );
 }
 
-/* ── content type toggle row ───────────────────────────── */
 function TypeToggles({ available, visible, onChange }) {
   return (
     <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.35rem', padding: '0.5rem 1rem', background: 'var(--parchment)', borderBottom: '1px solid var(--border-lt)' }}>
@@ -119,7 +115,6 @@ function TypeToggles({ available, visible, onChange }) {
   );
 }
 
-/* ── one omen / line block ─────────────────────────────── */
 function SetBlock({ setId, seq, type, visibleTypes }) {
   const [open, setOpen]             = useState(true);
   const [selectedToken, setSelected] = useState(null);
@@ -210,7 +205,6 @@ function SetBlock({ setId, seq, type, visibleTypes }) {
   );
 }
 
-/* ── source panel (all sets for one source) ────────────── */
 function SourcePanel({ sets, sourceId }) {
   const { data: src } = useGet(`/api/sources/${sourceId}`);
 
@@ -284,7 +278,6 @@ function SourcePanel({ sets, sourceId }) {
   );
 }
 
-/* ── main export ───────────────────────────────────────── */
 export const TextAnalyses = ({ artifactId }) => {
   const { data: sets, loading, error } = useGet(
     artifactId ? `/api/artifacts/${artifactId}/sets` : null
