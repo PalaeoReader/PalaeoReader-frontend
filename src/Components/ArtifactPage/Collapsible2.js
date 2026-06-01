@@ -42,7 +42,7 @@ function Collapsible2() {
     const imageList = data.map((artifact) => (
                         artifact.images.map((img) => (
                             {
-                                src: "http://localhost:8000/api/images/"+img.uri,
+                                src: "/api/images/"+img.uri,
                                 alt: (img.alt),
                                 downloadUrl: (img.uri),
                                 description: (img.caption)

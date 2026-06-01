@@ -4,7 +4,7 @@ export default function fetchAccess () {
   const [username] = useState("");
   const [password] = useState("");
 
-  var fetchData = fetch('http://localhost:8000/api/login/access-token', {
+  var fetchData = fetch('/api/login/access-token', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded',
@@ -19,7 +19,7 @@ export default function fetchAccess () {
 
 /*function fetchArtifactData () {
   var fetchData = fetch(
-      'http://localhost:8000/api/artifacts',
+      '/api/artifacts',
       { method: 'GET' }
     );
     console.log(fetchData);
@@ -28,7 +28,7 @@ export default function fetchAccess () {
 
 function fetchArtifactImage () {
   var fetchData = fetch(
-    'http://localhost:8000/api/{dir}/{image_uri}',
+    '/api/{dir}/{image_uri}',
     {method: 'GET'}
   );
   return fetchData;

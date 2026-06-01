@@ -1,51 +1,45 @@
 import React from 'react';
 import { createRoot } from 'react-dom/client';
-import NavBar from './Components/NavBar/NavBar';
 import './index.css';
-import './Components/NavBar/NavBar.css'
-import './Components/Login/Login.css';
-import ArtifactList from './Components/ArtifactDirectory/ArtifactList';
-import Login from './Components/Login/Login';
-import Selection from './Components/Selections';
-import MorphGroup from './Components/Morphs';
-import './API';
-import './APIurls';
-import ArtifactDisplay from './Components/ArtifactPage/ArtifactDisplay';
+import './Components/NavBar/NavBar.css';
+import NavBar from './Components/NavBar/NavBar';
 import MainPage from './Components/Home/MainPage';
+import ArtifactList from './Components/ArtifactDirectory/ArtifactList';
+import ArtifactDisplay from './Components/ArtifactPage/ArtifactDisplay';
+import MapPage from './Components/Map/MapPage';
+import DictionaryPage from './Components/Dictionary/DictionaryPage';
+import SourcesPage from './Components/Sources/SourcesPage';
+import Login from './Components/Login/Login';
+import './Components/Login/Login.css';
 import {
   BrowserRouter as Router,
   Routes,
   Route,
-} from "react-router-dom";
-import { useParams } from 'react-router-dom';
+} from 'react-router-dom';
 
-// Clear the existing HTML content
 document.body.innerHTML = '<div id="root"></div>';
-
 const domNode = document.getElementById('root');
 export const root = createRoot(domNode);
 
 function App() {
   return (
-    <div className="container" color="#FBFFF1">
+    <div>
       <Router>
-      <header className="header">
-        <NavBar />
-      </header>
-            <Routes>
-                <Route exact path="/" element={<MainPage/>}/>
-                <Route exact path="/directory" element={<ArtifactList />} />
-                <Route
-                    path="/artifact/:shortName"
-                    element={<ArtifactDisplay />}
-                />
-                <Route path="/login" element={<Login />} />
-                <Route path="/image/:id" element={<Selection />} />
-                <Route path="/morphs/:id" element={<MorphGroup />} />
-            </Routes>
-        </Router>
+        <header>
+          <NavBar />
+        </header>
+        <Routes>
+          <Route path="/"                    element={<MainPage />}       />
+          <Route path="/directory"           element={<ArtifactList />}   />
+          <Route path="/artifact/:shortName" element={<ArtifactDisplay />}/>
+          <Route path="/map"                 element={<MapPage />}        />
+          <Route path="/dictionary"          element={<DictionaryPage />} />
+          <Route path="/sources"             element={<SourcesPage />}    />
+          <Route path="/login"               element={<Login />}          />
+        </Routes>
+      </Router>
     </div>
   );
 }
 
-root.render(<App/>);
+root.render(<App />);

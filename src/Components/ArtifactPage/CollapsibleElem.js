@@ -42,9 +42,9 @@ function CollapsibleElem() {
                         imageGroup.images.map((img) => (
                             {
                                 id: (img.id),
-                                src: "http://localhost:8000/api/images/"+img.uri,
+                                src: "/api/images/"+img.uri,
                                 alt: (img.alt),
-                                downloadUrl: "http://localhost:8000/api/images/"+img.uri,
+                                downloadUrl: "/api/images/"+img.uri,
                                 description: (img.caption)
                             }
                         ))
