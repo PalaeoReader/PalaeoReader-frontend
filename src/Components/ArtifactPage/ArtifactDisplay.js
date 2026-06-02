@@ -25,11 +25,14 @@ const LAYERS = [
   { key: 'morph-gloss',   label: 'Morph. gloss', cls: 'layer-morph-gloss',   isMorph: true  },
 ];
 
-// colors assigned to sources in discovery order
 const COLOR_SLOTS = [
   { border: '#7F77DD', bg: '#EEEDFE', text: '#534AB7', row: 'rgba(127,119,221,0.05)' },
   { border: '#1D9E75', bg: '#E1F5EE', text: '#0F6E56', row: 'rgba(29,158,117,0.05)'  },
   { border: '#EF9F27', bg: '#FAEEDA', text: '#854F0B', row: 'rgba(239,159,39,0.05)'  },
+  { border: '#C75CA8', bg: '#F9EAFC', text: '#82346E', row: 'rgba(199,92,168,0.05)'  },
+  { border: '#3A8FD6', bg: '#E3F1FB', text: '#1A5E99', row: 'rgba(58,143,214,0.05)'  },
+  { border: '#D85A30', bg: '#FAECE7', text: '#993C1D', row: 'rgba(216,90,48,0.05)'   },
+  { border: '#5B8A3C', bg: '#EAF4E3', text: '#2E5A18', row: 'rgba(91,138,60,0.05)'   },
 ];
 const COMMUNITY_COLOR = { border: '#D85A30', bg: '#FAECE7', text: '#993C1D', row: 'rgba(216,90,48,0.05)' };
 
@@ -47,16 +50,6 @@ function srcLabel(src, id) {
   return src.date_published ? `${last} ${src.date_published}` : last;
 }
 
-function getTokens(set) {
-  const bySeq = {};
-  (set?.tokens || []).forEach(t => {
-    if (!bySeq[t.seq] || t.type === 'original') bySeq[t.seq] = t;
-  });
-  return Object.values(bySeq).sort((a, b) => a.seq - b.seq);
-}
-
-// aligned morpheme + gloss — uses a table so every column is automatically
-// sized to the wider of its form or gloss, keeping rows perfectly aligned
 function MorphInterlinear({ morphs }) {
   if (!morphs || morphs.length === 0) return null;
 
@@ -69,61 +62,33 @@ function MorphInterlinear({ morphs }) {
   });
 
   const tokenSeqs = [...new Set(morphs.map(m => m.token_seq))].sort((a, b) => a - b);
-
   const cells = [];
   tokenSeqs.forEach((tseq, ti) => {
     const pairs = byToken[tseq];
     Object.keys(pairs).sort((a, b) => Number(a) - Number(b)).forEach(seq => {
       cells.push({ form: pairs[seq].form || ' ', gloss: pairs[seq].gloss || ' ' });
     });
-    // word separator between tokens
     if (ti < tokenSeqs.length - 1) cells.push({ sep: true });
   });
 
   if (cells.filter(c => !c.sep).length === 0) return null;
 
   return (
-    <table className="morph-table">
-      <tbody>
-        <tr className="morph-form-row layer-morph-transcr">
-          {cells.map((cell, i) =>
-            cell.sep
-              ? <td key={i} className="morph-sep-td" />
-              : <td key={i} className="morph-form-td">{cell.form}</td>
-          )}
-        </tr>
-        <tr className="morph-gloss-row layer-morph-gloss">
-          {cells.map((cell, i) =>
-            cell.sep
-              ? <td key={i} className="morph-sep-td" />
-              : <td key={i} className="morph-gloss-td">{cell.gloss}</td>
-          )}
-        </tr>
-      </tbody>
-    </table>
-  );
-}
-
-// one row in stacked view: left border + badge + layer tag + text
-function SourceRow({ text, layerCls, layerLabel, authorId, authorLabel, color, isNA }) {
-  return (
-    <div
-      className={`stk-row ${layerCls} author-${authorId}`}
-      style={{ borderLeft: `2px solid ${color.border}`, background: color.row }}
-    >
-      <span className="stk-badge" style={{ background: color.bg, color: color.text }}>
-        {authorLabel}
-      </span>
-      <span className="stk-layer-tag">{layerLabel}</span>
-      {isNA
-        ? <span className="stk-na">not available <span className="stk-na-badge">NA</span></span>
-        : <span className={`stk-text stk-text-${layerCls.replace('layer-', '')}`}>{text}</span>
-      }
+    <div className="morph-flex">
+      {cells.map((cell, i) =>
+        cell.sep
+          ? <span key={i} className="morph-sep" />
+          : (
+            <span key={i} className="morph-unit">
+              <span className="morph-form layer-morph-transcr">{cell.form}</span>
+              <span className="morph-gloss layer-morph-gloss">{cell.gloss}</span>
+            </span>
+          )
+      )}
     </div>
   );
 }
 
-// inline contribution form
 function ContributeForm({ onSubmit, onCancel }) {
   const [name, setName]   = useState('');
   const [layer, setLayer] = useState('translation');
@@ -138,25 +103,14 @@ function ContributeForm({ onSubmit, onCancel }) {
   return (
     <div className="stk-form">
       <div className="stk-form-row">
-        <input
-          className="stk-form-input"
-          placeholder="Your name or handle"
-          value={name}
-          onChange={e => setName(e.target.value)}
-        />
+        <input className="stk-form-input" placeholder="Your name or handle" value={name} onChange={e => setName(e.target.value)} />
         <select className="stk-form-select" value={layer} onChange={e => setLayer(e.target.value)}>
           <option value="transliteration">Transliteration</option>
           <option value="transcription">Transcription</option>
           <option value="translation">Translation</option>
         </select>
       </div>
-      <textarea
-        className="stk-form-textarea"
-        placeholder="Your analysis for this omen..."
-        value={text}
-        onChange={e => setText(e.target.value)}
-        rows={2}
-      />
+      <textarea className="stk-form-textarea" placeholder="Your analysis for this omen..." value={text} onChange={e => setText(e.target.value)} rows={2} />
       <div className="stk-form-actions">
         <button className="stk-form-submit" onClick={submit}>Submit</button>
         <button className="stk-form-cancel" onClick={onCancel}>Cancel</button>
@@ -165,32 +119,30 @@ function ContributeForm({ onSubmit, onCancel }) {
   );
 }
 
-// compare omen block — grouped by layer, all authors under each layer
-function StackedOmenBlock({ omenSeq, omenType, sets, sources, colorMap, contributions, onAddContribution }) {
+// Unified omen block — supports "layer" and "author" grouping modes.
+function OmenBlock({ omenSeq, omenType, sets, sources, colorMap, contributions, onAddContribution, groupBy }) {
   const [formOpen, setFormOpen] = useState(false);
   const label = omenType === 'omen' ? `Omen ${omenSeq}` : `Line ${omenSeq}`;
-
   const firstSet = sets[0];
   const morphs = firstSet?.morphs || [];
   const contribs = contributions[omenSeq] || [];
-
-  // content layers only (not morph)
   const contentLayers = LAYERS.filter(l => !l.isMorph);
 
+  // Build both structures up front
   const byLayer = {};
   contentLayers.forEach(l => { byLayer[l.key] = []; });
+  const bySrc = {};
   sets.forEach(set => {
     const color = colorMap[String(set.source_id)] || COLOR_SLOTS[0];
-    const src = sources[String(set.source_id)];
-    const author = srcLabel(src, set.source_id);
     const contentByLayer = {};
     (set.contents || []).forEach(c => {
       const lk = contentTypeToLayer(c.type);
       if (lk && !contentByLayer[lk]) contentByLayer[lk] = c.text;
     });
     contentLayers.forEach(l => {
-      byLayer[l.key].push({ sourceId: String(set.source_id), author, color, text: contentByLayer[l.key] || null });
+      byLayer[l.key].push({ sourceId: String(set.source_id), color, text: contentByLayer[l.key] || null });
     });
+    bySrc[String(set.source_id)] = { color, contentByLayer };
   });
 
   const contribsByLayer = {};
@@ -201,105 +153,142 @@ function StackedOmenBlock({ omenSeq, omenType, sets, sources, colorMap, contribu
   });
 
   return (
-    <div className="stk-omen" id={`omen-${omenSeq}`}>
-      <div className="stk-omen-label">{label}</div>
+    <div className="v2-omen-block" id={`omen-${omenSeq}`}>
+      <div className="v2-omen-label">{label}</div>
 
-      {contentLayers.map(l => {
-        const rows = byLayer[l.key];
-        const extraContribs = contribsByLayer[l.key] || [];
-        return (
-          <div key={l.key} className={`stk-layer-group ${l.cls}`}>
-            <div className="stk-layer-group-header">{l.label}</div>
-            {rows.map(r => (
-              <div
-                key={r.sourceId}
-                className={`stk-row author-${r.sourceId}`}
-                style={{ borderLeft: `2px solid ${r.color.border}`, background: r.color.row }}
-              >
-                <span className="stk-badge" style={{ background: r.color.bg, color: r.color.text }}>{r.author}</span>
-                {r.text
-                  ? <span className={`stk-text stk-text-${l.cls.replace('layer-', '')}`}>{r.text}</span>
-                  : <span className="stk-na">not available <span className="stk-na-badge">NA</span></span>
-                }
+      {groupBy === 'layer' ? (
+        /* ── Group by Layer ── */
+        <>
+          {contentLayers.map(l => (
+            <div key={l.key} className={`v2-layer-row-group ${l.cls}`}>
+              <span className="v2-layer-row-label">{l.label}</span>
+              <div className="v2-layer-authors">
+                {byLayer[l.key].map(r => (
+                  <div key={r.sourceId} className={`author-line author-${r.sourceId}`}
+                    style={{ borderLeft: `2px solid ${r.color.border}`, background: r.color.row }}>
+                    <span className="author-dot" style={{ color: r.color.border }}>●</span>
+                    {r.text
+                      ? <span className={`v2-layer-text v2-text-${l.key}`}>{r.text}</span>
+                      : <span className="v2-na">not available <span className="v2-na-badge">NA</span></span>
+                    }
+                  </div>
+                ))}
+                {(contribsByLayer[l.key] || []).map((c, i) => (
+                  <div key={`c-${i}`} className="author-line author-community"
+                    style={{ borderLeft: `2px solid ${COMMUNITY_COLOR.border}`, background: COMMUNITY_COLOR.row }}>
+                    <span className="author-dot" style={{ color: COMMUNITY_COLOR.border }}>●</span>
+                    <span className={`v2-layer-text v2-text-${l.key}`}>{c.text}</span>
+                  </div>
+                ))}
               </div>
-            ))}
-            {extraContribs.map((c, i) => (
-              <div key={`contrib-${i}`} className="stk-row author-community"
-                style={{ borderLeft: `2px solid ${COMMUNITY_COLOR.border}`, background: COMMUNITY_COLOR.row }}
-              >
-                <span className="stk-badge" style={{ background: COMMUNITY_COLOR.bg, color: COMMUNITY_COLOR.text }}>{c.name}</span>
-                <span className={`stk-text stk-text-${l.cls.replace('layer-', '')}`}>{c.text}</span>
+            </div>
+          ))}
+          {(() => {
+            const morphColor = colorMap[String(firstSet?.source_id)] || COLOR_SLOTS[0];
+            return (
+              <div className="v2-layer-row-group layer-morph-transcr layer-morph-gloss">
+                <span className="v2-layer-row-label">Morph.</span>
+                <div className="v2-layer-authors">
+                  <div className={`author-line author-${firstSet?.source_id}`}
+                    style={{ borderLeft: `2px solid ${morphColor.border}`, background: morphColor.row }}>
+                    <span className="author-dot" style={{ color: morphColor.border }}>●</span>
+                    {morphs.length > 0
+                      ? <MorphInterlinear morphs={morphs} />
+                      : <span className="v2-na">not available <span className="v2-na-badge">NA</span></span>
+                    }
+                  </div>
+                </div>
               </div>
-            ))}
-          </div>
-        );
-      })}
-
-      {morphs.length > 0 && (
-        <div className="stk-layer-group layer-morph-transcr layer-morph-gloss">
-          <div className="stk-layer-group-header">Morphological analysis</div>
-          <div className="stk-row" style={{ borderLeft: '2px solid #7F77DD', background: 'rgba(127,119,221,0.03)', paddingTop: '0.4rem', paddingBottom: '0.4rem' }}>
-            <MorphInterlinear morphs={morphs} />
-          </div>
-        </div>
+            );
+          })()}
+        </>
+      ) : (
+        /* ── Group by Author ── */
+        sets.map(set => {
+          const srcId = String(set.source_id);
+          const { color, contentByLayer } = bySrc[srcId];
+          const author = srcLabel(sources[srcId], srcId);
+          const isMorphAuthor = srcId === String(firstSet?.source_id);
+          return (
+            <div key={srcId} className={`author-block author-${srcId}`}
+              style={{ borderColor: `${color.border}40` }}>
+              <div className="author-block-header"
+                style={{ borderLeft: `3px solid ${color.border}`, background: color.bg }}>
+                <span className="author-block-name" style={{ color: color.text }}>{author}</span>
+              </div>
+              {contentLayers.map(l => {
+                const text = contentByLayer[l.key] || null;
+                return (
+                  <div key={l.key} className={`v2-layer-row-group author-block-row ${l.cls}`}>
+                    <span className="v2-layer-row-label">{l.label}</span>
+                    {text
+                      ? <span className={`v2-layer-text v2-text-${l.key}`}>{text}</span>
+                      : <span className="v2-na">not available <span className="v2-na-badge">NA</span></span>
+                    }
+                  </div>
+                );
+              })}
+              {isMorphAuthor && (
+                <div className="v2-layer-row-group author-block-row layer-morph-transcr layer-morph-gloss">
+                  <span className="v2-layer-row-label">Morph.</span>
+                  {morphs.length > 0
+                    ? <MorphInterlinear morphs={morphs} />
+                    : <span className="v2-na">not available <span className="v2-na-badge">NA</span></span>
+                  }
+                </div>
+              )}
+            </div>
+          );
+        })
       )}
 
       {formOpen
-        ? <ContributeForm
-            onSubmit={d => { onAddContribution(omenSeq, d); setFormOpen(false); }}
-            onCancel={() => setFormOpen(false)}
-          />
-        : <button className="stk-add-btn" onClick={() => setFormOpen(true)}>
-            + add your analysis for this omen
-          </button>
+        ? <ContributeForm onSubmit={d => { onAddContribution(omenSeq, d); setFormOpen(false); }} onCancel={() => setFormOpen(false)} />
+        : <button className="stk-add-btn" onClick={() => setFormOpen(true)}>+ add your analysis for this omen</button>
       }
     </div>
   );
 }
 
-// read mode omen block — one source at a time
-function ReadOmenBlock({ set }) {
-  const label = set.type === 'omen' ? `Omen ${set.seq}` : `Line ${set.seq}`;
-  const byLayer = {};
-  (set.contents || []).forEach(c => {
-    const lk = contentTypeToLayer(c.type);
-    if (lk && !byLayer[lk]) byLayer[lk] = c.text;
-  });
-  const morphs = set.morphs || [];
-
+// Segmented control for grouping mode
+function GroupByControl({ value, onChange }) {
   return (
-    <div className="v2-omen-block" id={`omen-${set.seq}`}>
-      <div className="v2-omen-label">{label}</div>
-      {LAYERS.filter(l => !l.isMorph).map(l => {
-        const content = byLayer[l.key];
-        return (
-          <div key={l.key} className={`v2-layer-row ${l.cls}`}>
-            <span className="v2-layer-row-label">{l.label}</span>
-            {content
-              ? <span className={`v2-layer-text v2-text-${l.key}`}>{content}</span>
-              : <span className="v2-na">not available <span className="v2-na-badge">NA</span></span>
-            }
-          </div>
-        );
-      })}
-      {morphs.length > 0 && (
-        <div className="v2-layer-row layer-morph-transcr layer-morph-gloss">
-          <span className="v2-layer-row-label">Morph.</span>
-          <MorphInterlinear morphs={morphs} />
-        </div>
-      )}
+    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+      <span className="stk-filter-label">Group by</span>
+      <div className="v2-mode-selector">
+        <button className={`v2-mode-btn${value === 'layer'  ? ' active' : ''}`} onClick={() => onChange('layer')}>Layer</button>
+        <button className={`v2-mode-btn${value === 'author' ? ' active' : ''}`} onClick={() => onChange('author')}>Author</button>
+      </div>
     </div>
   );
 }
 
-// author filter pills (stacked mode)
-function AuthorPills({ sourceIds, sources, hiddenAuthors, onToggle, colorMap }) {
+// Legend bar — maps color dot to author name, shown only when >1 author active
+function LegendBar({ sourceIds, sources, hiddenAuthors, colorMap }) {
+  const active = sourceIds.filter(id => !hiddenAuthors.has(id));
+  if (active.length <= 1) return null;
+  return (
+    <div className="legend-bar">
+      {active.map(id => {
+        const color = colorMap[id] || COLOR_SLOTS[0];
+        return (
+          <span key={id} className="legend-entry" style={{ borderLeft: `2px solid ${color.border}` }}>
+            <span className="legend-dot" style={{ color: color.border }}>●</span>
+            {srcLabel(sources[id], id)}
+          </span>
+        );
+      })}
+    </div>
+  );
+}
+
+// Author filter pills
+function AuthorFilterRow({ sourceIds, sources, hiddenAuthors, onToggle, colorMap }) {
   return (
     <div className="stk-filter-group">
       <span className="stk-filter-label">Authors</span>
       <div className="stk-pills">
         {sourceIds.map(id => {
-          const src = sources[id];
           const color = colorMap[id] || COLOR_SLOTS[0];
           const visible = !hiddenAuthors.has(id);
           return (
@@ -310,7 +299,8 @@ function AuthorPills({ sourceIds, sources, hiddenAuthors, onToggle, colorMap }) 
               onClick={() => onToggle(id)}
               aria-pressed={visible}
             >
-              {srcLabel(src, id)}
+              {visible && <span className="pill-dot" style={{ color: color.border }}>●</span>}
+              {srcLabel(sources[id], id)}
             </button>
           );
         })}
@@ -319,8 +309,8 @@ function AuthorPills({ sourceIds, sources, hiddenAuthors, onToggle, colorMap }) 
   );
 }
 
-// layer filter pills
-function LayerPills({ hiddenLayers, onToggle }) {
+// Layer filter pills
+function LayerFilterRow({ hiddenLayers, onToggle }) {
   return (
     <div className="stk-filter-group">
       <span className="stk-filter-label">Layers</span>
@@ -343,46 +333,6 @@ function LayerPills({ hiddenLayers, onToggle }) {
   );
 }
 
-// right panel — artifact metadata and sources only
-function DetailsPanel({ artifact, sources, sourceIds }) {
-  return (
-    <div className="v2-details-panel">
-      <div className="v2-meta-section">
-        <div className="v2-meta-header">Artifact Details</div>
-        {[
-          ['Script',     artifact.script],
-          ['Language',   artifact.language],
-          ['Date',       artifact.origin_date],
-          ['Material',   artifact.material],
-          ['Dimensions', artifact.dimensions],
-          ['Discovered', artifact.discovery_date],
-        ].filter(([, v]) => v).map(([k, v]) => (
-          <div key={k} className="v2-meta-row">
-            <span className="v2-meta-key">{k}</span>
-            <span className="v2-meta-val">{v}</span>
-          </div>
-        ))}
-      </div>
-      <div className="v2-meta-divider" />
-      <div className="v2-meta-section">
-        <div className="v2-meta-header">Sources</div>
-        {sourceIds.map(id => {
-          const src = sources[id];
-          if (!src) return null;
-          return (
-            <div key={id} className="v2-source-item">
-              <div className="v2-source-item-author">{src.author}{src.date_published ? `, ${src.date_published}` : ''}</div>
-              {src.title && <div className="v2-source-item-title">{src.title}</div>}
-            </div>
-          );
-        })}
-      </div>
-      <div className="v2-meta-hint">Click any word chip to see its morphological breakdown.</div>
-    </div>
-  );
-}
-
-// left panel — manuscript images
 function ManuscriptPanel({ artifact }) {
   const [activeImg, setActiveImg] = useState(null);
   const [bw, setBw] = useState(false);
@@ -418,6 +368,43 @@ function ManuscriptPanel({ artifact }) {
   );
 }
 
+function DetailsPanel({ artifact, sources, sourceIds }) {
+  return (
+    <div className="v2-details-panel">
+      <div className="v2-meta-section">
+        <div className="v2-meta-header">Artifact Details</div>
+        {[
+          ['Script',     artifact.script],
+          ['Language',   artifact.language],
+          ['Date',       artifact.origin_date],
+          ['Material',   artifact.material],
+          ['Dimensions', artifact.dimensions],
+          ['Discovered', artifact.discovery_date],
+        ].filter(([, v]) => v).map(([k, v]) => (
+          <div key={k} className="v2-meta-row">
+            <span className="v2-meta-key">{k}</span>
+            <span className="v2-meta-val">{v}</span>
+          </div>
+        ))}
+      </div>
+      <div className="v2-meta-divider" />
+      <div className="v2-meta-section">
+        <div className="v2-meta-header">Sources</div>
+        {sourceIds.map(id => {
+          const src = sources[id];
+          if (!src) return null;
+          return (
+            <div key={id} className="v2-source-item">
+              <div className="v2-source-item-author">{src.author}{src.date_published ? `, ${src.date_published}` : ''}</div>
+              {src.title && <div className="v2-source-item-title">{src.title}</div>}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 export default function ArtifactDisplay() {
   const { shortName } = useParams();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -437,20 +424,9 @@ export default function ArtifactDisplay() {
     });
   }, [sourceIds.join(',')]);
 
-  // assign a color to each source in discovery order
   const colorMap = {};
   sourceIds.forEach((id, i) => { colorMap[id] = COLOR_SLOTS[i % COLOR_SLOTS.length]; });
 
-  // mode: 'read' or 'stacked'
-  const [mode, setMode] = useState(() => searchParams.get('mode') || 'read');
-
-  // read mode: which source tab is active
-  const [activeSource, setActiveSource] = useState(null);
-  useEffect(() => {
-    if (sourceIds.length > 0 && !activeSource) setActiveSource(sourceIds[0]);
-  }, [sourceIds.join(',')]);
-
-  // stacked mode filters
   const [hiddenAuthors, setHiddenAuthors] = useState(() => {
     const p = searchParams.get('hidden_authors');
     return p ? new Set(p.split(',')) : new Set();
@@ -459,14 +435,15 @@ export default function ArtifactDisplay() {
     const p = searchParams.get('hidden_layers');
     return p ? new Set(p.split(',')) : new Set();
   });
+  const [groupBy, setGroupBy] = useState(() => searchParams.get('group_by') || 'layer');
 
-  // sync url
   useEffect(() => {
-    const p = { mode };
+    const p = {};
     if (hiddenAuthors.size) p.hidden_authors = [...hiddenAuthors].join(',');
     if (hiddenLayers.size)  p.hidden_layers  = [...hiddenLayers].join(',');
+    if (groupBy !== 'layer') p.group_by = groupBy;
     setSearchParams(p, { replace: true });
-  }, [mode, hiddenAuthors, hiddenLayers]);
+  }, [hiddenAuthors, hiddenLayers, groupBy]);
 
   const [contributions, setContributions] = useState({});
 
@@ -485,85 +462,67 @@ export default function ArtifactDisplay() {
   if (!artifact) return <div className="loading-wrap">Loading…</div>;
 
   const omenSeqs = [...new Set(sets.map(s => s.seq))].sort((a, b) => a - b);
+  const activeAuthors = sourceIds.filter(id => !hiddenAuthors.has(id));
+  const isSingleAuthor = activeAuthors.length === 1;
 
-  // read mode: sets for the active source
-  const readSets = sets.filter(s => String(s.source_id) === String(activeSource)).sort((a, b) => a.seq - b.seq);
-
-  // stacked mode: css hide classes on the wrapper
   const hideClasses = [
     ...[...hiddenAuthors].map(id => `hide-author-${id}`),
     ...[...hiddenLayers].map(k => `hide-layer-${k}`),
-  ].join(' ');
+    isSingleAuthor ? 'single-author' : '',
+  ].filter(Boolean).join(' ');
 
   return (
     <div className="v2-viewer-layout">
       <ManuscriptPanel artifact={artifact} />
 
       <div className="v2-center-panel">
+        {/* filter bar — authors row + layers row */}
         <div className="v2-controls-bar">
-          {/* mode toggle */}
           <div className="v2-controls-row">
-            <div className="v2-mode-selector">
-              <button className={`v2-mode-btn${mode === 'read'    ? ' active' : ''}`} onClick={() => setMode('read')}>Read</button>
-              <button className={`v2-mode-btn${mode === 'stacked' ? ' active' : ''}`} onClick={() => setMode('stacked')}>Compare</button>
-            </div>
+            <AuthorFilterRow
+              sourceIds={sourceIds}
+              sources={sources}
+              hiddenAuthors={hiddenAuthors}
+              onToggle={toggleAuthor}
+              colorMap={colorMap}
+            />
           </div>
-
-          {/* read mode: source pills */}
-          {mode === 'read' && (
-            <div className="v2-controls-row">
-              <div className="v2-source-pills">
-                {sourceIds.map(id => (
-                  <button
-                    key={id}
-                    className={`v2-source-pill${String(activeSource) === id ? ' active' : ''}`}
-                    onClick={() => setActiveSource(id)}
-                  >
-                    {srcLabel(sources[id], id)}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* stacked mode: author + layer filters */}
-          {mode === 'stacked' && (
-            <>
-              <div className="v2-controls-row">
-                <AuthorPills sourceIds={sourceIds} sources={sources} hiddenAuthors={hiddenAuthors} onToggle={toggleAuthor} colorMap={colorMap} />
-              </div>
-              <div className="v2-controls-row">
-                <LayerPills hiddenLayers={hiddenLayers} onToggle={toggleLayer} />
-              </div>
-            </>
-          )}
+          <div className="v2-controls-row">
+            <LayerFilterRow hiddenLayers={hiddenLayers} onToggle={toggleLayer} />
+          </div>
+          <div className="v2-controls-row">
+            <GroupByControl value={groupBy} onChange={setGroupBy} />
+          </div>
         </div>
 
-        <div className={`v2-text-display ${mode === 'stacked' ? hideClasses : ''}`}>
-          {mode === 'read'
-            ? readSets.length > 0
-              ? readSets.map(s => (
-                  <ReadOmenBlock key={s.id} set={s} />
-                ))
-              : <div className="v2-empty">Select a source above to read the text.</div>
-            : omenSeqs.map(seq => {
-                const seqSets = sets
-                  .filter(s => s.seq === seq)
-                  .sort((a, b) => sourceIds.indexOf(String(a.source_id)) - sourceIds.indexOf(String(b.source_id)));
-                return (
-                  <StackedOmenBlock
-                    key={seq}
-                    omenSeq={seq}
-                    omenType={seqSets[0]?.type || 'omen'}
-                    sets={seqSets}
-                    sources={sources}
-                    colorMap={colorMap}
-                    contributions={contributions}
-                    onAddContribution={addContribution}
-                  />
-                );
-              })
-          }
+        {/* legend bar — only appears when >1 author active */}
+        <LegendBar
+          sourceIds={sourceIds}
+          sources={sources}
+          hiddenAuthors={hiddenAuthors}
+          colorMap={colorMap}
+        />
+
+        {/* text display — all filtering via CSS class toggling, no re-render */}
+        <div className={`v2-text-display ${hideClasses}`}>
+          {omenSeqs.map(seq => {
+            const seqSets = sets
+              .filter(s => s.seq === seq)
+              .sort((a, b) => sourceIds.indexOf(String(a.source_id)) - sourceIds.indexOf(String(b.source_id)));
+            return (
+              <OmenBlock
+                key={seq}
+                omenSeq={seq}
+                omenType={seqSets[0]?.type || 'omen'}
+                sets={seqSets}
+                sources={sources}
+                colorMap={colorMap}
+                contributions={contributions}
+                onAddContribution={addContribution}
+                groupBy={groupBy}
+              />
+            );
+          })}
 
           {sourceIds.length > 0 && (
             <div className="v2-references">

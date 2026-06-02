@@ -1838,12 +1838,18 @@ button { cursor: pointer; }
   border-radius: 2px;
 }
 
-/* css class-based hide for stacked view */
+/* css class-based hide — author rows and layer groups */
 .hide-author-1 .author-1,
 .hide-author-2 .author-2,
 .hide-author-3 .author-3,
 .hide-author-4 .author-4,
+.hide-author-5 .author-5,
+.hide-author-6 .author-6,
+.hide-author-7 .author-7,
 .hide-author-community .author-community { display: none; }
+
+/* single-author mode: suppress color dots (clean read experience) */
+.single-author .author-dot { display: none; }
 
 .hide-layer-script        .layer-script        { display: none; }
 .hide-layer-translit      .layer-translit      { display: none; }
@@ -2034,39 +2040,113 @@ button { cursor: pointer; }
 }
 
 /* morphological interlinear — table ensures perfect column alignment */
-.morph-table {
-  border-collapse: collapse;
-  display: block;
-  overflow-x: auto;
+.morph-flex {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.1rem 0.6rem;
+  align-items: flex-start;
   flex: 1;
-  padding: 0.25rem 0;
+  padding: 0.15rem 0;
 }
 
-.morph-form-td {
+.morph-unit {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.morph-form {
   font-family: 'Source Code Pro', monospace;
   font-size: 0.8rem;
   color: #085041;
-  white-space: nowrap;
-  padding: 0 10px 3px 0;
-  vertical-align: bottom;
-  text-align: left;
+  line-height: 1.4;
 }
 
-.morph-gloss-td {
-  font-size: 0.73rem;
+.morph-gloss {
+  font-size: 0.72rem;
   color: #412402;
-  white-space: nowrap;
-  padding: 0 10px 0 0;
-  vertical-align: top;
-  text-align: left;
+  line-height: 1.3;
 }
 
-.morph-sep-td {
-  width: 14px;
-  min-width: 14px;
-  padding: 0;
+.morph-sep {
+  display: inline-block;
+  width: 10px;
 }
 
-/* hide morph rows via layer toggles */
-.hide-layer-morph-transcr .morph-form-row { display: none; }
-.hide-layer-morph-gloss   .morph-gloss-row { display: none; }
+/* hide morph elements via layer toggles */
+.hide-layer-morph-transcr .morph-form  { display: none; }
+.hide-layer-morph-gloss   .morph-gloss { display: none; }
+
+/* unified layer-row-group: label on left, author lines stacked on right */
+.v2-layer-row-group {
+  display: flex;
+  gap: 0.75rem;
+  align-items: flex-start;
+  padding: 0.2rem 0;
+  padding-left: 0.5rem;
+  border-left: 2px solid transparent;
+  margin-left: -0.5rem;
+}
+.v2-layer-row-group.layer-script        { border-left-color: var(--v2-script);   }
+.v2-layer-row-group.layer-translit      { border-left-color: var(--v2-translit); }
+.v2-layer-row-group.layer-transcription { border-left-color: var(--v2-transcr);  }
+.v2-layer-row-group.layer-translation   { border-left-color: var(--v2-transl);   }
+
+/* column of author lines within a layer row */
+.v2-layer-authors {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+
+/* individual author line — inherits text styling from parent v2-text-* class */
+.author-line {
+  display: flex;
+  align-items: baseline;
+  gap: 0.35rem;
+  padding: 0.08rem 0.4rem 0.08rem 0.3rem;
+  border-radius: 0 2px 2px 0;
+}
+
+/* author dot — small colored circle before each author's text */
+.author-dot {
+  font-size: 0.45rem;
+  flex-shrink: 0;
+  line-height: 2;
+  opacity: 0.9;
+}
+
+/* pill dot — colored dot inside author filter pill */
+.pill-dot {
+  font-size: 0.45rem;
+  margin-right: 0.2rem;
+  vertical-align: middle;
+  line-height: 1;
+}
+
+/* legend bar — shown above text when >1 author active */
+.legend-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  padding: 0.35rem 1.25rem;
+  background: var(--v2-bg-2);
+  border-bottom: 1px solid var(--v2-bd);
+  flex-shrink: 0;
+}
+
+.legend-entry {
+  display: flex;
+  align-items: center;
+  gap: 0.28rem;
+  font-size: 0.72rem;
+  font-family: 'Inter', sans-serif;
+  color: var(--v2-text-2);
+  padding-left: 0.45rem;
+}
+
+.legend-dot {
+  font-size: 0.5rem;
+  line-height: 1;
+}
