@@ -341,36 +341,44 @@ function LayerFilterRow({ hiddenLayers, onToggle }) {
 
 function ManuscriptPanel({ artifact }) {
   const [activeImg, setActiveImg] = useState(null);
-  const [bw, setBw] = useState(false);
+  const [fullscreen, setFullscreen] = useState(false);
   const { data: groups } = useFetch(`/api/artifacts/${artifact.shortname}/image_groups`);
   const allImgs = Array.isArray(groups) ? groups.flatMap(g => g.images || []) : [];
   const currentImg = activeImg || (allImgs[0]?.uri ? `/api/images/${allImgs[0].uri}` : null);
 
   return (
-    <div className="v2-manuscript-panel">
-      <div className="v2-panel-header">Manuscript</div>
-      {currentImg
-        ? <img className="v2-manuscript-img" src={currentImg} alt={artifact.label}
-            style={{ filter: bw ? 'grayscale(1) contrast(1.1)' : 'none' }}
-            onError={e => { e.target.style.display = 'none'; }} />
-        : <div className="v2-img-placeholder">No image available</div>
-      }
-      {allImgs.length > 1 && (
-        <div className="v2-thumb-strip">
-          {allImgs.map(img => (
-            <img key={img.id}
-              className={`v2-thumb${currentImg === `/api/images/${img.uri}` ? ' active' : ''}`}
-              src={`/api/images/${img.uri}`} alt=""
-              onClick={() => setActiveImg(`/api/images/${img.uri}`)}
-              onError={e => { e.target.style.display = 'none'; }} />
-          ))}
+    <>
+      {fullscreen && currentImg && (
+        <div className="img-fullscreen-overlay" onClick={() => setFullscreen(false)}>
+          <img src={currentImg} alt={artifact.label} className="img-fullscreen-img" onClick={e => e.stopPropagation()} />
+          <button className="img-fullscreen-close" onClick={() => setFullscreen(false)}>✕</button>
         </div>
       )}
-      <div className="v2-img-controls">
-        <button className={`v2-ctrl-btn${bw ? ' active' : ''}`} onClick={() => setBw(v => !v)}>B&amp;W</button>
-        {currentImg && <a className="v2-ctrl-btn" href={currentImg} target="_blank" rel="noreferrer">Full size</a>}
+      <div className="v2-manuscript-panel">
+        <div className="v2-panel-header">Manuscript</div>
+        {currentImg
+          ? (
+            <div className="img-wrapper">
+              <img className="v2-manuscript-img" src={currentImg} alt={artifact.label}
+                onError={e => { e.target.style.display = 'none'; }} />
+              <button className="img-fullscreen-btn" onClick={() => setFullscreen(true)} title="Fullscreen">⛶</button>
+            </div>
+          )
+          : <div className="v2-img-placeholder">No image available</div>
+        }
+        {allImgs.length > 1 && (
+          <div className="v2-thumb-strip">
+            {allImgs.map(img => (
+              <img key={img.id}
+                className={`v2-thumb${currentImg === `/api/images/${img.uri}` ? ' active' : ''}`}
+                src={`/api/images/${img.uri}`} alt=""
+                onClick={() => setActiveImg(`/api/images/${img.uri}`)}
+                onError={e => { e.target.style.display = 'none'; }} />
+            ))}
+          </div>
+        )}
       </div>
-    </div>
+    </>
   );
 }
 

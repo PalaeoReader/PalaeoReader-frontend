@@ -1183,6 +1183,62 @@ button { cursor: pointer; }
   max-height: 320px;
 }
 
+/* image wrapper — positions the fullscreen button over the image */
+.img-wrapper {
+  position: relative;
+  display: block;
+}
+
+.img-fullscreen-btn {
+  position: absolute;
+  bottom: 0.75rem;
+  right: 0.75rem;
+  background: rgba(0,0,0,0.45);
+  color: #fff;
+  border: none;
+  border-radius: 3px;
+  font-size: 1rem;
+  line-height: 1;
+  padding: 0.25rem 0.35rem;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+.img-wrapper:hover .img-fullscreen-btn { opacity: 1; }
+
+/* fullscreen overlay */
+.img-fullscreen-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.92);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: zoom-out;
+}
+
+.img-fullscreen-img {
+  max-width: 95vw;
+  max-height: 95vh;
+  object-fit: contain;
+  cursor: default;
+  box-shadow: 0 8px 40px rgba(0,0,0,0.6);
+}
+
+.img-fullscreen-close {
+  position: absolute;
+  top: 1rem;
+  right: 1.25rem;
+  background: none;
+  border: none;
+  color: rgba(255,255,255,0.6);
+  font-size: 1.5rem;
+  cursor: pointer;
+  line-height: 1;
+}
+.img-fullscreen-close:hover { color: #fff; }
+
 .v2-img-placeholder {
   flex: 1;
   display: flex;
