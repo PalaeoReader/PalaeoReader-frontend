@@ -1933,7 +1933,12 @@ button { cursor: pointer; }
   padding: 0.18rem 0.6rem; border-radius: 20px; cursor: pointer; transition: all 0.12s;
 }
 .stk-pill:hover { border-color: var(--v2-gold-br); color: var(--v2-text); }
-.stk-pill.active { font-weight: 600; }
+.stk-pill.active {
+  font-weight: 600;
+  background: var(--v2-gold-sub);
+  border-color: var(--v2-gold-br);
+  color: var(--v2-gold);
+}
 
 /* concordance page */
 .conc-wrap {
@@ -2073,9 +2078,37 @@ button { cursor: pointer; }
   width: 10px;
 }
 
-/* hide morph elements via layer toggles */
-.hide-layer-morph-transcr .morph-form  { display: none; }
-.hide-layer-morph-gloss   .morph-gloss { display: none; }
+/* hide entire morph row via layer toggles */
+.hide-layer-morph-transcr .layer-morph-transcr,
+.hide-layer-morph-gloss   .layer-morph-gloss   { display: none; }
+
+/* author-block card (group-by-author mode) */
+.author-block {
+  border: 1px solid;
+  border-radius: 3px;
+  margin-bottom: 0.5rem;
+  overflow: hidden;
+}
+
+.author-block-header {
+  padding: 0.28rem 0.75rem;
+  display: flex;
+  align-items: center;
+}
+
+.author-block-name {
+  font-size: 0.72rem;
+  font-family: 'Inter', sans-serif;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+}
+
+/* layer rows inside an author card — reset the negative margin so they sit flush */
+.author-block-row {
+  margin-left: 0 !important;
+  border-left: none !important;
+  padding: 0.18rem 0.75rem !important;
+}
 
 /* unified layer-row-group: label on left, author lines stacked on right */
 .v2-layer-row-group {

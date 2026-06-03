@@ -159,43 +159,42 @@ function OmenBlock({ omenSeq, omenType, sets, sources, colorMap, contributions, 
       {groupBy === 'layer' ? (
         /* ── Group by Layer ── */
         <>
-          {contentLayers.map(l => (
-            <div key={l.key} className={`v2-layer-row-group ${l.cls}`}>
-              <span className="v2-layer-row-label">{l.label}</span>
-              <div className="v2-layer-authors">
-                {byLayer[l.key].map(r => (
-                  <div key={r.sourceId} className={`author-line author-${r.sourceId}`}
-                    style={{ borderLeft: `2px solid ${r.color.border}`, background: r.color.row }}>
-                    <span className="author-dot" style={{ color: r.color.border }}>●</span>
-                    {r.text
-                      ? <span className={`v2-layer-text v2-text-${l.key}`}>{r.text}</span>
-                      : <span className="v2-na">not available <span className="v2-na-badge">NA</span></span>
-                    }
-                  </div>
-                ))}
-                {(contribsByLayer[l.key] || []).map((c, i) => (
-                  <div key={`c-${i}`} className="author-line author-community"
-                    style={{ borderLeft: `2px solid ${COMMUNITY_COLOR.border}`, background: COMMUNITY_COLOR.row }}>
-                    <span className="author-dot" style={{ color: COMMUNITY_COLOR.border }}>●</span>
-                    <span className={`v2-layer-text v2-text-${l.key}`}>{c.text}</span>
-                  </div>
-                ))}
+          {contentLayers.map(l => {
+            const activeRows = byLayer[l.key].filter(r => r.text);
+            const extraContribs = contribsByLayer[l.key] || [];
+            if (activeRows.length === 0 && extraContribs.length === 0) return null;
+            return (
+              <div key={l.key} className={`v2-layer-row-group ${l.cls}`}>
+                <span className="v2-layer-row-label">{l.label}</span>
+                <div className="v2-layer-authors">
+                  {activeRows.map(r => (
+                    <div key={r.sourceId} className={`author-line author-${r.sourceId}`}
+                      style={{ borderLeft: `2px solid ${r.color.border}`, background: r.color.row }}>
+                      <span className="author-dot" style={{ color: r.color.border }}>●</span>
+                      <span className={`v2-layer-text v2-text-${l.key}`}>{r.text}</span>
+                    </div>
+                  ))}
+                  {extraContribs.map((c, i) => (
+                    <div key={`c-${i}`} className="author-line author-community"
+                      style={{ borderLeft: `2px solid ${COMMUNITY_COLOR.border}`, background: COMMUNITY_COLOR.row }}>
+                      <span className="author-dot" style={{ color: COMMUNITY_COLOR.border }}>●</span>
+                      <span className={`v2-layer-text v2-text-${l.key}`}>{c.text}</span>
+                    </div>
+                  ))}
+                </div>
               </div>
-            </div>
-          ))}
-          {(() => {
+            );
+          })}
+          {morphs.length > 0 && (() => {
             const morphColor = colorMap[String(firstSet?.source_id)] || COLOR_SLOTS[0];
             return (
               <div className="v2-layer-row-group layer-morph-transcr layer-morph-gloss">
                 <span className="v2-layer-row-label">Morph.</span>
                 <div className="v2-layer-authors">
-                  <div className={`author-line author-${firstSet?.source_id}`}
-                    style={{ borderLeft: `2px solid ${morphColor.border}`, background: morphColor.row }}>
-                    <span className="author-dot" style={{ color: morphColor.border }}>●</span>
-                    {morphs.length > 0
-                      ? <MorphInterlinear morphs={morphs} />
-                      : <span className="v2-na">not available <span className="v2-na-badge">NA</span></span>
-                    }
+                  <div className={`author-line author-morph author-${firstSet?.source_id}`}
+                    style={{ borderLeft: `2px solid ${morphColor.border}`, background: morphColor.row, alignItems: 'flex-start' }}>
+                    <span className="author-dot" style={{ color: morphColor.border, paddingTop: '0.2rem' }}>●</span>
+                    <MorphInterlinear morphs={morphs} />
                   </div>
                 </div>
               </div>
@@ -218,23 +217,18 @@ function OmenBlock({ omenSeq, omenType, sets, sources, colorMap, contributions, 
               </div>
               {contentLayers.map(l => {
                 const text = contentByLayer[l.key] || null;
+                if (!text) return null;
                 return (
                   <div key={l.key} className={`v2-layer-row-group author-block-row ${l.cls}`}>
                     <span className="v2-layer-row-label">{l.label}</span>
-                    {text
-                      ? <span className={`v2-layer-text v2-text-${l.key}`}>{text}</span>
-                      : <span className="v2-na">not available <span className="v2-na-badge">NA</span></span>
-                    }
+                    <span className={`v2-layer-text v2-text-${l.key}`}>{text}</span>
                   </div>
                 );
               })}
-              {isMorphAuthor && (
+              {isMorphAuthor && morphs.length > 0 && (
                 <div className="v2-layer-row-group author-block-row layer-morph-transcr layer-morph-gloss">
                   <span className="v2-layer-row-label">Morph.</span>
-                  {morphs.length > 0
-                    ? <MorphInterlinear morphs={morphs} />
-                    : <span className="v2-na">not available <span className="v2-na-badge">NA</span></span>
-                  }
+                  <MorphInterlinear morphs={morphs} />
                 </div>
               )}
             </div>
@@ -311,11 +305,16 @@ function AuthorFilterRow({ sourceIds, sources, hiddenAuthors, onToggle, colorMap
 
 // Layer filter pills
 function LayerFilterRow({ hiddenLayers, onToggle }) {
+  const morphVisible = !hiddenLayers.has('morph-transcr') && !hiddenLayers.has('morph-gloss');
+  const toggleMorph = () => {
+    onToggle('morph-transcr');
+    onToggle('morph-gloss');
+  };
   return (
     <div className="stk-filter-group">
       <span className="stk-filter-label">Layers</span>
       <div className="stk-pills">
-        {LAYERS.map(l => {
+        {LAYERS.filter(l => !l.isMorph).map(l => {
           const visible = !hiddenLayers.has(l.key);
           return (
             <button
@@ -328,6 +327,13 @@ function LayerFilterRow({ hiddenLayers, onToggle }) {
             </button>
           );
         })}
+        <button
+          className={`stk-pill${morphVisible ? ' active' : ''}`}
+          onClick={toggleMorph}
+          aria-pressed={morphVisible}
+        >
+          Morph.
+        </button>
       </div>
     </div>
   );
