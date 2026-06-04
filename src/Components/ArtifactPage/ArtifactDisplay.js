@@ -137,10 +137,11 @@ function OmenBlock({ omenSeq, omenType, sets, sources, colorMap, contributions, 
     const contentByLayer = {};
     (set.contents || []).forEach(c => {
       const lk = contentTypeToLayer(c.type);
-      if (lk && !contentByLayer[lk]) contentByLayer[lk] = c.text;
+      if (lk && !contentByLayer[lk]) contentByLayer[lk] = { text: c.text, dir: c.text_direction || null };
     });
     contentLayers.forEach(l => {
-      byLayer[l.key].push({ sourceId: String(set.source_id), color, text: contentByLayer[l.key] || null });
+      const entry = contentByLayer[l.key];
+      byLayer[l.key].push({ sourceId: String(set.source_id), color, text: entry?.text || null, dir: entry?.dir || null });
     });
     bySrc[String(set.source_id)] = { color, contentByLayer };
   });
@@ -171,7 +172,7 @@ function OmenBlock({ omenSeq, omenType, sets, sources, colorMap, contributions, 
                     <div key={r.sourceId} className={`author-line author-${r.sourceId}`}
                       style={{ borderLeft: `2px solid ${r.color.border}`, background: r.color.row }}>
                       <span className="author-dot" style={{ color: r.color.border }}>●</span>
-                      <span className={`v2-layer-text v2-text-${l.key}`}>{r.text}</span>
+                      <span className={`v2-layer-text v2-text-${l.key}`} dir={r.dir || undefined}>{r.text}</span>
                     </div>
                   ))}
                   {extraContribs.map((c, i) => (
@@ -216,12 +217,12 @@ function OmenBlock({ omenSeq, omenType, sets, sources, colorMap, contributions, 
                 <span className="author-block-name" style={{ color: color.text }}>{author}</span>
               </div>
               {contentLayers.map(l => {
-                const text = contentByLayer[l.key] || null;
-                if (!text) return null;
+                const entry = contentByLayer[l.key];
+                if (!entry) return null;
                 return (
                   <div key={l.key} className={`v2-layer-row-group author-block-row ${l.cls}`}>
                     <span className="v2-layer-row-label">{l.label}</span>
-                    <span className={`v2-layer-text v2-text-${l.key}`}>{text}</span>
+                    <span className={`v2-layer-text v2-text-${l.key}`} dir={entry.dir || undefined}>{entry.text}</span>
                   </div>
                 );
               })}
@@ -320,12 +321,15 @@ function LayerFirstView({ grouping, sets, sources, sourceIds, colorMap }) {
 
   return contentLayers.map(layer => {
     const layerKey = layer.key;
-    const getText = set => (set.contents || []).find(c => contentTypeToLayer(c.type) === layerKey)?.text || null;
+    const getContent = set => {
+      const c = (set.contents || []).find(c => contentTypeToLayer(c.type) === layerKey);
+      return c ? { text: c.text, dir: c.text_direction || null } : null;
+    };
 
     if (grouping === 'layer-entry-author') {
       // Layer → Entry → Author: for each layer, entries in order, authors stacked within
       const hasAny = omenSeqs.some(seq =>
-        sets.filter(s => s.seq === seq).some(s => getText(s))
+        sets.filter(s => s.seq === seq).some(s => getContent(s))
       );
       if (!hasAny) return null;
       return (
@@ -334,7 +338,7 @@ function LayerFirstView({ grouping, sets, sources, sourceIds, colorMap }) {
           {omenSeqs.map(seq => {
             const seqSets = sets.filter(s => s.seq === seq)
               .sort((a, b) => sourceIds.indexOf(String(a.source_id)) - sourceIds.indexOf(String(b.source_id)));
-            const rows = seqSets.map(s => ({ sourceId: String(s.source_id), color: colorMap[String(s.source_id)] || COLOR_SLOTS[0], text: getText(s) })).filter(r => r.text);
+            const rows = seqSets.map(s => ({ sourceId: String(s.source_id), color: colorMap[String(s.source_id)] || COLOR_SLOTS[0], ...getContent(s) })).filter(r => r.text);
             if (!rows.length) return null;
             const entryLabel = seqSets[0]?.type === 'omen' ? `Omen ${seq}` : `Line ${seq}`;
             return (
@@ -344,7 +348,7 @@ function LayerFirstView({ grouping, sets, sources, sourceIds, colorMap }) {
                   <div key={r.sourceId} className={`author-line author-${r.sourceId}`}
                     style={{ borderLeft: `2px solid ${r.color.border}`, background: r.color.row }}>
                     <span className="author-dot" style={{ color: r.color.border }}>●</span>
-                    <span className={`v2-layer-text v2-text-${layerKey}`}>{r.text}</span>
+                    <span className={`v2-layer-text v2-text-${layerKey}`} dir={r.dir || undefined}>{r.text}</span>
                   </div>
                 ))}
               </div>
@@ -354,7 +358,7 @@ function LayerFirstView({ grouping, sets, sources, sourceIds, colorMap }) {
       );
     } else {
       // layer-author-entry: Layer → Author → Entry
-      const hasAny = sourceIds.some(srcId => sets.filter(s => String(s.source_id) === srcId).some(s => getText(s)));
+      const hasAny = sourceIds.some(srcId => sets.filter(s => String(s.source_id) === srcId).some(s => getContent(s)));
       if (!hasAny) return null;
       return (
         <div key={layerKey} className={`layer-section ${layer.cls}`}>
@@ -362,7 +366,7 @@ function LayerFirstView({ grouping, sets, sources, sourceIds, colorMap }) {
           {sourceIds.map(srcId => {
             const color = colorMap[srcId] || COLOR_SLOTS[0];
             const authorSets = sets.filter(s => String(s.source_id) === srcId).sort((a, b) => a.seq - b.seq);
-            const entries = authorSets.map(s => ({ seq: s.seq, type: s.type, text: getText(s) })).filter(e => e.text);
+            const entries = authorSets.map(s => ({ seq: s.seq, type: s.type, ...getContent(s) })).filter(e => e.text);
             if (!entries.length) return null;
             return (
               <div key={srcId} className={`author-block author-${srcId}`} style={{ borderColor: `${color.border}40` }}>
@@ -372,7 +376,7 @@ function LayerFirstView({ grouping, sets, sources, sourceIds, colorMap }) {
                 {entries.map(e => (
                   <div key={e.seq} className="v2-layer-row-group author-block-row">
                     <span className="v2-layer-row-label">{e.type === 'omen' ? `Omen ${e.seq}` : `Line ${e.seq}`}</span>
-                    <span className={`v2-layer-text v2-text-${layerKey}`}>{e.text}</span>
+                    <span className={`v2-layer-text v2-text-${layerKey}`} dir={e.dir || undefined}>{e.text}</span>
                   </div>
                 ))}
               </div>
@@ -415,8 +419,8 @@ function AuthorLayerView({ sets, sources, sourceIds, colorMap, contributions, on
           {header}
           {contentLayers.map(l => {
             const entries = authorSets.flatMap(s => {
-              const text = (s.contents || []).find(c => contentTypeToLayer(c.type) === l.key)?.text;
-              return text ? [{ seq: s.seq, type: s.type, text }] : [];
+              const c = (s.contents || []).find(c => contentTypeToLayer(c.type) === l.key);
+              return c ? [{ seq: s.seq, type: s.type, text: c.text, dir: c.text_direction || null }] : [];
             });
             if (!entries.length) return null;
             return (
@@ -425,8 +429,8 @@ function AuthorLayerView({ sets, sources, sourceIds, colorMap, contributions, on
                 <div className="v2-layer-authors">
                   {entries.map(e => (
                     <div key={e.seq} className="author-line-flat">
-                      <span className="entry-seq-tag">{e.type === 'omen' ? `${e.seq}.` : `${e.seq}.`}</span>
-                      <span className={`v2-layer-text v2-text-${l.key}`}>{e.text}</span>
+                      <span className="entry-seq-tag">{e.seq}.</span>
+                      <span className={`v2-layer-text v2-text-${l.key}`} dir={e.dir || undefined}>{e.text}</span>
                     </div>
                   ))}
                 </div>
@@ -452,7 +456,7 @@ function AuthorLayerView({ sets, sources, sourceIds, colorMap, contributions, on
           const contentByLayer = {};
           (set.contents || []).forEach(c => {
             const lk = contentTypeToLayer(c.type);
-            if (lk && !contentByLayer[lk]) contentByLayer[lk] = c.text;
+            if (lk && !contentByLayer[lk]) contentByLayer[lk] = { text: c.text, dir: c.text_direction || null };
           });
           const morphs = isMorphAuthor ? (set.morphs || []) : [];
           const hasAny = contentLayers.some(l => contentByLayer[l.key]) || morphs.length > 0;
@@ -462,12 +466,12 @@ function AuthorLayerView({ sets, sources, sourceIds, colorMap, contributions, on
             <div key={set.id} className="author-section-entry">
               <div className="author-section-entry-label">{label}</div>
               {contentLayers.map(l => {
-                const text = contentByLayer[l.key];
-                if (!text) return null;
+                const entry = contentByLayer[l.key];
+                if (!entry) return null;
                 return (
                   <div key={l.key} className={`v2-layer-row-group author-block-row ${l.cls}`}>
                     <span className="v2-layer-row-label">{l.label}</span>
-                    <span className={`v2-layer-text v2-text-${l.key}`}>{text}</span>
+                    <span className={`v2-layer-text v2-text-${l.key}`} dir={entry.dir || undefined}>{entry.text}</span>
                   </div>
                 );
               })}
