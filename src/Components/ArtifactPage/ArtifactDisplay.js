@@ -119,8 +119,8 @@ function ContributeForm({ onSubmit, onCancel }) {
   );
 }
 
-// Unified omen block — supports "layer" and "author" grouping modes.
-function OmenBlock({ omenSeq, omenType, sets, sources, colorMap, contributions, onAddContribution, groupBy }) {
+// Unified omen block — supports entry-layer-author and entry-author-layer grouping modes.
+function OmenBlock({ omenSeq, omenType, sets, sources, colorMap, contributions, onAddContribution, grouping }) {
   const [formOpen, setFormOpen] = useState(false);
   const label = omenType === 'omen' ? `Omen ${omenSeq}` : `Line ${omenSeq}`;
   const firstSet = sets[0];
@@ -156,8 +156,8 @@ function OmenBlock({ omenSeq, omenType, sets, sources, colorMap, contributions, 
     <div className="v2-omen-block" id={`omen-${omenSeq}`}>
       <div className="v2-omen-label">{label}</div>
 
-      {groupBy === 'layer' ? (
-        /* ── Group by Layer ── */
+      {grouping !== 'entry-author-layer' ? (
+        /* ── Entry → Layer → Author ── */
         <>
           {contentLayers.map(l => {
             const activeRows = byLayer[l.key].filter(r => r.text);
@@ -244,17 +244,196 @@ function OmenBlock({ omenSeq, omenType, sets, sources, colorMap, contributions, 
   );
 }
 
-// Segmented control for grouping mode
-function GroupByControl({ value, onChange }) {
+// All supported grouping modes
+const GROUPING_MODES = {
+  'author-layer':       ['author', 'layer',  null],
+  'author-entry-layer': ['author', 'entry',  'layer'],
+  'entry-layer-author': ['entry',  'layer',  'author'],
+  'entry-author-layer': ['entry',  'author', 'layer'],
+  'layer-entry-author': ['layer',  'entry',  'author'],
+  'layer-author-entry': ['layer',  'author', 'entry'],
+};
+const GROUPING_LABELS = { author: 'Author', entry: 'Entry', layer: 'Layer' };
+const SECOND_OPTS = { author: ['layer','entry'], entry: ['layer','author'], layer: ['entry','author'] };
+
+function resolveMode(first, second) {
+  const third = ['author','entry','layer'].find(x => x !== first && x !== second) || null;
+  const key = third ? `${first}-${second}-${third}` : `${first}-${second}`;
+  return GROUPING_MODES[key] ? key : 'entry-layer-author';
+}
+
+// Two-level hierarchical grouping control
+function GroupingControl({ grouping, onChange }) {
+  const [first, second] = GROUPING_MODES[grouping] || ['entry','layer','author'];
+  const secondOpts = SECOND_OPTS[first];
+
+  const setFirst = v => {
+    const newOpts = SECOND_OPTS[v];
+    const newSecond = newOpts.includes(second) ? second : newOpts[0];
+    onChange(resolveMode(v, newSecond));
+  };
+  const setSecond = v => onChange(resolveMode(first, v));
+
+  const badge = {
+    'author-layer':       'Author → Layer',
+    'author-entry-layer': 'Author → Entry → Layer',
+    'entry-layer-author': 'Entry → Layer → Author',
+    'entry-author-layer': 'Entry → Author → Layer',
+    'layer-entry-author': 'Layer → Entry → Author',
+    'layer-author-entry': 'Layer → Author → Entry',
+  }[grouping];
+
+  const third = GROUPING_MODES[grouping]?.[2];
+
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-      <span className="stk-filter-label">Group by</span>
-      <div className="v2-mode-selector">
-        <button className={`v2-mode-btn${value === 'layer'  ? ' active' : ''}`} onClick={() => onChange('layer')}>Layer</button>
-        <button className={`v2-mode-btn${value === 'author' ? ' active' : ''}`} onClick={() => onChange('author')}>Author</button>
+    <div className="grouping-ctrl-wrap">
+      <div className="grouping-ctrl-row">
+        <span className="grouping-ctrl-label">Group by</span>
+        <div className="seg-ctrl">
+          {['author','entry','layer'].map(v => (
+            <button key={v} className={`seg-btn${first === v ? ' active' : ''}`} onClick={() => setFirst(v)}>
+              {GROUPING_LABELS[v]}
+            </button>
+          ))}
+        </div>
+        <span className="grouping-then">→ then</span>
+        <div className="seg-ctrl">
+          {secondOpts.map(v => (
+            <button key={v} className={`seg-btn${second === v ? ' active' : ''}`} onClick={() => setSecond(v)}>
+              {GROUPING_LABELS[v]}
+            </button>
+          ))}
+        </div>
+        {third && <span className="grouping-static">→ {GROUPING_LABELS[third]}</span>}
       </div>
+      <div className="grouping-badge">{badge}</div>
     </div>
   );
+}
+
+// Layer → Entry → Author  or  Layer → Author → Entry
+function LayerFirstView({ grouping, sets, sources, sourceIds, colorMap }) {
+  const contentLayers = LAYERS.filter(l => !l.isMorph);
+  const omenSeqs = [...new Set(sets.map(s => s.seq))].sort((a, b) => a - b);
+
+  return contentLayers.map(layer => {
+    const layerKey = layer.key;
+    const getText = set => (set.contents || []).find(c => contentTypeToLayer(c.type) === layerKey)?.text || null;
+
+    if (grouping === 'layer-entry-author') {
+      // Layer → Entry → Author: for each layer, entries in order, authors stacked within
+      const hasAny = omenSeqs.some(seq =>
+        sets.filter(s => s.seq === seq).some(s => getText(s))
+      );
+      if (!hasAny) return null;
+      return (
+        <div key={layerKey} className={`layer-section ${layer.cls}`}>
+          <div className="layer-section-header">{layer.label}</div>
+          {omenSeqs.map(seq => {
+            const seqSets = sets.filter(s => s.seq === seq)
+              .sort((a, b) => sourceIds.indexOf(String(a.source_id)) - sourceIds.indexOf(String(b.source_id)));
+            const rows = seqSets.map(s => ({ sourceId: String(s.source_id), color: colorMap[String(s.source_id)] || COLOR_SLOTS[0], text: getText(s) })).filter(r => r.text);
+            if (!rows.length) return null;
+            const entryLabel = seqSets[0]?.type === 'omen' ? `Omen ${seq}` : `Line ${seq}`;
+            return (
+              <div key={seq} className="layer-section-entry">
+                <div className="layer-section-entry-label">{entryLabel}</div>
+                {rows.map(r => (
+                  <div key={r.sourceId} className={`author-line author-${r.sourceId}`}
+                    style={{ borderLeft: `2px solid ${r.color.border}`, background: r.color.row }}>
+                    <span className="author-dot" style={{ color: r.color.border }}>●</span>
+                    <span className={`v2-layer-text v2-text-${layerKey}`}>{r.text}</span>
+                  </div>
+                ))}
+              </div>
+            );
+          })}
+        </div>
+      );
+    } else {
+      // layer-author-entry: Layer → Author → Entry
+      const hasAny = sourceIds.some(srcId => sets.filter(s => String(s.source_id) === srcId).some(s => getText(s)));
+      if (!hasAny) return null;
+      return (
+        <div key={layerKey} className={`layer-section ${layer.cls}`}>
+          <div className="layer-section-header">{layer.label}</div>
+          {sourceIds.map(srcId => {
+            const color = colorMap[srcId] || COLOR_SLOTS[0];
+            const authorSets = sets.filter(s => String(s.source_id) === srcId).sort((a, b) => a.seq - b.seq);
+            const entries = authorSets.map(s => ({ seq: s.seq, type: s.type, text: getText(s) })).filter(e => e.text);
+            if (!entries.length) return null;
+            return (
+              <div key={srcId} className={`author-block author-${srcId}`} style={{ borderColor: `${color.border}40` }}>
+                <div className="author-block-header" style={{ borderLeft: `3px solid ${color.border}`, background: color.bg }}>
+                  <span className="author-block-name" style={{ color: color.text }}>{srcLabel(sources[srcId], srcId)}</span>
+                </div>
+                {entries.map(e => (
+                  <div key={e.seq} className="v2-layer-row-group author-block-row">
+                    <span className="v2-layer-row-label">{e.type === 'omen' ? `Omen ${e.seq}` : `Line ${e.seq}`}</span>
+                    <span className={`v2-layer-text v2-text-${layerKey}`}>{e.text}</span>
+                  </div>
+                ))}
+              </div>
+            );
+          })}
+        </div>
+      );
+    }
+  });
+}
+
+// Author → Layer view: one section per author containing all entries
+function AuthorLayerView({ sets, sources, sourceIds, colorMap, contributions, onAddContribution }) {
+  const contentLayers = LAYERS.filter(l => !l.isMorph);
+  const morphAuthorId = sourceIds[0];
+
+  return sourceIds.map(srcId => {
+    const color  = colorMap[srcId] || COLOR_SLOTS[0];
+    const author = srcLabel(sources[srcId], srcId);
+    const authorSets = sets.filter(s => String(s.source_id) === srcId).sort((a, b) => a.seq - b.seq);
+    const isMorphAuthor = srcId === morphAuthorId;
+
+    return (
+      <div key={srcId} className={`author-section author-${srcId}`}>
+        <div className="author-section-header" style={{ borderLeft: `3px solid ${color.border}`, background: color.bg }}>
+          <span className="author-section-name" style={{ color: color.text }}>{author}</span>
+        </div>
+        {authorSets.map(set => {
+          const label = set.type === 'omen' ? `Omen ${set.seq}` : `Line ${set.seq}`;
+          const contentByLayer = {};
+          (set.contents || []).forEach(c => {
+            const lk = contentTypeToLayer(c.type);
+            if (lk && !contentByLayer[lk]) contentByLayer[lk] = c.text;
+          });
+          const morphs = isMorphAuthor ? (set.morphs || []) : [];
+          const hasAny = contentLayers.some(l => contentByLayer[l.key]) || morphs.length > 0;
+          if (!hasAny) return null;
+
+          return (
+            <div key={set.id} className="author-section-entry">
+              <div className="author-section-entry-label">{label}</div>
+              {contentLayers.map(l => {
+                const text = contentByLayer[l.key];
+                if (!text) return null;
+                return (
+                  <div key={l.key} className={`v2-layer-row-group author-block-row ${l.cls}`}>
+                    <span className="v2-layer-row-label">{l.label}</span>
+                    <span className={`v2-layer-text v2-text-${l.key}`}>{text}</span>
+                  </div>
+                );
+              })}
+              {morphs.length > 0 && (
+                <div className="v2-layer-row-group author-block-row layer-morph-transcr layer-morph-gloss">
+                  <span className="v2-layer-row-label">Morph.</span>
+                  <MorphInterlinear morphs={morphs} />
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    );
+  });
 }
 
 // Legend bar — maps color dot to author name, shown only when >1 author active
@@ -449,15 +628,15 @@ export default function ArtifactDisplay() {
     const p = searchParams.get('hidden_layers');
     return p ? new Set(p.split(',')) : new Set();
   });
-  const [groupBy, setGroupBy] = useState(() => searchParams.get('group_by') || 'layer');
+  const [grouping, setGrouping] = useState(() => searchParams.get('grouping') || 'entry-layer-author');
 
   useEffect(() => {
     const p = {};
     if (hiddenAuthors.size) p.hidden_authors = [...hiddenAuthors].join(',');
     if (hiddenLayers.size)  p.hidden_layers  = [...hiddenLayers].join(',');
-    if (groupBy !== 'layer') p.group_by = groupBy;
+    if (grouping !== 'entry-layer-author') p.grouping = grouping;
     setSearchParams(p, { replace: true });
-  }, [hiddenAuthors, hiddenLayers, groupBy]);
+  }, [hiddenAuthors, hiddenLayers, grouping]);
 
   const [contributions, setContributions] = useState({});
 
@@ -505,7 +684,7 @@ export default function ArtifactDisplay() {
             <LayerFilterRow hiddenLayers={hiddenLayers} onToggle={toggleLayer} />
           </div>
           <div className="v2-controls-row">
-            <GroupByControl value={groupBy} onChange={setGroupBy} />
+            <GroupingControl grouping={grouping} onChange={setGrouping} />
           </div>
         </div>
 
@@ -519,24 +698,31 @@ export default function ArtifactDisplay() {
 
         {/* text display — all filtering via CSS class toggling, no re-render */}
         <div className={`v2-text-display ${hideClasses}`}>
-          {omenSeqs.map(seq => {
-            const seqSets = sets
-              .filter(s => s.seq === seq)
-              .sort((a, b) => sourceIds.indexOf(String(a.source_id)) - sourceIds.indexOf(String(b.source_id)));
-            return (
-              <OmenBlock
-                key={seq}
-                omenSeq={seq}
-                omenType={seqSets[0]?.type || 'omen'}
-                sets={seqSets}
-                sources={sources}
-                colorMap={colorMap}
-                contributions={contributions}
-                onAddContribution={addContribution}
-                groupBy={groupBy}
-              />
-            );
-          })}
+          {(grouping === 'author-layer' || grouping === 'author-entry-layer') ? (
+            <AuthorLayerView
+              sets={sets} sources={sources} sourceIds={sourceIds}
+              colorMap={colorMap} contributions={contributions} onAddContribution={addContribution}
+            />
+          ) : (grouping === 'layer-entry-author' || grouping === 'layer-author-entry') ? (
+            <LayerFirstView
+              grouping={grouping} sets={sets} sources={sources}
+              sourceIds={sourceIds} colorMap={colorMap}
+            />
+          ) : (
+            omenSeqs.map(seq => {
+              const seqSets = sets
+                .filter(s => s.seq === seq)
+                .sort((a, b) => sourceIds.indexOf(String(a.source_id)) - sourceIds.indexOf(String(b.source_id)));
+              return (
+                <OmenBlock
+                  key={seq} omenSeq={seq} omenType={seqSets[0]?.type || 'omen'}
+                  sets={seqSets} sources={sources} colorMap={colorMap}
+                  contributions={contributions} onAddContribution={addContribution}
+                  grouping={grouping}
+                />
+              );
+            })
+          )}
 
           {sourceIds.length > 0 && (
             <div className="v2-references">
