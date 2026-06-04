@@ -707,12 +707,12 @@ export default function ArtifactDisplay() {
 
   if (!artifact) return <div className="loading-wrap">Loading…</div>;
 
-  const omenSeqs = [...new Set(sets.map(s => s.seq))].sort((a, b) => a - b);
-  const activeAuthors = sourceIds.filter(id => !hiddenAuthors.has(id));
-  const isSingleAuthor = activeAuthors.length === 1;
+  const activeSourceIds = sourceIds.filter(id => !hiddenAuthors.has(id));
+  const isSingleAuthor = activeSourceIds.length === 1;
+  const activeSets = sets.filter(s => !hiddenAuthors.has(String(s.source_id)));
+  const omenSeqs = [...new Set(activeSets.map(s => s.seq))].sort((a, b) => a - b);
 
   const hideClasses = [
-    ...[...hiddenAuthors].map(id => `hide-author-${id}`),
     ...[...hiddenLayers].map(k => `hide-layer-${k}`),
     isSingleAuthor ? 'single-author' : '',
   ].filter(Boolean).join(' ');
@@ -749,22 +749,21 @@ export default function ArtifactDisplay() {
           colorMap={colorMap}
         />
 
-        {/* text display — all filtering via CSS class toggling, no re-render */}
         <div className={`v2-text-display ${hideClasses}`}>
           {(grouping === 'author-layer' || grouping === 'author-entry-layer') ? (
             <AuthorLayerView
-              sets={sets} sources={sources} sourceIds={sourceIds}
+              sets={activeSets} sources={sources} sourceIds={activeSourceIds}
               colorMap={colorMap} contributions={contributions} onAddContribution={addContribution}
               grouping={grouping}
             />
           ) : (grouping === 'layer-entry-author' || grouping === 'layer-author-entry') ? (
             <LayerFirstView
-              grouping={grouping} sets={sets} sources={sources}
-              sourceIds={sourceIds} colorMap={colorMap}
+              grouping={grouping} sets={activeSets} sources={sources}
+              sourceIds={activeSourceIds} colorMap={colorMap}
             />
           ) : (
             omenSeqs.map(seq => {
-              const seqSets = sets
+              const seqSets = activeSets
                 .filter(s => s.seq === seq)
                 .sort((a, b) => sourceIds.indexOf(String(a.source_id)) - sourceIds.indexOf(String(b.source_id)));
               return (
