@@ -257,8 +257,10 @@ const GROUPING_LABELS = { author: 'Author', entry: 'Entry', layer: 'Layer' };
 const SECOND_OPTS = { author: ['layer','entry'], entry: ['layer','author'], layer: ['entry','author'] };
 
 function resolveMode(first, second) {
-  const third = ['author','entry','layer'].find(x => x !== first && x !== second) || null;
-  const key = third ? `${first}-${second}-${third}` : `${first}-${second}`;
+  const twoKey = `${first}-${second}`;
+  if (GROUPING_MODES[twoKey]) return twoKey;
+  const third = ['author','entry','layer'].find(x => x !== first && x !== second);
+  const key = `${first}-${second}-${third}`;
   return GROUPING_MODES[key] ? key : 'entry-layer-author';
 }
 
@@ -382,8 +384,10 @@ function LayerFirstView({ grouping, sets, sources, sourceIds, colorMap }) {
   });
 }
 
-// Author → Layer view: one section per author containing all entries
-function AuthorLayerView({ sets, sources, sourceIds, colorMap, contributions, onAddContribution }) {
+// Author → Layer view: one section per author
+// grouping='author-layer'      → Author → Layer (all entries shown flat under each layer)
+// grouping='author-entry-layer'→ Author → Entry → Layer (per-entry sub-sections)
+function AuthorLayerView({ sets, sources, sourceIds, colorMap, contributions, onAddContribution, grouping }) {
   const contentLayers = LAYERS.filter(l => !l.isMorph);
   const morphAuthorId = sourceIds[0];
 
@@ -393,11 +397,56 @@ function AuthorLayerView({ sets, sources, sourceIds, colorMap, contributions, on
     const authorSets = sets.filter(s => String(s.source_id) === srcId).sort((a, b) => a.seq - b.seq);
     const isMorphAuthor = srcId === morphAuthorId;
 
+    const header = (
+      <div className="author-section-header" style={{ borderLeft: `3px solid ${color.border}`, background: color.bg }}>
+        <span className="author-section-name" style={{ color: color.text }}>{author}</span>
+      </div>
+    );
+
+    if (grouping === 'author-layer') {
+      // Author → Layer: group all entries under each layer heading
+      const morphs = isMorphAuthor ? authorSets.flatMap(s => s.morphs || []) : [];
+      const layerHasAny = contentLayers.some(l =>
+        authorSets.some(s => (s.contents || []).some(c => contentTypeToLayer(c.type) === l.key))
+      );
+      if (!layerHasAny && morphs.length === 0) return null;
+      return (
+        <div key={srcId} className={`author-section author-${srcId}`}>
+          {header}
+          {contentLayers.map(l => {
+            const entries = authorSets.flatMap(s => {
+              const text = (s.contents || []).find(c => contentTypeToLayer(c.type) === l.key)?.text;
+              return text ? [{ seq: s.seq, type: s.type, text }] : [];
+            });
+            if (!entries.length) return null;
+            return (
+              <div key={l.key} className={`v2-layer-row-group author-block-row ${l.cls}`}>
+                <span className="v2-layer-row-label">{l.label}</span>
+                <div className="v2-layer-authors">
+                  {entries.map(e => (
+                    <div key={e.seq} className="author-line-flat">
+                      <span className="entry-seq-tag">{e.type === 'omen' ? `${e.seq}.` : `${e.seq}.`}</span>
+                      <span className={`v2-layer-text v2-text-${l.key}`}>{e.text}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            );
+          })}
+          {morphs.length > 0 && (
+            <div className="v2-layer-row-group author-block-row layer-morph-transcr layer-morph-gloss">
+              <span className="v2-layer-row-label">Morph.</span>
+              <MorphInterlinear morphs={morphs} />
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    // author-entry-layer: per-entry sub-sections (original behavior)
     return (
       <div key={srcId} className={`author-section author-${srcId}`}>
-        <div className="author-section-header" style={{ borderLeft: `3px solid ${color.border}`, background: color.bg }}>
-          <span className="author-section-name" style={{ color: color.text }}>{author}</span>
-        </div>
+        {header}
         {authorSets.map(set => {
           const label = set.type === 'omen' ? `Omen ${set.seq}` : `Line ${set.seq}`;
           const contentByLayer = {};
@@ -702,6 +751,7 @@ export default function ArtifactDisplay() {
             <AuthorLayerView
               sets={sets} sources={sources} sourceIds={sourceIds}
               colorMap={colorMap} contributions={contributions} onAddContribution={addContribution}
+              grouping={grouping}
             />
           ) : (grouping === 'layer-entry-author' || grouping === 'layer-author-entry') ? (
             <LayerFirstView

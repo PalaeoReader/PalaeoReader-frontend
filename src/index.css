@@ -2392,6 +2392,22 @@ button { cursor: pointer; }
 }
 .author-section-entry:last-child { border-bottom: none; }
 
+/* author-layer flat entry lines */
+.author-line-flat {
+  display: flex;
+  align-items: baseline;
+  gap: 0.4rem;
+  padding: 0.1rem 0;
+}
+.entry-seq-tag {
+  font-size: 0.68rem;
+  color: var(--v2-text-3);
+  font-family: 'Inter', sans-serif;
+  font-weight: 600;
+  min-width: 1.4rem;
+  flex-shrink: 0;
+}
+
 .author-section-entry-label {
   font-size: 10px;
   text-transform: uppercase;
