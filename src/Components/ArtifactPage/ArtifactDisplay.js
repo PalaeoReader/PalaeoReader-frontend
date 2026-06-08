@@ -121,7 +121,7 @@ function EditableMorphLine({ lineKey, sourceId, color, morphs, sourceLabel, edit
         layerLabel="Morph. analysis"
         onCancel={editProps.closeEditor}
         onSubmit={(newText, contributor) =>
-          editProps.submitEdit(lineKey, newText, contributor, { sourceLabel, layerLabel: 'Morph. analysis', layerKey: 'morph' })}
+          editProps.submitEdit(lineKey, newText, contributor, { sourceLabel, layerLabel: 'Morph. analysis', layerKey: 'morph', originalText: isEdited ? overrideText : morphsToText(morphs) })}
       />
     );
   }
@@ -170,7 +170,7 @@ function EditableText({ lineKey, sourceId, layerKey, layerLabel, sourceLabel, co
         layerLabel={layerLabel}
         onCancel={editProps.closeEditor}
         onSubmit={(newText, contributor) =>
-          editProps.submitEdit(lineKey, newText, contributor, { sourceLabel, layerLabel, layerKey })}
+          editProps.submitEdit(lineKey, newText, contributor, { sourceLabel, layerLabel, layerKey, originalText: displayText })}
       />
     );
   }
@@ -202,10 +202,61 @@ function EditableText({ lineKey, sourceId, layerKey, layerLabel, sourceLabel, co
 function relativeTime(ts) {
   const s = (Date.now() - ts) / 1000;
   if (s < 60)     return 'just now';
-  if (s < 3600)   return `${Math.floor(s/60)}m ago`;
-  if (s < 86400)  return `${Math.floor(s/3600)}h ago`;
-  if (s < 604800) return `${Math.floor(s/86400)}d ago`;
+  const m = Math.floor(s / 60);
+  if (s < 3600)   return `${m} ${m === 1 ? 'minute' : 'minutes'} ago`;
+  const h = Math.floor(s / 3600);
+  if (s < 86400)  return `${h} ${h === 1 ? 'hour' : 'hours'} ago`;
+  const d = Math.floor(s / 86400);
+  if (s < 604800) return `${d} ${d === 1 ? 'day' : 'days'} ago`;
   return new Date(ts).toLocaleDateString('en-GB', { day:'numeric', month:'short', year:'numeric' });
+}
+
+function wordDiff(oldStr, newStr) {
+  const a = (oldStr || '').split(' ').filter(Boolean);
+  const b = (newStr || '').split(' ').filter(Boolean);
+  const m = a.length, n = b.length;
+  const dp = Array.from({ length: m + 1 }, () => new Array(n + 1).fill(0));
+  for (let i = 1; i <= m; i++)
+    for (let j = 1; j <= n; j++)
+      dp[i][j] = a[i-1] === b[j-1] ? dp[i-1][j-1] + 1 : Math.max(dp[i-1][j], dp[i][j-1]);
+  const ops = [];
+  let i = m, j = n;
+  while (i > 0 || j > 0) {
+    if (i > 0 && j > 0 && a[i-1] === b[j-1]) {
+      ops.unshift({ t: '=', w: a[i-1] }); i--; j--;
+    } else if (j > 0 && (i === 0 || dp[i][j-1] >= dp[i-1][j])) {
+      ops.unshift({ t: '+', w: b[j-1] }); j--;
+    } else {
+      ops.unshift({ t: '-', w: a[i-1] }); i--;
+    }
+  }
+  return ops;
+}
+
+function DiffBlock({ oldText, newText }) {
+  const ops = wordDiff(oldText, newText);
+  const removedLine = ops.filter(o => o.t !== '+').map((o, i) =>
+    o.t === '-'
+      ? <span key={i} className="hl-removed">{o.w}</span>
+      : <span key={i} className="hl-equal">{o.w}</span>
+  ).reduce((acc, el, i) => (i === 0 ? [el] : [...acc, ' ', el]), []);
+  const addedLine = ops.filter(o => o.t !== '-').map((o, i) =>
+    o.t === '+'
+      ? <span key={i} className="hl-added">{o.w}</span>
+      : <span key={i} className="hl-equal">{o.w}</span>
+  ).reduce((acc, el, i) => (i === 0 ? [el] : [...acc, ' ', el]), []);
+  return (
+    <div className="eh-diff-block">
+      <div className="eh-diff-row eh-diff-removed">
+        <span className="eh-diff-sign">−</span>
+        <span className="eh-diff-line">{removedLine}</span>
+      </div>
+      <div className="eh-diff-row eh-diff-added">
+        <span className="eh-diff-sign">+</span>
+        <span className="eh-diff-line">{addedLine}</span>
+      </div>
+    </div>
+  );
 }
 
 function InlineEditor({ initialText, color, sourceLabel, layerLabel, onCancel, onSubmit }) {
@@ -263,7 +314,7 @@ function EditableLine({ lineKey, sourceId, color, layerKey, text, isEdited, sour
         sourceLabel={sourceLabel} layerLabel={layerLabel}
         onCancel={editProps.closeEditor}
         onSubmit={(newText, contributor) =>
-          editProps.submitEdit(lineKey, newText, contributor, { sourceLabel, layerLabel, layerKey })}
+          editProps.submitEdit(lineKey, newText, contributor, { sourceLabel, layerLabel, layerKey, originalText: text })}
       />
     );
   }
@@ -293,39 +344,69 @@ function EditableLine({ lineKey, sourceId, color, layerKey, text, isEdited, sour
   );
 }
 
-function EditLogPanel({ editLog, onUndo, onFlag, onViewInText }) {
-  if (editLog.length === 0) return (
-    <div className="edit-log-empty">
-      <i className="fas fa-pen" style={{ fontSize: 20, opacity: 0.3, display:'block', marginBottom:'0.5rem' }} />
-      No edits yet. Hover any line and click the pencil to contribute.
-    </div>
-  );
+function EditHistoryPanel({ editLog, onUndo, onFlag, onViewInText, colorMap, sources, sourceIds }) {
+  const importEntries = (sourceIds || []).map(id => ({
+    id: `import-${id}`,
+    sourceLabel: srcLabel(sources[id], id),
+    color: colorMap[id] || COLOR_SLOTS[0],
+  }));
 
   return (
-    <div className="edit-log">
-      {editLog.map(entry => (
-        <div key={entry.id} className={`edit-log-entry${entry.flagged ? ' edit-log-flagged' : ''}`}>
-          <div className="edit-log-row-1">
-            <span className="edit-log-dot" style={{ background: entry.isUndo ? '#96908A' : COMMUNITY_COLOR.border }} />
-            <span className="edit-log-contributor">{entry.contributor}</span>
-            <span className="edit-log-time">{relativeTime(entry.id)}</span>
+    <div className="eh-panel">
+      <div className="eh-header">
+        <span className="eh-header-label">
+          <i className="fas fa-history eh-header-icon" />
+          Edit history
+        </span>
+        {editLog.length > 0 && (
+          <span className="eh-count-badge">{editLog.length} edit{editLog.length !== 1 ? 's' : ''}</span>
+        )}
+      </div>
+      <div className="eh-feed">
+        {editLog.length === 0 && (
+          <div className="eh-empty">
+            <i className="fas fa-history" style={{ fontSize: 18, opacity: 0.25, display:'block', marginBottom:'0.5rem' }} />
+            No edits yet. Hover any line and click the pen to contribute.
           </div>
-          <div className="edit-log-desc">
-            {entry.isUndo ? 'reverted' : 'edited'} {entry.layerLabel} · {entry.omenLabel}
+        )}
+        {editLog.map(entry => {
+          const dotColor = entry.isUndo ? '#185FA5' : COMMUNITY_COLOR.border;
+          const contributorLabel = entry.isUndo ? `${entry.contributor} — reverted` : entry.contributor;
+          return (
+            <div key={entry.id} className={`eh-entry${entry.flagged ? ' eh-entry-flagged' : ''}`}>
+              <div className="eh-entry-top">
+                <span className="eh-dot" style={{ background: dotColor }} />
+                <span className="eh-contributor">{contributorLabel}</span>
+                <span className="eh-time">{relativeTime(entry.id)}</span>
+              </div>
+              <div className="eh-location">
+                <span className="eh-loc-pill">{entry.omenLabel}</span>
+                <span className="eh-loc-sep">·</span>
+                <span className="eh-loc-pill">{entry.sourceLabel}</span>
+                <span className="eh-loc-sep">·</span>
+                <span className="eh-loc-pill">{entry.layerLabel}</span>
+              </div>
+              <DiffBlock oldText={entry.originalText} newText={entry.newText} />
+              <div className="eh-actions">
+                <button className="eh-action" onClick={() => onViewInText(entry)}>view in text</button>
+                {!entry.isUndo && <button className="eh-action eh-action-undo" onClick={() => onUndo(entry)}>undo</button>}
+                <button className={`eh-action eh-action-flag${entry.flagged ? ' active' : ''}`} onClick={() => onFlag(entry.id)}>
+                  {entry.flagged ? 'unflag' : 'flag'}
+                </button>
+              </div>
+            </div>
+          );
+        })}
+        {importEntries.map(e => (
+          <div key={e.id} className="eh-entry eh-entry-import">
+            <div className="eh-entry-top">
+              <span className="eh-dot" style={{ background: e.color.border }} />
+              <span className="eh-contributor">{e.sourceLabel}</span>
+            </div>
+            <div className="eh-import-note">Source data imported — no previous version.</div>
           </div>
-          <div className="edit-log-diff">
-            <div className="edit-log-before">{entry.originalText}</div>
-            <div className="edit-log-after">{entry.newText}</div>
-          </div>
-          <div className="edit-log-actions">
-            <button className="edit-log-action" onClick={() => onViewInText(entry)}>view in text</button>
-            <button className={`edit-log-action${entry.flagged ? ' edit-log-action-flagged' : ''}`} onClick={() => onFlag(entry.id)}>
-              {entry.flagged ? 'unflag' : 'flag'}
-            </button>
-            {!entry.isUndo && <button className="edit-log-action" onClick={() => onUndo(entry)}>undo</button>}
-          </div>
-        </div>
-      ))}
+        ))}
+      </div>
     </div>
   );
 }
@@ -914,7 +995,7 @@ function ManuscriptPanel({ artifact }) {
   );
 }
 
-function DetailsPanel({ artifact, sources, sourceIds, editLog, onUndoEdit, onFlagEdit, onViewInText }) {
+function DetailsPanel({ artifact, sources, sourceIds, colorMap, editLog, onUndoEdit, onFlagEdit, onViewInText }) {
   const [tab, setTab] = useState('details');
   return (
     <div className="v2-details-panel">
@@ -958,11 +1039,14 @@ function DetailsPanel({ artifact, sources, sourceIds, editLog, onUndoEdit, onFla
           </div>
         </div>
       ) : (
-        <EditLogPanel
+        <EditHistoryPanel
           editLog={editLog || []}
           onUndo={onUndoEdit}
           onFlag={onFlagEdit}
           onViewInText={onViewInText}
+          colorMap={colorMap}
+          sources={sources}
+          sourceIds={sourceIds}
         />
       )}
     </div>
@@ -1171,7 +1255,7 @@ export default function ArtifactDisplay() {
         </div>
       </div>
 
-      <DetailsPanel artifact={artifact} sources={sources} sourceIds={sourceIds}
+      <DetailsPanel artifact={artifact} sources={sources} sourceIds={sourceIds} colorMap={colorMap}
         editLog={editLog} onUndoEdit={undoEdit} onFlagEdit={flagEdit} onViewInText={viewInText} />
     </div>
   );
