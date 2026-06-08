@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
 
 function useFetch(url) {
@@ -89,39 +89,249 @@ function MorphInterlinear({ morphs }) {
   );
 }
 
-function ContributeForm({ onSubmit, onCancel }) {
-  const [name, setName]   = useState('');
-  const [layer, setLayer] = useState('translation');
-  const [text, setText]   = useState('');
+function morphsToText(morphs) {
+  const byToken = {};
+  morphs.forEach(m => {
+    if (!byToken[m.token_seq]) byToken[m.token_seq] = {};
+    if (!byToken[m.token_seq][m.seq]) byToken[m.token_seq][m.seq] = { form: '', gloss: '' };
+    if (m.type.startsWith('morpheme')) byToken[m.token_seq][m.seq].form = m.text;
+    if (m.type === 'gloss') byToken[m.token_seq][m.seq].gloss = m.text;
+  });
+  const tokenSeqs = [...new Set(morphs.map(m => m.token_seq))].sort((a, b) => a - b);
+  return tokenSeqs.map(tseq => {
+    const pairs = byToken[tseq];
+    return Object.keys(pairs).sort((a, b) => Number(a) - Number(b))
+      .map(seq => `${pairs[seq].form || ''}:${pairs[seq].gloss || ''}`)
+      .join('-');
+  }).join(' ');
+}
+
+function EditableMorphLine({ lineKey, sourceId, color, morphs, sourceLabel, editProps }) {
+  const [hovered, setHovered] = useState(false);
+  const isActive  = editProps?.activeEditor?.lineKey === lineKey;
+  const isEdited  = lineKey in (editProps?.lineOverrides || {});
+  const overrideText = editProps?.lineOverrides?.[lineKey];
+
+  if (isActive) {
+    return (
+      <InlineEditor
+        initialText={isEdited ? overrideText : morphsToText(morphs)}
+        color={color}
+        sourceLabel={sourceLabel}
+        layerLabel="Morph. analysis"
+        onCancel={editProps.closeEditor}
+        onSubmit={(newText, contributor) =>
+          editProps.submitEdit(lineKey, newText, contributor, { sourceLabel, layerLabel: 'Morph. analysis', layerKey: 'morph' })}
+      />
+    );
+  }
+
+  return (
+    <div
+      className={`author-line author-morph author-${sourceId}${isEdited ? ' line-edited' : ''}`}
+      style={{
+        borderLeft: `2px solid ${color.border}`,
+        background: hovered ? color.bg : color.row,
+        outline: hovered && editProps ? `1px solid ${color.border}80` : 'none',
+        alignItems: 'flex-start',
+        position: 'relative',
+      }}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+    >
+      <span className="author-dot" style={{ color: color.border, paddingTop: '0.2rem' }}>●</span>
+      {isEdited
+        ? <span className="v2-layer-text" style={{ paddingTop: '0.2rem' }}>{overrideText}</span>
+        : <MorphInterlinear morphs={morphs} />
+      }
+      {isEdited && <span className="line-edited-indicator" title="This line has been edited">◷</span>}
+      {hovered && editProps && (
+        <button className="pencil-btn"
+          onClick={e => { e.stopPropagation(); editProps.openEditor(lineKey, { sourceId, layerKey: 'morph', layerLabel: 'Morph. analysis', sourceLabel }); }}>
+          <i className="fas fa-pen" />
+        </button>
+      )}
+    </div>
+  );
+}
+
+function EditableText({ lineKey, sourceId, layerKey, layerLabel, sourceLabel, color, rawText, editProps, className, dir }) {
+  const [hovered, setHovered] = useState(false);
+  const isActive  = editProps?.activeEditor?.lineKey === lineKey;
+  const isEdited  = lineKey in (editProps?.lineOverrides || {});
+  const displayText = isEdited ? editProps.lineOverrides[lineKey] : rawText;
+
+  if (isActive) {
+    return (
+      <InlineEditor
+        initialText={displayText}
+        color={color}
+        sourceLabel={sourceLabel}
+        layerLabel={layerLabel}
+        onCancel={editProps.closeEditor}
+        onSubmit={(newText, contributor) =>
+          editProps.submitEdit(lineKey, newText, contributor, { sourceLabel, layerLabel, layerKey })}
+      />
+    );
+  }
+
+  return (
+    <div
+      className="editable-text-wrap"
+      style={{
+        outline: hovered && editProps ? `1px solid ${color.border}80` : 'none',
+        borderRadius: 2,
+        background: hovered && editProps ? color.bg : undefined,
+      }}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+    >
+      <span className={className} dir={dir}>{displayText}</span>
+      {isEdited && <span className="line-edited-indicator" title="This line has been edited">◷</span>}
+      {hovered && editProps && (
+        <button className="pencil-btn"
+          onClick={e => { e.stopPropagation(); editProps.openEditor(lineKey, { sourceId, layerKey, layerLabel, sourceLabel }); }}>
+          <i className="fas fa-pen" />
+        </button>
+      )}
+    </div>
+  );
+}
+
+
+function relativeTime(ts) {
+  const s = (Date.now() - ts) / 1000;
+  if (s < 60)     return 'just now';
+  if (s < 3600)   return `${Math.floor(s/60)}m ago`;
+  if (s < 86400)  return `${Math.floor(s/3600)}h ago`;
+  if (s < 604800) return `${Math.floor(s/86400)}d ago`;
+  return new Date(ts).toLocaleDateString('en-GB', { day:'numeric', month:'short', year:'numeric' });
+}
+
+function InlineEditor({ initialText, color, sourceLabel, layerLabel, onCancel, onSubmit }) {
+  const [text, setText]            = useState(initialText);
+  const [contributor, setContrib]  = useState('');
+  const ref                        = useRef(null);
+
+  useEffect(() => {
+    if (ref.current) { ref.current.focus(); const l = text.length; ref.current.setSelectionRange(l, l); }
+  }, []);
+
+  useEffect(() => {
+    const h = e => {
+      if (e.key === 'Escape') onCancel();
+      if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') submit();
+    };
+    document.addEventListener('keydown', h);
+    return () => document.removeEventListener('keydown', h);
+  });
 
   const submit = () => {
-    if (!text.trim()) { onCancel(); return; }
-    onSubmit({ name: name.trim() || 'anonymous', layer, text: text.trim() });
-    setName(''); setText('');
+    if (!text.trim() || text.trim() === initialText.trim()) { onCancel(); return; }
+    onSubmit(text.trim(), contributor.trim() || 'anonymous');
   };
 
   return (
-    <div className="stk-form">
-      <div className="stk-form-row">
-        <input className="stk-form-input" placeholder="Your name or handle" value={name} onChange={e => setName(e.target.value)} />
-        <select className="stk-form-select" value={layer} onChange={e => setLayer(e.target.value)}>
-          <option value="transliteration">Transliteration</option>
-          <option value="transcription">Transcription</option>
-          <option value="translation">Translation</option>
-        </select>
+    <div className="inline-editor" style={{ borderColor: color.border }}>
+      <div className="inline-editor-top">
+        <input className="inline-editor-name" placeholder="Your name or handle"
+          value={contributor} onChange={e => setContrib(e.target.value)} />
+        <span className="inline-editor-ctx">{sourceLabel} · {layerLabel}</span>
       </div>
-      <textarea className="stk-form-textarea" placeholder="Your analysis for this omen..." value={text} onChange={e => setText(e.target.value)} rows={2} />
-      <div className="stk-form-actions">
-        <button className="stk-form-submit" onClick={submit}>Submit</button>
-        <button className="stk-form-cancel" onClick={onCancel}>Cancel</button>
+      <textarea ref={ref} className="inline-editor-textarea" rows={2}
+        value={text} onChange={e => setText(e.target.value)} />
+      <div className="inline-editor-bottom">
+        <div>
+          <button className="inline-editor-submit" onClick={submit}>Submit</button>
+          <button className="inline-editor-cancel" onClick={onCancel}>Cancel</button>
+        </div>
+        <span className="inline-editor-note">Esc to cancel · ⌘↵ to submit</span>
       </div>
     </div>
   );
 }
 
+function EditableLine({ lineKey, sourceId, color, layerKey, text, isEdited, sourceLabel, layerLabel, editProps }) {
+  const [hovered, setHovered] = useState(false);
+  const isActive      = editProps?.activeEditor?.lineKey === lineKey;
+  const highlighted   = editProps?.highlightedLine === lineKey;
+
+  if (isActive) {
+    return (
+      <InlineEditor
+        initialText={text} color={color}
+        sourceLabel={sourceLabel} layerLabel={layerLabel}
+        onCancel={editProps.closeEditor}
+        onSubmit={(newText, contributor) =>
+          editProps.submitEdit(lineKey, newText, contributor, { sourceLabel, layerLabel, layerKey })}
+      />
+    );
+  }
+
+  return (
+    <div
+      className={`author-line author-${sourceId}${isEdited ? ' line-edited' : ''}${highlighted ? ' line-highlighted' : ''}`}
+      style={{
+        borderLeft: `2px solid ${color.border}`,
+        background: hovered ? color.bg : color.row,
+        outline: hovered ? `1px solid ${color.border}80` : 'none',
+        position: 'relative',
+      }}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+    >
+      <span className="author-dot" style={{ color: color.border }}>●</span>
+      <span className={`v2-layer-text v2-text-${layerKey}`}>{text}</span>
+      {isEdited && <span className="line-edited-indicator" title="This line has been edited">◷</span>}
+      {hovered && editProps && (
+        <button className="pencil-btn"
+          onClick={e => { e.stopPropagation(); editProps.openEditor(lineKey, { sourceId, layerKey, layerLabel, sourceLabel }); }}>
+          <i className="fas fa-pen" />
+        </button>
+      )}
+    </div>
+  );
+}
+
+function EditLogPanel({ editLog, onUndo, onFlag, onViewInText }) {
+  if (editLog.length === 0) return (
+    <div className="edit-log-empty">
+      <i className="fas fa-pen" style={{ fontSize: 20, opacity: 0.3, display:'block', marginBottom:'0.5rem' }} />
+      No edits yet. Hover any line and click the pencil to contribute.
+    </div>
+  );
+
+  return (
+    <div className="edit-log">
+      {editLog.map(entry => (
+        <div key={entry.id} className={`edit-log-entry${entry.flagged ? ' edit-log-flagged' : ''}`}>
+          <div className="edit-log-row-1">
+            <span className="edit-log-dot" style={{ background: entry.isUndo ? '#96908A' : COMMUNITY_COLOR.border }} />
+            <span className="edit-log-contributor">{entry.contributor}</span>
+            <span className="edit-log-time">{relativeTime(entry.id)}</span>
+          </div>
+          <div className="edit-log-desc">
+            {entry.isUndo ? 'reverted' : 'edited'} {entry.layerLabel} · {entry.omenLabel}
+          </div>
+          <div className="edit-log-diff">
+            <div className="edit-log-before">{entry.originalText}</div>
+            <div className="edit-log-after">{entry.newText}</div>
+          </div>
+          <div className="edit-log-actions">
+            <button className="edit-log-action" onClick={() => onViewInText(entry)}>view in text</button>
+            <button className={`edit-log-action${entry.flagged ? ' edit-log-action-flagged' : ''}`} onClick={() => onFlag(entry.id)}>
+              {entry.flagged ? 'unflag' : 'flag'}
+            </button>
+            {!entry.isUndo && <button className="edit-log-action" onClick={() => onUndo(entry)}>undo</button>}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 // Unified omen block — supports entry-layer-author and entry-author-layer grouping modes.
-function OmenBlock({ omenSeq, omenType, sets, sources, colorMap, contributions, onAddContribution, grouping }) {
-  const [formOpen, setFormOpen] = useState(false);
+function OmenBlock({ omenSeq, omenType, sets, sources, colorMap, contributions, onAddContribution, grouping, editProps }) {
   const label = omenType === 'omen' ? `Omen ${omenSeq}` : `Line ${omenSeq}`;
   const firstSet = sets[0];
   const morphs = firstSet?.morphs || [];
@@ -168,13 +378,21 @@ function OmenBlock({ omenSeq, omenType, sets, sources, colorMap, contributions, 
               <div key={l.key} className={`v2-layer-row-group ${l.cls}`}>
                 <span className="v2-layer-row-label">{l.label}</span>
                 <div className="v2-layer-authors">
-                  {activeRows.map(r => (
-                    <div key={r.sourceId} className={`author-line author-${r.sourceId}`}
-                      style={{ borderLeft: `2px solid ${r.color.border}`, background: r.color.row }}>
-                      <span className="author-dot" style={{ color: r.color.border }}>●</span>
-                      <span className={`v2-layer-text v2-text-${l.key}`} dir={r.dir || undefined}>{r.text}</span>
-                    </div>
-                  ))}
+                  {activeRows.map(r => {
+                    const lKey = `${omenSeq}-${r.sourceId}-${l.key}`;
+                    const currentText = editProps?.lineOverrides?.[lKey] ?? r.text;
+                    const isEdited = lKey in (editProps?.lineOverrides || {});
+                    const sourceLabel = srcLabel(sources[r.sourceId], r.sourceId);
+                    return (
+                      <EditableLine key={r.sourceId}
+                        lineKey={lKey} sourceId={r.sourceId} color={r.color}
+                        layerKey={l.key} text={currentText}
+                        isEdited={isEdited}
+                        sourceLabel={sourceLabel} layerLabel={l.label}
+                        editProps={editProps}
+                      />
+                    );
+                  })}
                   {extraContribs.map((c, i) => (
                     <div key={`c-${i}`} className="author-line author-community"
                       style={{ borderLeft: `2px solid ${COMMUNITY_COLOR.border}`, background: COMMUNITY_COLOR.row }}>
@@ -188,15 +406,21 @@ function OmenBlock({ omenSeq, omenType, sets, sources, colorMap, contributions, 
           })}
           {morphs.length > 0 && (() => {
             const morphColor = colorMap[String(firstSet?.source_id)] || COLOR_SLOTS[0];
+            const morphLineKey = `${omenSeq}-morph-${firstSet?.source_id}`;
+            const morphSourceLabel = srcLabel(sources[String(firstSet?.source_id)], String(firstSet?.source_id));
             return (
-              <div className="v2-layer-row-group layer-morph-transcr layer-morph-gloss">
+              <div className="v2-layer-row-group layer-morph-transcr layer-morph-gloss"
+                style={{ borderLeftColor: morphColor.border }}>
                 <span className="v2-layer-row-label">Morph.</span>
                 <div className="v2-layer-authors">
-                  <div className={`author-line author-morph author-${firstSet?.source_id}`}
-                    style={{ borderLeft: `2px solid ${morphColor.border}`, background: morphColor.row, alignItems: 'flex-start' }}>
-                    <span className="author-dot" style={{ color: morphColor.border, paddingTop: '0.2rem' }}>●</span>
-                    <MorphInterlinear morphs={morphs} />
-                  </div>
+                  <EditableMorphLine
+                    lineKey={morphLineKey}
+                    sourceId={String(firstSet?.source_id)}
+                    color={morphColor}
+                    morphs={morphs}
+                    sourceLabel={morphSourceLabel}
+                    editProps={editProps}
+                  />
                 </div>
               </div>
             );
@@ -222,14 +446,34 @@ function OmenBlock({ omenSeq, omenType, sets, sources, colorMap, contributions, 
                 return (
                   <div key={l.key} className={`v2-layer-row-group author-block-row ${l.cls}`}>
                     <span className="v2-layer-row-label">{l.label}</span>
-                    <span className={`v2-layer-text v2-text-${l.key}`} dir={entry.dir || undefined}>{entry.text}</span>
+                    <EditableText
+                      lineKey={`${omenSeq}-${srcId}-${l.key}`}
+                      sourceId={srcId}
+                      layerKey={l.key}
+                      layerLabel={l.label}
+                      sourceLabel={author}
+                      color={color}
+                      rawText={entry.text}
+                      editProps={editProps}
+                      className={`v2-layer-text v2-text-${l.key}`}
+                      dir={entry.dir || undefined}
+                    />
                   </div>
                 );
               })}
               {isMorphAuthor && morphs.length > 0 && (
                 <div className="v2-layer-row-group author-block-row layer-morph-transcr layer-morph-gloss">
                   <span className="v2-layer-row-label">Morph.</span>
-                  <MorphInterlinear morphs={morphs} />
+                  <div className="v2-layer-authors">
+                    <EditableMorphLine
+                      lineKey={`${omenSeq}-morph-${firstSet?.source_id}`}
+                      sourceId={String(firstSet?.source_id)}
+                      color={colorMap[String(firstSet?.source_id)] || COLOR_SLOTS[0]}
+                      morphs={morphs}
+                      sourceLabel={srcLabel(sources[String(firstSet?.source_id)], String(firstSet?.source_id))}
+                      editProps={editProps}
+                    />
+                  </div>
                 </div>
               )}
             </div>
@@ -237,10 +481,6 @@ function OmenBlock({ omenSeq, omenType, sets, sources, colorMap, contributions, 
         })
       )}
 
-      {formOpen
-        ? <ContributeForm onSubmit={d => { onAddContribution(omenSeq, d); setFormOpen(false); }} onCancel={() => setFormOpen(false)} />
-        : <button className="stk-add-btn" onClick={() => setFormOpen(true)}>+ add your analysis for this omen</button>
-      }
     </div>
   );
 }
@@ -315,7 +555,7 @@ function GroupingControl({ grouping, onChange }) {
 }
 
 // Layer → Entry → Author  or  Layer → Author → Entry
-function LayerFirstView({ grouping, sets, sources, sourceIds, colorMap }) {
+function LayerFirstView({ grouping, sets, sources, sourceIds, colorMap, editProps }) {
   const contentLayers = LAYERS.filter(l => !l.isMorph);
   const omenSeqs = [...new Set(sets.map(s => s.seq))].sort((a, b) => a - b);
 
@@ -344,13 +584,21 @@ function LayerFirstView({ grouping, sets, sources, sourceIds, colorMap }) {
             return (
               <div key={seq} className="layer-section-entry">
                 <div className="layer-section-entry-label">{entryLabel}</div>
-                {rows.map(r => (
-                  <div key={r.sourceId} className={`author-line author-${r.sourceId}`}
-                    style={{ borderLeft: `2px solid ${r.color.border}`, background: r.color.row }}>
-                    <span className="author-dot" style={{ color: r.color.border }}>●</span>
-                    <span className={`v2-layer-text v2-text-${layerKey}`} dir={r.dir || undefined}>{r.text}</span>
-                  </div>
-                ))}
+                {rows.map(r => {
+                  const lKey = `${seq}-${r.sourceId}-${layerKey}`;
+                  const currentText = editProps?.lineOverrides?.[lKey] ?? r.text;
+                  const isEdited = lKey in (editProps?.lineOverrides || {});
+                  return (
+                    <EditableLine key={r.sourceId}
+                      lineKey={lKey} sourceId={r.sourceId} color={r.color}
+                      layerKey={layerKey} text={currentText}
+                      isEdited={isEdited}
+                      sourceLabel={srcLabel(sources[r.sourceId], r.sourceId)}
+                      layerLabel={layer.label}
+                      editProps={editProps}
+                    />
+                  );
+                })}
               </div>
             );
           })}
@@ -368,15 +616,27 @@ function LayerFirstView({ grouping, sets, sources, sourceIds, colorMap }) {
             const authorSets = sets.filter(s => String(s.source_id) === srcId).sort((a, b) => a.seq - b.seq);
             const entries = authorSets.map(s => ({ seq: s.seq, type: s.type, ...getContent(s) })).filter(e => e.text);
             if (!entries.length) return null;
+            const sourceLabel = srcLabel(sources[srcId], srcId);
             return (
               <div key={srcId} className={`author-block author-${srcId}`} style={{ borderColor: `${color.border}40` }}>
                 <div className="author-block-header" style={{ borderLeft: `3px solid ${color.border}`, background: color.bg }}>
-                  <span className="author-block-name" style={{ color: color.text }}>{srcLabel(sources[srcId], srcId)}</span>
+                  <span className="author-block-name" style={{ color: color.text }}>{sourceLabel}</span>
                 </div>
                 {entries.map(e => (
                   <div key={e.seq} className="v2-layer-row-group author-block-row">
                     <span className="v2-layer-row-label">{e.type === 'omen' ? `Omen ${e.seq}` : `Line ${e.seq}`}</span>
-                    <span className={`v2-layer-text v2-text-${layerKey}`} dir={e.dir || undefined}>{e.text}</span>
+                    <EditableText
+                      lineKey={`${e.seq}-${srcId}-${layerKey}`}
+                      sourceId={srcId}
+                      layerKey={layerKey}
+                      layerLabel={layer.label}
+                      sourceLabel={sourceLabel}
+                      color={color}
+                      rawText={e.text}
+                      editProps={editProps}
+                      className={`v2-layer-text v2-text-${layerKey}`}
+                      dir={e.dir || undefined}
+                    />
                   </div>
                 ))}
               </div>
@@ -391,7 +651,7 @@ function LayerFirstView({ grouping, sets, sources, sourceIds, colorMap }) {
 // Author → Layer view: one section per author
 // grouping='author-layer'      → Author → Layer (all entries shown flat under each layer)
 // grouping='author-entry-layer'→ Author → Entry → Layer (per-entry sub-sections)
-function AuthorLayerView({ sets, sources, sourceIds, colorMap, contributions, onAddContribution, grouping }) {
+function AuthorLayerView({ sets, sources, sourceIds, colorMap, contributions, onAddContribution, grouping, editProps }) {
   const contentLayers = LAYERS.filter(l => !l.isMorph);
   const morphAuthorId = sourceIds[0];
 
@@ -430,7 +690,18 @@ function AuthorLayerView({ sets, sources, sourceIds, colorMap, contributions, on
                   {entries.map(e => (
                     <div key={e.seq} className="author-line-flat">
                       <span className="entry-seq-tag">{e.seq}.</span>
-                      <span className={`v2-layer-text v2-text-${l.key}`} dir={e.dir || undefined}>{e.text}</span>
+                      <EditableText
+                        lineKey={`${e.seq}-${srcId}-${l.key}`}
+                        sourceId={srcId}
+                        layerKey={l.key}
+                        layerLabel={l.label}
+                        sourceLabel={author}
+                        color={color}
+                        rawText={e.text}
+                        editProps={editProps}
+                        className={`v2-layer-text v2-text-${l.key}`}
+                        dir={e.dir || undefined}
+                      />
                     </div>
                   ))}
                 </div>
@@ -440,7 +711,16 @@ function AuthorLayerView({ sets, sources, sourceIds, colorMap, contributions, on
           {morphs.length > 0 && (
             <div className="v2-layer-row-group author-block-row layer-morph-transcr layer-morph-gloss">
               <span className="v2-layer-row-label">Morph.</span>
-              <MorphInterlinear morphs={morphs} />
+              <div className="v2-layer-authors">
+                <EditableMorphLine
+                  lineKey={`0-morph-${srcId}`}
+                  sourceId={srcId}
+                  color={color}
+                  morphs={morphs}
+                  sourceLabel={author}
+                  editProps={editProps}
+                />
+              </div>
             </div>
           )}
         </div>
@@ -471,14 +751,34 @@ function AuthorLayerView({ sets, sources, sourceIds, colorMap, contributions, on
                 return (
                   <div key={l.key} className={`v2-layer-row-group author-block-row ${l.cls}`}>
                     <span className="v2-layer-row-label">{l.label}</span>
-                    <span className={`v2-layer-text v2-text-${l.key}`} dir={entry.dir || undefined}>{entry.text}</span>
+                    <EditableText
+                      lineKey={`${set.seq}-${srcId}-${l.key}`}
+                      sourceId={srcId}
+                      layerKey={l.key}
+                      layerLabel={l.label}
+                      sourceLabel={author}
+                      color={color}
+                      rawText={entry.text}
+                      editProps={editProps}
+                      className={`v2-layer-text v2-text-${l.key}`}
+                      dir={entry.dir || undefined}
+                    />
                   </div>
                 );
               })}
               {morphs.length > 0 && (
                 <div className="v2-layer-row-group author-block-row layer-morph-transcr layer-morph-gloss">
                   <span className="v2-layer-row-label">Morph.</span>
-                  <MorphInterlinear morphs={morphs} />
+                  <div className="v2-layer-authors">
+                    <EditableMorphLine
+                      lineKey={`${set.seq}-morph-${srcId}`}
+                      sourceId={srcId}
+                      color={color}
+                      morphs={morphs}
+                      sourceLabel={author}
+                      editProps={editProps}
+                    />
+                  </div>
                 </div>
               )}
             </div>
@@ -614,42 +914,61 @@ function ManuscriptPanel({ artifact }) {
   );
 }
 
-function DetailsPanel({ artifact, sources, sourceIds }) {
+function DetailsPanel({ artifact, sources, sourceIds, editLog, onUndoEdit, onFlagEdit, onViewInText }) {
+  const [tab, setTab] = useState('details');
   return (
     <div className="v2-details-panel">
-      <div className="v2-meta-section">
-        <div className="v2-meta-header">Artifact Details</div>
-        {[
-          ['Script',     artifact.script],
-          ['Language',   artifact.language],
-          ['Date',       artifact.origin_date],
-          ['Material',   artifact.material],
-          ['Dimensions', artifact.dimensions],
-          ['Discovered', artifact.discovery_date],
-        ].filter(([, v]) => v).map(([k, v]) => (
-          <div key={k} className="v2-meta-row">
-            <span className="v2-meta-key">{k}</span>
-            <span className="v2-meta-val">{v}</span>
+      <div className="detail-tab-bar">
+        <button className={`detail-tab${tab === 'details' ? ' active' : ''}`} onClick={() => setTab('details')}>Details</button>
+        <button className={`detail-tab${tab === 'history' ? ' active' : ''}`} onClick={() => setTab('history')}>
+          History {editLog?.length > 0 && <span className="edit-log-count">{editLog.length}</span>}
+        </button>
+      </div>
+      {tab === 'details' ? (
+        <div style={{ flex:1, overflowY:'auto', padding:'1rem 1.1rem' }}>
+          <div className="v2-meta-section">
+            <div className="v2-meta-header">Artifact Details</div>
+            {[
+              ['Script',     artifact.script],
+              ['Language',   artifact.language],
+              ['Date',       artifact.origin_date],
+              ['Material',   artifact.material],
+              ['Dimensions', artifact.dimensions],
+              ['Discovered', artifact.discovery_date],
+            ].filter(([, v]) => v).map(([k, v]) => (
+              <div key={k} className="v2-meta-row">
+                <span className="v2-meta-key">{k}</span>
+                <span className="v2-meta-val">{v}</span>
+              </div>
+            ))}
           </div>
-        ))}
-      </div>
-      <div className="v2-meta-divider" />
-      <div className="v2-meta-section">
-        <div className="v2-meta-header">Sources</div>
-        {sourceIds.map(id => {
-          const src = sources[id];
-          if (!src) return null;
-          return (
-            <div key={id} className="v2-source-item">
-              <div className="v2-source-item-author">{src.author}{src.date_published ? `, ${src.date_published}` : ''}</div>
-              {src.title && <div className="v2-source-item-title">{src.title}</div>}
-            </div>
-          );
-        })}
-      </div>
+          <div className="v2-meta-divider" />
+          <div className="v2-meta-section">
+            <div className="v2-meta-header">Sources</div>
+            {sourceIds.map(id => {
+              const src = sources[id];
+              if (!src) return null;
+              return (
+                <div key={id} className="v2-source-item">
+                  <div className="v2-source-item-author">{src.author}{src.date_published ? `, ${src.date_published}` : ''}</div>
+                  {src.title && <div className="v2-source-item-title">{src.title}</div>}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      ) : (
+        <EditLogPanel
+          editLog={editLog || []}
+          onUndo={onUndoEdit}
+          onFlag={onFlagEdit}
+          onViewInText={onViewInText}
+        />
+      )}
     </div>
   );
 }
+
 
 export default function ArtifactDisplay() {
   const { shortName } = useParams();
@@ -691,7 +1010,63 @@ export default function ArtifactDisplay() {
     setSearchParams(p, { replace: true });
   }, [hiddenAuthors, hiddenLayers, grouping]);
 
-  const [contributions, setContributions] = useState({});
+  const [contributions, setContributions]   = useState({});
+  const [lineOverrides, setLineOverrides]   = useState({});
+  const [editLog, setEditLog]               = useState([]);
+  const [activeEditor, setActiveEditor]     = useState(null);
+  const [highlightedLine, setHighlightedLine] = useState(null);
+
+  const openEditor = useCallback((lineKey, info) => {
+    setActiveEditor({ lineKey, ...info });
+  }, []);
+
+  const closeEditor = useCallback(() => setActiveEditor(null), []);
+
+  const submitEdit = useCallback((lineKey, newText, contributor, info) => {
+    const parts = lineKey.split('-');
+    const omenSeqN = parseInt(parts[0]);
+    const omenLabel = `Entry ${omenSeqN}`;
+    setLineOverrides(prev => {
+      const originalText = prev[lineKey] ?? info.originalText ?? '';
+      setEditLog(log => [{
+        id: Date.now(),
+        lineKey, omenLabel,
+        layerLabel: info.layerLabel, layerKey: info.layerKey,
+        sourceLabel: info.sourceLabel,
+        omenSeq: omenSeqN,
+        originalText,
+        newText,
+        contributor: contributor || 'anonymous',
+        flagged: false, isUndo: false,
+      }, ...log]);
+      return { ...prev, [lineKey]: newText };
+    });
+    setActiveEditor(null);
+  }, []);
+
+  const undoEdit = useCallback((logEntry) => {
+    setLineOverrides(prev => ({ ...prev, [logEntry.lineKey]: logEntry.originalText }));
+    setEditLog(prev => [{
+      id: Date.now(), ...logEntry,
+      isUndo: true,
+      originalText: logEntry.newText,
+      newText: logEntry.originalText,
+      contributor: 'you', flagged: false,
+    }, ...prev]);
+  }, []);
+
+  const flagEdit = useCallback((id) => {
+    setEditLog(prev => prev.map(e => e.id === id ? { ...e, flagged: !e.flagged } : e));
+  }, []);
+
+  const viewInText = useCallback((logEntry) => {
+    const el = document.getElementById(`omen-${logEntry.omenSeq}`);
+    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    setHighlightedLine(logEntry.lineKey);
+    setTimeout(() => setHighlightedLine(null), 2000);
+  }, []);
+
+  const editProps = { lineOverrides, activeEditor, highlightedLine, openEditor, closeEditor, submitEdit };
 
   const toggleAuthor = useCallback(id => {
     setHiddenAuthors(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
@@ -754,12 +1129,12 @@ export default function ArtifactDisplay() {
             <AuthorLayerView
               sets={activeSets} sources={sources} sourceIds={activeSourceIds}
               colorMap={colorMap} contributions={contributions} onAddContribution={addContribution}
-              grouping={grouping}
+              grouping={grouping} editProps={editProps}
             />
           ) : (grouping === 'layer-entry-author' || grouping === 'layer-author-entry') ? (
             <LayerFirstView
               grouping={grouping} sets={activeSets} sources={sources}
-              sourceIds={activeSourceIds} colorMap={colorMap}
+              sourceIds={activeSourceIds} colorMap={colorMap} editProps={editProps}
             />
           ) : (
             omenSeqs.map(seq => {
@@ -771,7 +1146,7 @@ export default function ArtifactDisplay() {
                   key={seq} omenSeq={seq} omenType={seqSets[0]?.type || 'omen'}
                   sets={seqSets} sources={sources} colorMap={colorMap}
                   contributions={contributions} onAddContribution={addContribution}
-                  grouping={grouping}
+                  grouping={grouping} editProps={editProps}
                 />
               );
             })
@@ -796,7 +1171,8 @@ export default function ArtifactDisplay() {
         </div>
       </div>
 
-      <DetailsPanel artifact={artifact} sources={sources} sourceIds={sourceIds} />
+      <DetailsPanel artifact={artifact} sources={sources} sourceIds={sourceIds}
+        editLog={editLog} onUndoEdit={undoEdit} onFlagEdit={flagEdit} onViewInText={viewInText} />
     </div>
   );
 }
