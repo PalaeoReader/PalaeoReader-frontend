@@ -1292,6 +1292,23 @@ export default function ArtifactDisplay() {
 
   const editProps = { lineOverrides, activeEditor, highlightedLine, openEditor, closeEditor, submitEdit, openHistory };
 
+  const [leftW,  setLeftW]  = useState(240);
+  const [rightW, setRightW] = useState(280);
+
+  const startDrag = useCallback((side, e) => {
+    e.preventDefault();
+    const startX = e.clientX;
+    const startW = side === 'left' ? leftW : rightW;
+    const setter  = side === 'left' ? setLeftW : setRightW;
+    const min = side === 'left' ? 120 : 200;
+    const max = side === 'left' ? 520 : 520;
+    const sign = side === 'left' ? 1 : -1;
+    const onMove = ev => setter(Math.max(min, Math.min(max, startW + sign * (ev.clientX - startX))));
+    const onUp   = () => { document.removeEventListener('mousemove', onMove); document.removeEventListener('mouseup', onUp); };
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+  }, [leftW, rightW]);
+
   const toggleAuthor = useCallback(id => {
     setHiddenAuthors(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
   }, []);
@@ -1317,8 +1334,9 @@ export default function ArtifactDisplay() {
   ].filter(Boolean).join(' ');
 
   return (
-    <div className="v2-viewer-layout">
+    <div className="v2-viewer-layout" style={{ gridTemplateColumns: `${leftW}px 4px 1fr 4px ${rightW}px` }}>
       <ManuscriptPanel artifact={artifact} />
+      <div className="v2-resize-handle" onMouseDown={e => startDrag('left', e)} />
 
       <div className="v2-center-panel">
         {/* filter bar — authors row + layers row */}
@@ -1395,6 +1413,7 @@ export default function ArtifactDisplay() {
         </div>
       </div>
 
+      <div className="v2-resize-handle" onMouseDown={e => startDrag('right', e)} />
       <DetailsPanel artifact={artifact} sources={sources} sourceIds={sourceIds} colorMap={colorMap}
         editLog={editLog} lineOverrides={lineOverrides}
         onUndoEdit={undoEdit} onFlagEdit={flagEdit} onViewInText={viewInText} onRestore={restoreVersion}

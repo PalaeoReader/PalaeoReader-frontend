@@ -1146,10 +1146,22 @@ button { cursor: pointer; }
 /* layout */
 .v2-viewer-layout {
   display: grid;
-  grid-template-columns: 240px 1fr 280px;
+  grid-template-columns: 240px 4px 1fr 4px 280px;
   height: calc(100vh - 54px);
   background: var(--v2-bg);
   overflow: hidden;
+  user-select: none;
+}
+
+.v2-resize-handle {
+  background: var(--v2-bd);
+  cursor: col-resize;
+  transition: background 0.15s;
+  z-index: 10;
+}
+.v2-resize-handle:hover,
+.v2-resize-handle:active {
+  background: var(--v2-accent, #5B7FA6);
 }
 
 /* left panel */
