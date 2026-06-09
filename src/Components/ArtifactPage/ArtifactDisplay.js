@@ -139,13 +139,18 @@ function EditableMorphLine({ lineKey, sourceId, color, morphs, sourceLabel, edit
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
     >
+      {isEdited && <span className="line-edited-dot" />}
+      {editProps && (
+        <button className="clock-btn" onClick={e => { e.stopPropagation(); editProps.openHistory(); }}>
+          <i className="fas fa-clock" />
+        </button>
+      )}
       <span className="author-dot" style={{ color: color.border, paddingTop: '0.2rem' }}>●</span>
       {isEdited
         ? <span className="v2-layer-text" style={{ paddingTop: '0.2rem' }}>{overrideText}</span>
         : <MorphInterlinear morphs={morphs} />
       }
-      {isEdited && <span className="line-edited-indicator" title="This line has been edited">◷</span>}
-      {hovered && editProps && (
+      {editProps && (
         <button className="pencil-btn"
           onClick={e => { e.stopPropagation(); editProps.openEditor(lineKey, { sourceId, layerKey: 'morph', layerLabel: 'Morph. analysis', sourceLabel }); }}>
           <i className="fas fa-pen" />
@@ -186,9 +191,14 @@ function EditableText({ lineKey, sourceId, layerKey, layerLabel, sourceLabel, co
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
     >
+      {isEdited && <span className="line-edited-dot" />}
+      {editProps && (
+        <button className="clock-btn" onClick={e => { e.stopPropagation(); editProps.openHistory(); }}>
+          <i className="fas fa-clock" />
+        </button>
+      )}
       <span className={className} dir={dir}>{displayText}</span>
-      {isEdited && <span className="line-edited-indicator" title="This line has been edited">◷</span>}
-      {hovered && editProps && (
+      {editProps && (
         <button className="pencil-btn"
           onClick={e => { e.stopPropagation(); editProps.openEditor(lineKey, { sourceId, layerKey, layerLabel, sourceLabel }); }}>
           <i className="fas fa-pen" />
@@ -212,8 +222,16 @@ function relativeTime(ts) {
 }
 
 function wordDiff(oldStr, newStr) {
-  const a = (oldStr || '').split(' ').filter(Boolean);
-  const b = (newStr || '').split(' ').filter(Boolean);
+  // Each token includes its trailing separator so display reconstructs original exactly
+  function tokenize(s) {
+    const tokens = [];
+    const re = /[^\s᛬᛫]+[\s᛬᛫]*/g;
+    let m;
+    while ((m = re.exec(s || '')) !== null) tokens.push(m[0]);
+    return tokens;
+  }
+  const a = tokenize(oldStr);
+  const b = tokenize(newStr);
   const m = a.length, n = b.length;
   const dp = Array.from({ length: m + 1 }, () => new Array(n + 1).fill(0));
   for (let i = 1; i <= m; i++)
@@ -235,16 +253,17 @@ function wordDiff(oldStr, newStr) {
 
 function DiffBlock({ oldText, newText }) {
   const ops = wordDiff(oldText, newText);
+  // Tokens include trailing separators — just concatenate, no space needed
   const removedLine = ops.filter(o => o.t !== '+').map((o, i) =>
     o.t === '-'
       ? <span key={i} className="hl-removed">{o.w}</span>
       : <span key={i} className="hl-equal">{o.w}</span>
-  ).reduce((acc, el, i) => (i === 0 ? [el] : [...acc, ' ', el]), []);
+  );
   const addedLine = ops.filter(o => o.t !== '-').map((o, i) =>
     o.t === '+'
       ? <span key={i} className="hl-added">{o.w}</span>
       : <span key={i} className="hl-equal">{o.w}</span>
-  ).reduce((acc, el, i) => (i === 0 ? [el] : [...acc, ' ', el]), []);
+  );
   return (
     <div className="eh-diff-block">
       <div className="eh-diff-row eh-diff-removed">
@@ -331,10 +350,15 @@ function EditableLine({ lineKey, sourceId, color, layerKey, text, isEdited, sour
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
     >
+      {isEdited && <span className="line-edited-dot" />}
+      {editProps && (
+        <button className="clock-btn" onClick={e => { e.stopPropagation(); editProps.openHistory(); }}>
+          <i className="fas fa-clock" />
+        </button>
+      )}
       <span className="author-dot" style={{ color: color.border }}>●</span>
       <span className={`v2-layer-text v2-text-${layerKey}`}>{text}</span>
-      {isEdited && <span className="line-edited-indicator" title="This line has been edited">◷</span>}
-      {hovered && editProps && (
+      {editProps && (
         <button className="pencil-btn"
           onClick={e => { e.stopPropagation(); editProps.openEditor(lineKey, { sourceId, layerKey, layerLabel, sourceLabel }); }}>
           <i className="fas fa-pen" />
@@ -344,12 +368,104 @@ function EditableLine({ lineKey, sourceId, color, layerKey, text, isEdited, sour
   );
 }
 
-function EditHistoryPanel({ editLog, onUndo, onFlag, onViewInText, colorMap, sources, sourceIds }) {
+function CommitBrowserView({ lineKey, editLog, lineOverrides, colorMap, onRestore, onBack }) {
+  const [selectedId, setSelectedId] = useState(null);
+
+  const lineEdits = editLog.filter(e => e.lineKey === lineKey);
+  const currentText = lineOverrides[lineKey] ?? '';
+  const importText  = lineEdits.length > 0 ? lineEdits[lineEdits.length - 1].originalText : currentText;
+
+  const timeline = [
+    ...lineEdits,
+    { id: 'original', isImport: true, contributor: lineEdits[0]?.sourceLabel || 'Source', newText: importText },
+  ];
+
+  const currentCommitId = [...lineEdits].reverse().find(c => c.newText === currentText)?.id
+    ?? (importText === currentText ? 'original' : null);
+
+  const selected = timeline.find(c => c.id === selectedId) || null;
+
+  return (
+    <div className="eh-panel">
+      <div className="eh-commit-header">
+        <button className="eh-back-btn" onClick={onBack}>← Back</button>
+        <span className="eh-commit-title">Versions</span>
+      </div>
+      <div className="eh-commit-subtitle">Click a version to preview · restore to make it current</div>
+      <div className="eh-commit-timeline">
+        {timeline.map((commit, idx) => {
+          const isCurrent  = commit.id === currentCommitId;
+          const isSelected = commit.id === selectedId;
+          const dot = colorMap ? (Object.values(colorMap)[0]?.border || '#888') : '#888';
+          return (
+            <div key={commit.id}
+              className={`eh-commit-row${isSelected ? ' selected' : ''}`}
+              onClick={() => setSelectedId(isSelected ? null : commit.id)}>
+              <div className="eh-commit-line-col">
+                <span className="eh-commit-dot" style={{ background: isCurrent ? '#0F6E56' : 'var(--v2-bd-em)' }} />
+                {idx < timeline.length - 1 && <span className="eh-commit-vline" />}
+              </div>
+              <div className="eh-commit-info">
+                <div className="eh-commit-meta">
+                  <span className="eh-contributor">{commit.contributor}</span>
+                  {isCurrent && <span className="eh-current-label">current</span>}
+                  {!commit.isImport && <span className="eh-time">{relativeTime(commit.id)}</span>}
+                </div>
+                <div className="eh-commit-preview">{(commit.newText || '').slice(0, 70)}{(commit.newText || '').length > 70 ? '…' : ''}</div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      {selected && (
+        <div className="eh-commit-diff-area">
+          {selected.id === currentCommitId ? (
+            <div className="eh-diff-block">
+              <div className="eh-diff-row eh-diff-added">
+                <span className="eh-diff-sign">+</span>
+                <span className="eh-diff-line"><span className="hl-equal">{selected.newText}</span></span>
+              </div>
+            </div>
+          ) : (
+            <DiffBlock oldText={currentText} newText={selected.newText} />
+          )}
+          {selected.id !== currentCommitId && (
+            <span className="eh-link eh-link-blue" onClick={() => { onRestore(lineKey, selected.newText); onBack(); }}>
+              Restore this version
+            </span>
+          )}
+        </div>
+      )}
+      <span className="eh-link eh-link-muted eh-cancel-link" onClick={onBack}>Cancel</span>
+    </div>
+  );
+}
+
+function EditHistoryPanel({ editLog, lineOverrides, onUndo, onFlag, onViewInText, onRestore, colorMap, sources, sourceIds }) {
+  const [browser, setBrowser] = useState(null); // null = feed, string = lineKey being browsed
+
+  // Most recent edit id per lineKey (feed is newest-first so first occurrence wins)
+  const latestPerLine = {};
+  editLog.forEach(e => { if (!latestPerLine[e.lineKey]) latestPerLine[e.lineKey] = e.id; });
+
   const importEntries = (sourceIds || []).map(id => ({
     id: `import-${id}`,
     sourceLabel: srcLabel(sources[id], id),
     color: colorMap[id] || COLOR_SLOTS[0],
   }));
+
+  if (browser) {
+    return (
+      <CommitBrowserView
+        lineKey={browser}
+        editLog={editLog}
+        lineOverrides={lineOverrides}
+        colorMap={colorMap}
+        onRestore={onRestore}
+        onBack={() => setBrowser(null)}
+      />
+    );
+  }
 
   return (
     <div className="eh-panel">
@@ -370,29 +486,33 @@ function EditHistoryPanel({ editLog, onUndo, onFlag, onViewInText, colorMap, sou
           </div>
         )}
         {editLog.map(entry => {
-          const dotColor = entry.isUndo ? '#185FA5' : COMMUNITY_COLOR.border;
-          const contributorLabel = entry.isUndo ? `${entry.contributor} — reverted` : entry.contributor;
+          const isLatest   = latestPerLine[entry.lineKey] === entry.id;
+          const dotColor   = entry.isUndo ? '#185FA5' : COMMUNITY_COLOR.border;
+          const contributor = entry.isUndo ? `${entry.contributor} — reverted` : entry.contributor;
           return (
             <div key={entry.id} className={`eh-entry${entry.flagged ? ' eh-entry-flagged' : ''}`}>
               <div className="eh-entry-top">
                 <span className="eh-dot" style={{ background: dotColor }} />
-                <span className="eh-contributor">{contributorLabel}</span>
+                <span className="eh-contributor">{contributor}</span>
+                {isLatest && <span className="eh-latest-label">latest</span>}
                 <span className="eh-time">{relativeTime(entry.id)}</span>
               </div>
               <div className="eh-location">
-                <span className="eh-loc-pill">{entry.omenLabel}</span>
-                <span className="eh-loc-sep">·</span>
-                <span className="eh-loc-pill">{entry.sourceLabel}</span>
-                <span className="eh-loc-sep">·</span>
-                <span className="eh-loc-pill">{entry.layerLabel}</span>
+                {entry.omenLabel} · {entry.sourceLabel} · {entry.layerLabel}
               </div>
-              <DiffBlock oldText={entry.originalText} newText={entry.newText} />
-              <div className="eh-actions">
-                <button className="eh-action" onClick={() => onViewInText(entry)}>view in text</button>
-                {!entry.isUndo && <button className="eh-action eh-action-undo" onClick={() => onUndo(entry)}>undo</button>}
-                <button className={`eh-action eh-action-flag${entry.flagged ? ' active' : ''}`} onClick={() => onFlag(entry.id)}>
+              <div className="eh-diff-left-border">
+                <DiffBlock oldText={entry.originalText} newText={entry.newText} />
+              </div>
+              <div className="eh-actions-text">
+                <span className="eh-link eh-link-blue" onClick={() => setBrowser(entry.lineKey)}>browse versions</span>
+                {isLatest && !entry.isUndo && <>
+                  <span className="eh-sep">·</span>
+                  <span className="eh-link eh-link-coral" onClick={() => onUndo(entry)}>undo</span>
+                </>}
+                <span className="eh-sep">·</span>
+                <span className={`eh-link${entry.flagged ? ' eh-link-coral' : ' eh-link-muted'}`} onClick={() => onFlag(entry.id)}>
                   {entry.flagged ? 'unflag' : 'flag'}
-                </button>
+                </span>
               </div>
             </div>
           );
@@ -995,8 +1115,9 @@ function ManuscriptPanel({ artifact }) {
   );
 }
 
-function DetailsPanel({ artifact, sources, sourceIds, colorMap, editLog, onUndoEdit, onFlagEdit, onViewInText }) {
-  const [tab, setTab] = useState('details');
+function DetailsPanel({ artifact, sources, sourceIds, colorMap, editLog, lineOverrides, onUndoEdit, onFlagEdit, onViewInText, onRestore, activeTab, onTabChange }) {
+  const tab = activeTab;
+  const setTab = onTabChange;
   return (
     <div className="v2-details-panel">
       <div className="detail-tab-bar">
@@ -1041,9 +1162,11 @@ function DetailsPanel({ artifact, sources, sourceIds, colorMap, editLog, onUndoE
       ) : (
         <EditHistoryPanel
           editLog={editLog || []}
+          lineOverrides={lineOverrides || {}}
           onUndo={onUndoEdit}
           onFlag={onFlagEdit}
           onViewInText={onViewInText}
+          onRestore={onRestore}
           colorMap={colorMap}
           sources={sources}
           sourceIds={sourceIds}
@@ -1099,6 +1222,11 @@ export default function ArtifactDisplay() {
   const [editLog, setEditLog]               = useState([]);
   const [activeEditor, setActiveEditor]     = useState(null);
   const [highlightedLine, setHighlightedLine] = useState(null);
+  const [rightTab, setRightTab]             = useState('details');
+
+  // Non-stale refs for use inside callbacks
+  const editLogRef      = useRef(editLog);
+  editLogRef.current    = editLog;
 
   const openEditor = useCallback((lineKey, info) => {
     setActiveEditor({ lineKey, ...info });
@@ -1150,7 +1278,19 @@ export default function ArtifactDisplay() {
     setTimeout(() => setHighlightedLine(null), 2000);
   }, []);
 
-  const editProps = { lineOverrides, activeEditor, highlightedLine, openEditor, closeEditor, submitEdit };
+  const openHistory = useCallback(() => setRightTab('history'), []);
+
+  const restoreVersion = useCallback((lineKey, newText) => {
+    const entry = editLogRef.current.find(e => e.lineKey === lineKey);
+    if (!entry) return;
+    submitEdit(lineKey, newText, 'restored', {
+      sourceLabel: entry.sourceLabel,
+      layerLabel:  entry.layerLabel,
+      layerKey:    entry.layerKey,
+    });
+  }, [submitEdit]);
+
+  const editProps = { lineOverrides, activeEditor, highlightedLine, openEditor, closeEditor, submitEdit, openHistory };
 
   const toggleAuthor = useCallback(id => {
     setHiddenAuthors(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
@@ -1256,7 +1396,9 @@ export default function ArtifactDisplay() {
       </div>
 
       <DetailsPanel artifact={artifact} sources={sources} sourceIds={sourceIds} colorMap={colorMap}
-        editLog={editLog} onUndoEdit={undoEdit} onFlagEdit={flagEdit} onViewInText={viewInText} />
+        editLog={editLog} lineOverrides={lineOverrides}
+        onUndoEdit={undoEdit} onFlagEdit={flagEdit} onViewInText={viewInText} onRestore={restoreVersion}
+        activeTab={rightTab} onTabChange={setRightTab} />
     </div>
   );
 }
