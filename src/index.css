@@ -1613,38 +1613,37 @@ button { cursor: pointer; }
   position: absolute;
   top: 50%;
   transform: translateY(-50%);
-  width: 22px;
-  height: 22px;
+  padding: 0;
+  width: 18px;
+  height: 18px;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  font-size: 11px;
+  font-size: 10px;
   opacity: 0;
   transition: opacity 0.12s;
   flex-shrink: 0;
-}
-/* Clock: bare icon, no box */
-.clock-btn {
-  left: 0.15rem;
   background: none;
   border: none;
+  outline: none;
+  box-shadow: none;
+  -webkit-appearance: none;
+  appearance: none;
+}
+.clock-btn {
+  left: 0.15rem;
   color: var(--v2-text-3);
 }
-/* Pencil: subtle box */
 .pencil-btn {
   right: 0.3rem;
-  background: var(--v2-bg);
-  border: 0.5px solid var(--v2-bd-em);
-  border-radius: 4px;
-  color: var(--v2-text-2);
+  color: var(--v2-text-3);
 }
-/* Show both together on parent hover */
 .author-line:hover .clock-btn,
 .author-line:hover .pencil-btn,
 .editable-text-wrap:hover .clock-btn,
 .editable-text-wrap:hover .pencil-btn { opacity: 1; }
-.pencil-btn:hover { background: var(--v2-bg-3); color: var(--v2-text); }
+.pencil-btn:hover { color: var(--v2-text); }
 .clock-btn:hover  { color: var(--v2-text-2); }
 
 /* Amber dot — always visible on edited lines */

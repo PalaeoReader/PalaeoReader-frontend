@@ -165,12 +165,13 @@ function EditableText({ lineKey, sourceId, layerKey, layerLabel, sourceLabel, co
   const isActive  = editProps?.activeEditor?.lineKey === lineKey;
   const isEdited  = lineKey in (editProps?.lineOverrides || {});
   const displayText = isEdited ? editProps.lineOverrides[lineKey] : rawText;
+  const effectiveDir = dir || detectDir(rawText);
 
   if (isActive) {
     return (
       <InlineEditor
         initialText={displayText}
-        color={color}
+        color={color} dir={effectiveDir}
         sourceLabel={sourceLabel}
         layerLabel={layerLabel}
         onCancel={editProps.closeEditor}
@@ -197,7 +198,7 @@ function EditableText({ lineKey, sourceId, layerKey, layerLabel, sourceLabel, co
           <i className="fas fa-clock" />
         </button>
       )}
-      <span className={className} dir={dir}>{displayText}</span>
+      <span className={className} dir={effectiveDir}>{displayText}</span>
       {editProps && (
         <button className="pencil-btn"
           onClick={e => { e.stopPropagation(); editProps.openEditor(lineKey, { sourceId, layerKey, layerLabel, sourceLabel }); }}>
@@ -253,6 +254,7 @@ function wordDiff(oldStr, newStr) {
 
 function DiffBlock({ oldText, newText }) {
   const ops = wordDiff(oldText, newText);
+  const dir = detectDir(oldText || newText);
   // Tokens include trailing separators — just concatenate, no space needed
   const removedLine = ops.filter(o => o.t !== '+').map((o, i) =>
     o.t === '-'
@@ -268,17 +270,36 @@ function DiffBlock({ oldText, newText }) {
     <div className="eh-diff-block">
       <div className="eh-diff-row eh-diff-removed">
         <span className="eh-diff-sign">−</span>
-        <span className="eh-diff-line">{removedLine}</span>
+        <span className="eh-diff-line" dir={dir}>{removedLine}</span>
       </div>
       <div className="eh-diff-row eh-diff-added">
         <span className="eh-diff-sign">+</span>
-        <span className="eh-diff-line">{addedLine}</span>
+        <span className="eh-diff-line" dir={dir}>{addedLine}</span>
       </div>
     </div>
   );
 }
 
-function InlineEditor({ initialText, color, sourceLabel, layerLabel, onCancel, onSubmit }) {
+function detectDir(text) {
+  if (!text) return undefined;
+  let rtl = 0, ltr = 0;
+  for (const ch of text) {
+    const cp = ch.codePointAt(0);
+    if (
+      (cp >= 0x0590 && cp <= 0x08FF)   ||  // Hebrew, Arabic, Syriac, Thaana, NKo …
+      (cp >= 0xFB1D && cp <= 0xFDFF)   ||  // Hebrew/Arabic presentation forms A
+      (cp >= 0xFE70 && cp <= 0xFEFF)   ||  // Arabic presentation forms B
+      (cp >= 0x10C00 && cp <= 0x10C4F) ||  // Old Turkic
+      (cp >= 0x10840 && cp <= 0x1085F) ||  // Imperial Aramaic
+      (cp >= 0x10900 && cp <= 0x1091F)     // Phoenician
+    ) rtl++;
+    else if ((cp >= 0x41 && cp <= 0x7A) || (cp >= 0x30 && cp <= 0x39)) ltr++;
+  }
+  if (rtl === 0) return undefined;
+  return rtl >= ltr ? 'rtl' : 'auto';
+}
+
+function InlineEditor({ initialText, color, sourceLabel, layerLabel, dir, onCancel, onSubmit }) {
   const [text, setText]            = useState(initialText);
   const [contributor, setContrib]  = useState('');
   const ref                        = useRef(null);
@@ -309,7 +330,7 @@ function InlineEditor({ initialText, color, sourceLabel, layerLabel, onCancel, o
         <span className="inline-editor-ctx">{sourceLabel} · {layerLabel}</span>
       </div>
       <textarea ref={ref} className="inline-editor-textarea" rows={2}
-        value={text} onChange={e => setText(e.target.value)} />
+        dir={dir} value={text} onChange={e => setText(e.target.value)} />
       <div className="inline-editor-bottom">
         <div>
           <button className="inline-editor-submit" onClick={submit}>Submit</button>
@@ -325,11 +346,12 @@ function EditableLine({ lineKey, sourceId, color, layerKey, text, isEdited, sour
   const [hovered, setHovered] = useState(false);
   const isActive      = editProps?.activeEditor?.lineKey === lineKey;
   const highlighted   = editProps?.highlightedLine === lineKey;
+  const dir           = detectDir(text);
 
   if (isActive) {
     return (
       <InlineEditor
-        initialText={text} color={color}
+        initialText={text} color={color} dir={dir}
         sourceLabel={sourceLabel} layerLabel={layerLabel}
         onCancel={editProps.closeEditor}
         onSubmit={(newText, contributor) =>
@@ -357,7 +379,7 @@ function EditableLine({ lineKey, sourceId, color, layerKey, text, isEdited, sour
         </button>
       )}
       <span className="author-dot" style={{ color: color.border }}>●</span>
-      <span className={`v2-layer-text v2-text-${layerKey}`}>{text}</span>
+      <span className={`v2-layer-text v2-text-${layerKey}`} dir={dir}>{text}</span>
       {editProps && (
         <button className="pencil-btn"
           onClick={e => { e.stopPropagation(); editProps.openEditor(lineKey, { sourceId, layerKey, layerLabel, sourceLabel }); }}>
@@ -448,12 +470,6 @@ function EditHistoryPanel({ editLog, lineOverrides, onUndo, onFlag, onViewInText
   const latestPerLine = {};
   editLog.forEach(e => { if (!latestPerLine[e.lineKey]) latestPerLine[e.lineKey] = e.id; });
 
-  const importEntries = (sourceIds || []).map(id => ({
-    id: `import-${id}`,
-    sourceLabel: srcLabel(sources[id], id),
-    color: colorMap[id] || COLOR_SLOTS[0],
-  }));
-
   if (browser) {
     return (
       <CommitBrowserView
@@ -517,15 +533,6 @@ function EditHistoryPanel({ editLog, lineOverrides, onUndo, onFlag, onViewInText
             </div>
           );
         })}
-        {importEntries.map(e => (
-          <div key={e.id} className="eh-entry eh-entry-import">
-            <div className="eh-entry-top">
-              <span className="eh-dot" style={{ background: e.color.border }} />
-              <span className="eh-contributor">{e.sourceLabel}</span>
-            </div>
-            <div className="eh-import-note">Source data imported — no previous version.</div>
-          </div>
-        ))}
       </div>
     </div>
   );
@@ -849,9 +856,9 @@ function LayerFirstView({ grouping, sets, sources, sourceIds, colorMap, editProp
   });
 }
 
-// Author → Layer view: one section per author
-// grouping='author-layer'      → Author → Layer (all entries shown flat under each layer)
-// grouping='author-entry-layer'→ Author → Entry → Layer (per-entry sub-sections)
+// Author -> Layer view: one section per author
+// grouping='author-layer'      -> Author -> Layer (all entries shown flat under each layer)
+// grouping='author-entry-layer' -> Author -> Entry -> Layer (per-entry sub-sections)
 function AuthorLayerView({ sets, sources, sourceIds, colorMap, contributions, onAddContribution, grouping, editProps }) {
   const contentLayers = LAYERS.filter(l => !l.isMorph);
   const morphAuthorId = sourceIds[0];
@@ -869,7 +876,7 @@ function AuthorLayerView({ sets, sources, sourceIds, colorMap, contributions, on
     );
 
     if (grouping === 'author-layer') {
-      // Author → Layer: group all entries under each layer heading
+      // Author -> Layer: group all entries under each layer heading
       const morphs = isMorphAuthor ? authorSets.flatMap(s => s.morphs || []) : [];
       const layerHasAny = contentLayers.some(l =>
         authorSets.some(s => (s.contents || []).some(c => contentTypeToLayer(c.type) === l.key))
