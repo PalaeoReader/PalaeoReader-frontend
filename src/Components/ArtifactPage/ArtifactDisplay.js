@@ -299,6 +299,41 @@ function detectDir(text) {
   return rtl >= ltr ? 'rtl' : 'auto';
 }
 
+function charDiff(refStr, othStr) {
+  const a = Array.from(refStr || ''), b = Array.from(othStr || '');
+  const m = a.length, n = b.length;
+  const dp = Array.from({ length: m + 1 }, () => new Array(n + 1).fill(0));
+  for (let i = 1; i <= m; i++)
+    for (let j = 1; j <= n; j++)
+      dp[i][j] = a[i-1] === b[j-1] ? dp[i-1][j-1] + 1 : Math.max(dp[i-1][j], dp[i][j-1]);
+  const ops = [];
+  let i = m, j = n;
+  while (i > 0 || j > 0) {
+    if (i > 0 && j > 0 && a[i-1] === b[j-1]) {
+      ops.unshift({ t: '=', c: a[i-1] }); i--; j--;
+    } else if (j > 0 && (i === 0 || dp[i][j-1] >= dp[i-1][j])) {
+      ops.unshift({ t: '+', c: b[j-1] }); j--;
+    } else {
+      ops.unshift({ t: '-', c: a[i-1] }); i--;
+    }
+  }
+  return ops;
+}
+
+function InlineDiff({ refText, otherText, layerKey, dir }) {
+  const ops = charDiff(refText, otherText);
+  const mono = layerKey === 'translit' || layerKey === 'transcription';
+  return (
+    <span className={`inline-diff${mono ? ' inline-diff-mono' : ''}`} dir={dir}>
+      {ops.map((o, i) =>
+        o.t === '=' ? <span key={i} className="id-eq">{o.c}</span>
+        : o.t === '-' ? <span key={i} className="id-del">{o.c}</span>
+        : <span key={i} className="id-add">{o.c}</span>
+      )}
+    </span>
+  );
+}
+
 function InlineEditor({ initialText, color, sourceLabel, layerLabel, dir, onCancel, onSubmit }) {
   const [text, setText]            = useState(initialText);
   const [contributor, setContrib]  = useState('');
@@ -325,28 +360,37 @@ function InlineEditor({ initialText, color, sourceLabel, layerLabel, dir, onCanc
   return (
     <div className="inline-editor" style={{ borderColor: color.border }}>
       <div className="inline-editor-top">
-        <input className="inline-editor-name" placeholder="Your name or handle"
-          value={contributor} onChange={e => setContrib(e.target.value)} />
+        <div className="inline-editor-name-wrap">
+          <span className="inline-editor-name-label">Your name</span>
+          <input className="inline-editor-name" placeholder="name or handle"
+            value={contributor} onChange={e => setContrib(e.target.value)} />
+        </div>
         <span className="inline-editor-ctx">{sourceLabel} · {layerLabel}</span>
       </div>
       <textarea ref={ref} className="inline-editor-textarea" rows={2}
         dir={dir} value={text} onChange={e => setText(e.target.value)} />
       <div className="inline-editor-bottom">
-        <div>
-          <button className="inline-editor-submit" onClick={submit}>Submit</button>
+        <div className="inline-editor-btns">
+          <button className="inline-editor-submit" onClick={submit}>Submit fix</button>
           <button className="inline-editor-cancel" onClick={onCancel}>Cancel</button>
         </div>
-        <span className="inline-editor-note">Esc to cancel · ⌘↵ to submit</span>
+        <div className="inline-editor-notes">
+          <span className="inline-editor-note">corrects the source record · logged in history.</span>
+          <span className="inline-editor-note">Esc to cancel · ⌘↵ to submit</span>
+        </div>
       </div>
     </div>
   );
 }
 
-function EditableLine({ lineKey, sourceId, color, layerKey, text, isEdited, sourceLabel, layerLabel, editProps }) {
+function EditableLine({ lineKey, sourceId, color, layerKey, text, isEdited, sourceLabel, layerLabel, editProps, pinProps }) {
   const [hovered, setHovered] = useState(false);
-  const isActive      = editProps?.activeEditor?.lineKey === lineKey;
-  const highlighted   = editProps?.highlightedLine === lineKey;
-  const dir           = detectDir(text);
+  const isActive    = editProps?.activeEditor?.lineKey === lineKey;
+  const highlighted = editProps?.highlightedLine === lineKey;
+  const dir         = detectDir(text);
+
+  const isPinned = pinProps?.pinnedKey === lineKey;
+  const showDiff = pinProps != null && pinProps.pinnedKey != null && !isPinned;
 
   if (isActive) {
     return (
@@ -362,7 +406,7 @@ function EditableLine({ lineKey, sourceId, color, layerKey, text, isEdited, sour
 
   return (
     <div
-      className={`author-line author-${sourceId}${isEdited ? ' line-edited' : ''}${highlighted ? ' line-highlighted' : ''}`}
+      className={`author-line author-${sourceId}${isEdited ? ' line-edited' : ''}${highlighted ? ' line-highlighted' : ''}${pinProps ? ' has-pin' : ''}${pinProps?.pinnedKey != null ? ' line-dimmed' : ''}`}
       style={{
         borderLeft: `2px solid ${color.border}`,
         background: hovered ? color.bg : color.row,
@@ -373,13 +417,24 @@ function EditableLine({ lineKey, sourceId, color, layerKey, text, isEdited, sour
       onMouseLeave={() => setHovered(false)}
     >
       {isEdited && <span className="line-edited-dot" />}
+      {pinProps && (
+        <button
+          className={`pin-btn${isPinned ? ' pin-btn-active' : ''}`}
+          onClick={e => { e.stopPropagation(); pinProps.onPin(lineKey); }}>
+          <i className="fas fa-thumbtack" />
+        </button>
+      )}
       {editProps && (
         <button className="clock-btn" onClick={e => { e.stopPropagation(); editProps.openHistory(); }}>
           <i className="fas fa-clock" />
         </button>
       )}
-      <span className="author-dot" style={{ color: color.border }}>●</span>
-      <span className={`v2-layer-text v2-text-${layerKey}`} dir={dir}>{text}</span>
+      <span className="author-dot" data-tip={sourceLabel} style={{ color: color.border }}>●</span>
+      {showDiff
+        ? <InlineDiff refText={pinProps.pinnedText} otherText={text} layerKey={layerKey} dir={dir} />
+        : <span className={`v2-layer-text v2-text-${layerKey}`} dir={dir}>{text}</span>
+      }
+      {isPinned && <span className="ref-tag">ref</span>}
       {editProps && (
         <button className="pencil-btn"
           onClick={e => { e.stopPropagation(); editProps.openEditor(lineKey, { sourceId, layerKey, layerLabel, sourceLabel }); }}>
@@ -464,9 +519,12 @@ function CommitBrowserView({ lineKey, editLog, lineOverrides, colorMap, onRestor
 }
 
 function EditHistoryPanel({ editLog, lineOverrides, onUndo, onFlag, onViewInText, onRestore, colorMap, sources, sourceIds }) {
-  const [browser, setBrowser] = useState(null); // null = feed, string = lineKey being browsed
+  const [browser, setBrowser]       = useState(null);
+  const [expandedIds, setExpandedIds] = useState(new Set());
 
-  // Most recent edit id per lineKey (feed is newest-first so first occurrence wins)
+  const toggleExpanded = id =>
+    setExpandedIds(s => { const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n; });
+
   const latestPerLine = {};
   editLog.forEach(e => { if (!latestPerLine[e.lineKey]) latestPerLine[e.lineKey] = e.id; });
 
@@ -502,38 +560,198 @@ function EditHistoryPanel({ editLog, lineOverrides, onUndo, onFlag, onViewInText
           </div>
         )}
         {editLog.map(entry => {
-          const isLatest   = latestPerLine[entry.lineKey] === entry.id;
-          const dotColor   = entry.isUndo ? '#185FA5' : COMMUNITY_COLOR.border;
+          const isLatest    = latestPerLine[entry.lineKey] === entry.id;
+          const isExpanded  = expandedIds.has(entry.id);
+          const dotColor    = entry.isUndo ? '#185FA5' : COMMUNITY_COLOR.border;
           const contributor = entry.isUndo ? `${entry.contributor} — reverted` : entry.contributor;
           return (
             <div key={entry.id} className={`eh-entry${entry.flagged ? ' eh-entry-flagged' : ''}`}>
-              <div className="eh-entry-top">
+              <div className="eh-entry-header" onClick={() => toggleExpanded(entry.id)}>
                 <span className="eh-dot" style={{ background: dotColor }} />
                 <span className="eh-contributor">{contributor}</span>
                 {isLatest && <span className="eh-latest-label">latest</span>}
                 <span className="eh-time">{relativeTime(entry.id)}</span>
+                <i className={`fas fa-chevron-down eh-chevron${isExpanded ? ' eh-chevron-open' : ''}`} />
               </div>
-              <div className="eh-location">
-                {entry.omenLabel} · {entry.sourceLabel} · {entry.layerLabel}
-              </div>
-              <div className="eh-diff-left-border">
-                <DiffBlock oldText={entry.originalText} newText={entry.newText} />
-              </div>
-              <div className="eh-actions-text">
-                <span className="eh-link eh-link-blue" onClick={() => setBrowser(entry.lineKey)}>browse versions</span>
-                {isLatest && !entry.isUndo && <>
+              {isExpanded && <>
+                <div className="eh-location">
+                  {entry.omenLabel} · {entry.sourceLabel} · {entry.layerLabel}
+                </div>
+                <div className="eh-diff-left-border">
+                  <DiffBlock oldText={entry.originalText} newText={entry.newText} />
+                </div>
+                <div className="eh-actions-text">
+                  <span className="eh-link eh-link-blue" onClick={() => setBrowser(entry.lineKey)}>browse versions</span>
+                  {isLatest && !entry.isUndo && <>
+                    <span className="eh-sep">·</span>
+                    <span className="eh-link eh-link-coral" onClick={() => onUndo(entry)}>undo</span>
+                  </>}
                   <span className="eh-sep">·</span>
-                  <span className="eh-link eh-link-coral" onClick={() => onUndo(entry)}>undo</span>
-                </>}
-                <span className="eh-sep">·</span>
-                <span className={`eh-link${entry.flagged ? ' eh-link-coral' : ' eh-link-muted'}`} onClick={() => onFlag(entry.id)}>
-                  {entry.flagged ? 'unflag' : 'flag'}
-                </span>
-              </div>
+                  <span className={`eh-link${entry.flagged ? ' eh-link-coral' : ' eh-link-muted'}`} onClick={() => onFlag(entry.id)}>
+                    {entry.flagged ? 'unflag' : 'flag'}
+                  </span>
+                </div>
+              </>}
             </div>
           );
         })}
       </div>
+    </div>
+  );
+}
+
+function CompareDiffPanel({ rows, sources, onClose }) {
+  const [refSourceId, setRefSourceId] = useState(rows[0]?.sourceId);
+  const [bodyHeight, setBodyHeight]   = useState(null);
+  const effectiveRefId = rows.some(r => r.sourceId === refSourceId) ? refSourceId : rows[0]?.sourceId;
+  const refRow    = rows.find(r => r.sourceId === effectiveRefId);
+  const otherRows = rows.filter(r => r.sourceId !== effectiveRefId);
+
+  const startResize = useCallback((e) => {
+    e.preventDefault();
+    const startY = e.clientY;
+    const startH = bodyHeight || 180;
+    const onMove = ev => setBodyHeight(Math.max(80, startH + ev.clientY - startY));
+    const onUp   = () => { document.removeEventListener('mousemove', onMove); document.removeEventListener('mouseup', onUp); };
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+  }, [bodyHeight]);
+
+  return (
+    <div className="compare-panel">
+      <div className="compare-panel-top">
+        <div className="compare-panel-left">
+          <span className="compare-ref-label">Reference:</span>
+          {rows.map(r => (
+            <button key={r.sourceId}
+              className={`compare-pill${r.sourceId === effectiveRefId ? ' active' : ''}`}
+              onClick={() => setRefSourceId(r.sourceId)}>
+              {srcLabel(sources[r.sourceId], r.sourceId)}
+            </button>
+          ))}
+        </div>
+        <button className="compare-close-btn" onClick={onClose}><i className="fas fa-times" /></button>
+      </div>
+      <div className="compare-body" style={bodyHeight ? { height: bodyHeight } : undefined}>
+        {otherRows.map((r, i) => {
+          const refText = refRow?.text || '';
+          const othText = r.text || '';
+          const identical = refText.trim() === othText.trim();
+          const dir = detectDir(refText || othText);
+          const ops = wordDiff(refText, othText);
+          return (
+            <div key={r.sourceId} className={`compare-block${i > 0 ? ' compare-block-sep' : ''}`}>
+              <div className="compare-block-label">vs {srcLabel(sources[r.sourceId], r.sourceId)}</div>
+              {identical ? (
+                <div className="compare-identical">identical</div>
+              ) : (
+                <div className="compare-diff-lines">
+                  <div className="compare-diff-line" dir={dir}>
+                    {ops.filter(o => o.t !== '+').map((o, j) =>
+                      o.t === '-'
+                        ? <span key={j} className="hl-removed">{o.w}</span>
+                        : <span key={j} className="hl-equal">{o.w}</span>
+                    )}
+                  </div>
+                  <div className="compare-diff-line" dir={dir}>
+                    {ops.filter(o => o.t !== '-').map((o, j) =>
+                      o.t === '+'
+                        ? <span key={j} className="hl-added">{o.w}</span>
+                        : <span key={j} className="hl-equal">{o.w}</span>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+      <div className="compare-resize-handle" onMouseDown={startResize}>
+        <span className="compare-resize-grip">⠿</span>
+      </div>
+    </div>
+  );
+}
+
+function OmenLayerGroup({ l, activeRows, extraContribs, omenSeq, sources, editProps }) {
+  const [pinnedKey, setPinnedKey] = useState(null);
+  const hasMultiple = activeRows.length > 1;
+
+  const rowsWithKey = activeRows.map(r => {
+    const lKey        = `${omenSeq}-${r.sourceId}-${l.key}`;
+    const currentText = editProps?.lineOverrides?.[lKey] ?? r.text;
+    const isEdited    = lKey in (editProps?.lineOverrides || {});
+    return { ...r, lKey, text: currentText, isEdited };
+  });
+
+  const pinnedText = pinnedKey ? (rowsWithKey.find(r => r.lKey === pinnedKey)?.text ?? null) : null;
+  const pinProps   = hasMultiple
+    ? { pinnedKey, pinnedText, onPin: lk => setPinnedKey(k => k === lk ? null : lk) }
+    : null;
+
+  return (
+    <div className={`v2-layer-group-wrap ${l.cls}`}>
+      <div className="v2-layer-row-group v2-layer-row-group--inner">
+        <div className="v2-layer-label-cell">
+          <span className="v2-layer-row-label">{l.label}</span>
+        </div>
+        <div className="v2-layer-authors">
+          {rowsWithKey.map(r => (
+            <EditableLine key={r.sourceId}
+              lineKey={r.lKey} sourceId={r.sourceId} color={r.color}
+              layerKey={l.key} text={r.text}
+              isEdited={r.isEdited}
+              sourceLabel={srcLabel(sources[r.sourceId], r.sourceId)}
+              layerLabel={l.label}
+              editProps={editProps}
+              pinProps={pinProps}
+            />
+          ))}
+          {extraContribs.map((c, i) => (
+            <div key={`c-${i}`} className="author-line author-community"
+              style={{ borderLeft: `2px solid ${COMMUNITY_COLOR.border}`, background: COMMUNITY_COLOR.row }}>
+              <span className="author-dot" style={{ color: COMMUNITY_COLOR.border }}>●</span>
+              <span className={`v2-layer-text v2-text-${l.key}`}>{c.text}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function LayerEntryGroup({ seq, entryLabel, rows, sources, layerKey, layerLabel, editProps }) {
+  const [pinnedKey, setPinnedKey] = useState(null);
+  const hasMultiple = rows.length > 1;
+
+  const rowsWithKey = rows.map(r => {
+    const lKey        = `${seq}-${r.sourceId}-${layerKey}`;
+    const currentText = editProps?.lineOverrides?.[lKey] ?? r.text;
+    const isEdited    = lKey in (editProps?.lineOverrides || {});
+    return { ...r, lKey, text: currentText, isEdited };
+  });
+
+  const pinnedText = pinnedKey ? (rowsWithKey.find(r => r.lKey === pinnedKey)?.text ?? null) : null;
+  const pinProps   = hasMultiple
+    ? { pinnedKey, pinnedText, onPin: lk => setPinnedKey(k => k === lk ? null : lk) }
+    : null;
+
+  return (
+    <div className="layer-section-entry">
+      <div className="layer-section-entry-label-wrap">
+        <div className="layer-section-entry-label">{entryLabel}</div>
+      </div>
+      {rowsWithKey.map(r => (
+        <EditableLine key={r.sourceId}
+          lineKey={r.lKey} sourceId={r.sourceId} color={r.color}
+          layerKey={layerKey} text={r.text}
+          isEdited={r.isEdited}
+          sourceLabel={srcLabel(sources[r.sourceId], r.sourceId)}
+          layerLabel={layerLabel}
+          editProps={editProps}
+          pinProps={pinProps}
+        />
+      ))}
     </div>
   );
 }
@@ -583,33 +801,10 @@ function OmenBlock({ omenSeq, omenType, sets, sources, colorMap, contributions, 
             const extraContribs = contribsByLayer[l.key] || [];
             if (activeRows.length === 0 && extraContribs.length === 0) return null;
             return (
-              <div key={l.key} className={`v2-layer-row-group ${l.cls}`}>
-                <span className="v2-layer-row-label">{l.label}</span>
-                <div className="v2-layer-authors">
-                  {activeRows.map(r => {
-                    const lKey = `${omenSeq}-${r.sourceId}-${l.key}`;
-                    const currentText = editProps?.lineOverrides?.[lKey] ?? r.text;
-                    const isEdited = lKey in (editProps?.lineOverrides || {});
-                    const sourceLabel = srcLabel(sources[r.sourceId], r.sourceId);
-                    return (
-                      <EditableLine key={r.sourceId}
-                        lineKey={lKey} sourceId={r.sourceId} color={r.color}
-                        layerKey={l.key} text={currentText}
-                        isEdited={isEdited}
-                        sourceLabel={sourceLabel} layerLabel={l.label}
-                        editProps={editProps}
-                      />
-                    );
-                  })}
-                  {extraContribs.map((c, i) => (
-                    <div key={`c-${i}`} className="author-line author-community"
-                      style={{ borderLeft: `2px solid ${COMMUNITY_COLOR.border}`, background: COMMUNITY_COLOR.row }}>
-                      <span className="author-dot" style={{ color: COMMUNITY_COLOR.border }}>●</span>
-                      <span className={`v2-layer-text v2-text-${l.key}`}>{c.text}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
+              <OmenLayerGroup key={l.key}
+                l={l} activeRows={activeRows} extraContribs={extraContribs}
+                omenSeq={omenSeq} sources={sources} editProps={editProps}
+              />
             );
           })}
           {morphs.length > 0 && (() => {
@@ -635,7 +830,7 @@ function OmenBlock({ omenSeq, omenType, sets, sources, colorMap, contributions, 
           })()}
         </>
       ) : (
-        /* ── Group by Author ── */
+        /* Group by Author */
         sets.map(set => {
           const srcId = String(set.source_id);
           const { color, contentByLayer } = bySrc[srcId];
@@ -756,13 +951,13 @@ function GroupingControl({ grouping, onChange }) {
           ))}
         </div>
         {third && <span className="grouping-static">→ {GROUPING_LABELS[third]}</span>}
+        {badge && <span className="grouping-badge">{badge}</span>}
       </div>
-      <div className="grouping-badge">{badge}</div>
     </div>
   );
 }
 
-// Layer → Entry → Author  or  Layer → Author → Entry
+// Layer -> Entry -> Author  or  Layer -> Author -> Entry
 function LayerFirstView({ grouping, sets, sources, sourceIds, colorMap, editProps }) {
   const contentLayers = LAYERS.filter(l => !l.isMorph);
   const omenSeqs = [...new Set(sets.map(s => s.seq))].sort((a, b) => a - b);
@@ -790,30 +985,17 @@ function LayerFirstView({ grouping, sets, sources, sourceIds, colorMap, editProp
             if (!rows.length) return null;
             const entryLabel = seqSets[0]?.type === 'omen' ? `Omen ${seq}` : `Line ${seq}`;
             return (
-              <div key={seq} className="layer-section-entry">
-                <div className="layer-section-entry-label">{entryLabel}</div>
-                {rows.map(r => {
-                  const lKey = `${seq}-${r.sourceId}-${layerKey}`;
-                  const currentText = editProps?.lineOverrides?.[lKey] ?? r.text;
-                  const isEdited = lKey in (editProps?.lineOverrides || {});
-                  return (
-                    <EditableLine key={r.sourceId}
-                      lineKey={lKey} sourceId={r.sourceId} color={r.color}
-                      layerKey={layerKey} text={currentText}
-                      isEdited={isEdited}
-                      sourceLabel={srcLabel(sources[r.sourceId], r.sourceId)}
-                      layerLabel={layer.label}
-                      editProps={editProps}
-                    />
-                  );
-                })}
-              </div>
+              <LayerEntryGroup key={seq}
+                seq={seq} entryLabel={entryLabel} rows={rows}
+                sources={sources} layerKey={layerKey} layerLabel={layer.label}
+                editProps={editProps}
+              />
             );
           })}
         </div>
       );
     } else {
-      // layer-author-entry: Layer → Author → Entry
+      // layer-author-entry: Layer -> Author -> Entry
       const hasAny = sourceIds.some(srcId => sets.filter(s => String(s.source_id) === srcId).some(s => getContent(s)));
       if (!hasAny) return null;
       return (
@@ -997,7 +1179,7 @@ function AuthorLayerView({ sets, sources, sourceIds, colorMap, contributions, on
   });
 }
 
-// Legend bar — maps color dot to author name, shown only when >1 author active
+// Legend bar maps color dot to author name, shown only when >1 author active
 function LegendBar({ sourceIds, sources, hiddenAuthors, colorMap }) {
   const active = sourceIds.filter(id => !hiddenAuthors.has(id));
   if (active.length <= 1) return null;
@@ -1365,7 +1547,7 @@ export default function ArtifactDisplay() {
           </div>
         </div>
 
-        {/* legend bar — only appears when >1 author active */}
+        {/* legend bar: only appears when >1 author active */}
         <LegendBar
           sourceIds={sourceIds}
           sources={sources}
