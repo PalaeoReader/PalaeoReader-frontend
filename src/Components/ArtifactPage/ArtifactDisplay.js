@@ -140,21 +140,21 @@ function EditableMorphLine({ lineKey, sourceId, color, morphs, sourceLabel, edit
       onMouseLeave={() => setHovered(false)}
     >
       {isEdited && <span className="line-edited-dot" />}
-      {editProps && (
-        <button className="clock-btn" onClick={e => { e.stopPropagation(); editProps.openHistory(); }}>
-          <i className="fas fa-clock" />
-        </button>
-      )}
       <span className="author-dot" style={{ color: color.border, paddingTop: '0.2rem' }}>●</span>
       {isEdited
         ? <span className="v2-layer-text" style={{ paddingTop: '0.2rem' }}>{overrideText}</span>
         : <MorphInterlinear morphs={morphs} />
       }
       {editProps && (
-        <button className="pencil-btn"
-          onClick={e => { e.stopPropagation(); editProps.openEditor(lineKey, { sourceId, layerKey: 'morph', layerLabel: 'Morph. analysis', sourceLabel }); }}>
-          <i className="fas fa-pen" />
-        </button>
+        <div className="line-btn-group">
+          <button className="clock-btn" onClick={e => { e.stopPropagation(); editProps.openHistory(lineKey, { sourceLabel, layerLabel: 'Morph. analysis' }); }}>
+            <i className="fas fa-clock" />
+          </button>
+          <button className="pencil-btn"
+            onClick={e => { e.stopPropagation(); editProps.openEditor(lineKey, { sourceId, layerKey: 'morph', layerLabel: 'Morph. analysis', sourceLabel }); }}>
+            <i className="fas fa-pen" />
+          </button>
+        </div>
       )}
     </div>
   );
@@ -166,6 +166,7 @@ function EditableText({ lineKey, sourceId, layerKey, layerLabel, sourceLabel, co
   const isEdited  = lineKey in (editProps?.lineOverrides || {});
   const displayText = isEdited ? editProps.lineOverrides[lineKey] : rawText;
   const effectiveDir = dir || detectDir(rawText);
+  const isRtl = layerKey === 'script';
 
   if (isActive) {
     return (
@@ -188,22 +189,23 @@ function EditableText({ lineKey, sourceId, layerKey, layerLabel, sourceLabel, co
         outline: hovered && editProps ? `1px solid ${color.border}80` : 'none',
         borderRadius: 2,
         background: hovered && editProps ? color.bg : undefined,
+        ...(isRtl ? { flexDirection: 'row-reverse' } : {}),
       }}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
     >
       {isEdited && <span className="line-edited-dot" />}
-      {editProps && (
-        <button className="clock-btn" onClick={e => { e.stopPropagation(); editProps.openHistory(); }}>
-          <i className="fas fa-clock" />
-        </button>
-      )}
       <span className={className} dir={effectiveDir}>{displayText}</span>
       {editProps && (
-        <button className="pencil-btn"
-          onClick={e => { e.stopPropagation(); editProps.openEditor(lineKey, { sourceId, layerKey, layerLabel, sourceLabel }); }}>
-          <i className="fas fa-pen" />
-        </button>
+        <div className="line-btn-group">
+          <button className="clock-btn" onClick={e => { e.stopPropagation(); editProps.openHistory(lineKey, { sourceLabel, layerLabel }); }}>
+            <i className="fas fa-clock" />
+          </button>
+          <button className="pencil-btn"
+            onClick={e => { e.stopPropagation(); editProps.openEditor(lineKey, { sourceId, layerKey, layerLabel, sourceLabel }); }}>
+            <i className="fas fa-pen" />
+          </button>
+        </div>
       )}
     </div>
   );
@@ -388,6 +390,7 @@ function EditableLine({ lineKey, sourceId, color, layerKey, text, isEdited, sour
   const isActive    = editProps?.activeEditor?.lineKey === lineKey;
   const highlighted = editProps?.highlightedLine === lineKey;
   const dir         = detectDir(text);
+  const isRtl       = layerKey === 'script';
 
   const isPinned = pinProps?.pinnedKey === lineKey;
   const showDiff = pinProps != null && pinProps.pinnedKey != null && !isPinned;
@@ -412,34 +415,39 @@ function EditableLine({ lineKey, sourceId, color, layerKey, text, isEdited, sour
         background: hovered ? color.bg : color.row,
         outline: hovered ? `1px solid ${color.border}80` : 'none',
         position: 'relative',
+        ...(isRtl ? { flexDirection: 'row-reverse' } : {}),
       }}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
     >
       {isEdited && <span className="line-edited-dot" />}
-      {pinProps && (
-        <button
-          className={`pin-btn${isPinned ? ' pin-btn-active' : ''}`}
-          onClick={e => { e.stopPropagation(); pinProps.onPin(lineKey); }}>
-          <i className="fas fa-thumbtack" />
-        </button>
-      )}
-      {editProps && (
-        <button className="clock-btn" onClick={e => { e.stopPropagation(); editProps.openHistory(); }}>
-          <i className="fas fa-clock" />
-        </button>
-      )}
       <span className="author-dot" data-tip={sourceLabel} style={{ color: color.border }}>●</span>
       {showDiff
         ? <InlineDiff refText={pinProps.pinnedText} otherText={text} layerKey={layerKey} dir={dir} />
         : <span className={`v2-layer-text v2-text-${layerKey}`} dir={dir}>{text}</span>
       }
       {isPinned && <span className="ref-tag">ref</span>}
-      {editProps && (
-        <button className="pencil-btn"
-          onClick={e => { e.stopPropagation(); editProps.openEditor(lineKey, { sourceId, layerKey, layerLabel, sourceLabel }); }}>
-          <i className="fas fa-pen" />
-        </button>
+      {(pinProps || editProps) && (
+        <div className="line-btn-group">
+          {pinProps && (
+            <button
+              className={`pin-btn${isPinned ? ' pin-btn-active' : ''}`}
+              onClick={e => { e.stopPropagation(); pinProps.onPin(lineKey); }}>
+              <i className="fas fa-thumbtack" />
+            </button>
+          )}
+          {editProps && (
+            <button className="clock-btn" onClick={e => { e.stopPropagation(); editProps.openHistory(lineKey, { sourceLabel, layerLabel }); }}>
+              <i className="fas fa-clock" />
+            </button>
+          )}
+          {editProps && (
+            <button className="pencil-btn"
+              onClick={e => { e.stopPropagation(); editProps.openEditor(lineKey, { sourceId, layerKey, layerLabel, sourceLabel }); }}>
+              <i className="fas fa-pen" />
+            </button>
+          )}
+        </div>
       )}
     </div>
   );
@@ -518,15 +526,23 @@ function CommitBrowserView({ lineKey, editLog, lineOverrides, colorMap, onRestor
   );
 }
 
-function EditHistoryPanel({ editLog, lineOverrides, onUndo, onFlag, onViewInText, onRestore, colorMap, sources, sourceIds }) {
+function EditHistoryPanel({ editLog, lineOverrides, onUndo, onFlag, onViewInText, onRestore, colorMap, sources, sourceIds, historyFilter, onClearHistoryFilter }) {
   const [browser, setBrowser]       = useState(null);
   const [expandedIds, setExpandedIds] = useState(new Set());
 
   const toggleExpanded = id =>
     setExpandedIds(s => { const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n; });
 
+  const displayLog = historyFilter
+    ? editLog.filter(e => e.lineKey === historyFilter.lineKey)
+    : editLog;
+
   const latestPerLine = {};
   editLog.forEach(e => { if (!latestPerLine[e.lineKey]) latestPerLine[e.lineKey] = e.id; });
+
+  const filterLabel = historyFilter
+    ? `${historyFilter.entryLabel} · ${historyFilter.sourceLabel} · ${historyFilter.layerLabel}`
+    : null;
 
   if (browser) {
     return (
@@ -552,14 +568,23 @@ function EditHistoryPanel({ editLog, lineOverrides, onUndo, onFlag, onViewInText
           <span className="eh-count-badge">{editLog.length} edit{editLog.length !== 1 ? 's' : ''}</span>
         )}
       </div>
+      {historyFilter && (
+        <div className="eh-filter-bar">
+          <span className="eh-filter-label">Showing history for: {filterLabel}</span>
+          <span className="eh-link eh-link-muted" onClick={onClearHistoryFilter}>show all</span>
+        </div>
+      )}
       <div className="eh-feed">
-        {editLog.length === 0 && (
+        {displayLog.length === 0 && (
           <div className="eh-empty">
-            <i className="fas fa-history" style={{ fontSize: 18, opacity: 0.25, display:'block', marginBottom:'0.5rem' }} />
-            No edits yet. Hover any line and click the pen to contribute.
+            {!historyFilter && <i className="fas fa-history" style={{ fontSize: 18, opacity: 0.25, display:'block', marginBottom:'0.5rem' }} />}
+            {historyFilter
+              ? 'No edits yet for this line.'
+              : 'No edits yet. Hover any line and click the pen to contribute.'
+            }
           </div>
         )}
-        {editLog.map(entry => {
+        {displayLog.map(entry => {
           const isLatest    = latestPerLine[entry.lineKey] === entry.id;
           const isExpanded  = expandedIds.has(entry.id);
           const dotColor    = entry.isUndo ? '#185FA5' : COMMUNITY_COLOR.border;
@@ -756,8 +781,38 @@ function LayerEntryGroup({ seq, entryLabel, rows, sources, layerKey, layerLabel,
   );
 }
 
+const LINE_COLORS = ['#e74c3c', '#3498db', '#2ecc71', '#f39c12', '#9b59b6', '#1abc9c', '#e67e22'];
+
+function CroppedLineImage({ src, sel, color, label }) {
+  const [dims, setDims] = useState(null);
+  useEffect(() => {
+    const img = new window.Image();
+    img.onload = () => setDims({ w: img.naturalWidth, h: img.naturalHeight });
+    img.src = src;
+  }, [src]);
+  if (!dims) return null;
+  const refW = 500;
+  const scale = refW / (sel.width * dims.w);
+  const cropH = Math.round(sel.height * dims.h * scale);
+  return (
+    <div style={{ marginBottom: '0.5rem' }}>
+      <div style={{ fontSize: '0.68rem', color, fontWeight: 700, marginBottom: 2, letterSpacing: '0.03em' }}>{label}</div>
+      <div style={{ width: refW, height: cropH, overflow: 'hidden', position: 'relative', border: `2px solid ${color}`, borderRadius: 2 }}>
+        <img src={src} alt="" style={{
+          position: 'absolute',
+          width: dims.w * scale,
+          height: dims.h * scale,
+          left: -(sel.left * dims.w * scale),
+          top:  -(sel.top  * dims.h * scale),
+          display: 'block',
+        }} />
+      </div>
+    </div>
+  );
+}
+
 // Unified omen block — supports entry-layer-author and entry-author-layer grouping modes.
-function OmenBlock({ omenSeq, omenType, sets, sources, colorMap, contributions, onAddContribution, grouping, editProps }) {
+function OmenBlock({ omenSeq, omenType, sets, sources, colorMap, contributions, onAddContribution, grouping, editProps, lineRegionsByContentId, lineImageUri }) {
   const label = omenType === 'omen' ? `Omen ${omenSeq}` : `Line ${omenSeq}`;
   const firstSet = sets[0];
   const morphs = firstSet?.morphs || [];
@@ -789,9 +844,30 @@ function OmenBlock({ omenSeq, omenType, sets, sources, colorMap, contributions, 
     contribsByLayer[lk].push(c);
   });
 
+  const firstContentId = sets[0]?.contents?.[0]?.id ?? null;
+  const lineRegions = (firstContentId && lineRegionsByContentId)
+    ? (lineRegionsByContentId[firstContentId] || [])
+    : [];
+
   return (
     <div className="v2-omen-block" id={`omen-${omenSeq}`}>
       <div className="v2-omen-label">{label}</div>
+
+      {lineImageUri && lineRegions.length > 0 && (
+        <div style={{ marginBottom: '0.75rem' }}>
+          {lineRegions.map((sub, i) =>
+            (sub.selections || []).map((sel, j) => (
+              <CroppedLineImage
+                key={`${i}-${j}`}
+                src={lineImageUri}
+                sel={sel}
+                color={LINE_COLORS[i % LINE_COLORS.length]}
+                label={`Line ${sub.label}`}
+              />
+            ))
+          )}
+        </div>
+      )}
 
       {grouping !== 'entry-author-layer' ? (
         /* ── Entry → Layer → Author ── */
@@ -1262,27 +1338,47 @@ function LayerFilterRow({ hiddenLayers, onToggle }) {
 }
 
 function ManuscriptPanel({ artifact }) {
-  const [activeImg, setActiveImg] = useState(null);
-  const [fullscreen, setFullscreen] = useState(false);
+  const [activeImgObj, setActiveImgObj] = useState(null);
+  const [fullscreen, setFullscreen]     = useState(false);
   const { data: groups } = useFetch(`/api/artifacts/${artifact.shortname}/image_groups`);
   const allImgs = Array.isArray(groups) ? groups.flatMap(g => g.images || []) : [];
-  const currentImg = activeImg || (allImgs[0]?.uri ? `/api/images/${allImgs[0].uri}` : null);
+
+  const currentImgObj = activeImgObj || allImgs[0] || null;
+  const currentImgSrc = currentImgObj ? `/api/images/${currentImgObj.uri}` : null;
+
+  const { data: rawSelections } = useFetch(
+    currentImgObj ? `/api/images/${currentImgObj.id}/selections` : null
+  );
+  const selections = Array.isArray(rawSelections) ? rawSelections : [];
 
   return (
     <>
-      {fullscreen && currentImg && (
+      {fullscreen && currentImgSrc && (
         <div className="img-fullscreen-overlay" onClick={() => setFullscreen(false)}>
-          <img src={currentImg} alt={artifact.label} className="img-fullscreen-img" onClick={e => e.stopPropagation()} />
+          <img src={currentImgSrc} alt={artifact.label} className="img-fullscreen-img" onClick={e => e.stopPropagation()} />
           <button className="img-fullscreen-close" onClick={() => setFullscreen(false)}>✕</button>
         </div>
       )}
       <div className="v2-manuscript-panel">
         <div className="v2-panel-header">Manuscript</div>
-        {currentImg
+        {currentImgSrc
           ? (
-            <div className="img-wrapper">
-              <img className="v2-manuscript-img" src={currentImg} alt={artifact.label}
+            <div className="img-wrapper" style={{ position: 'relative' }}>
+              <img className="v2-manuscript-img" src={currentImgSrc} alt={artifact.label}
+                style={{ display: 'block', width: '100%' }}
                 onError={e => { e.target.style.display = 'none'; }} />
+              {selections.map(sel => (
+                <div key={sel.id} style={{
+                  position: 'absolute',
+                  top:    `${sel.top    * 100}%`,
+                  left:   `${sel.left   * 100}%`,
+                  width:  `${sel.width  * 100}%`,
+                  height: `${sel.height * 100}%`,
+                  border: '2px solid yellow',
+                  outline: '1px solid rgba(0,0,0,0.5)',
+                  pointerEvents: 'none',
+                }} />
+              ))}
               <button className="img-fullscreen-btn" onClick={() => setFullscreen(true)} title="Fullscreen">⛶</button>
             </div>
           )
@@ -1292,9 +1388,9 @@ function ManuscriptPanel({ artifact }) {
           <div className="v2-thumb-strip">
             {allImgs.map(img => (
               <img key={img.id}
-                className={`v2-thumb${currentImg === `/api/images/${img.uri}` ? ' active' : ''}`}
+                className={`v2-thumb${currentImgObj?.id === img.id ? ' active' : ''}`}
                 src={`/api/images/${img.uri}`} alt=""
-                onClick={() => setActiveImg(`/api/images/${img.uri}`)}
+                onClick={() => setActiveImgObj(img)}
                 onError={e => { e.target.style.display = 'none'; }} />
             ))}
           </div>
@@ -1304,7 +1400,7 @@ function ManuscriptPanel({ artifact }) {
   );
 }
 
-function DetailsPanel({ artifact, sources, sourceIds, colorMap, editLog, lineOverrides, onUndoEdit, onFlagEdit, onViewInText, onRestore, activeTab, onTabChange }) {
+function DetailsPanel({ artifact, sources, sourceIds, colorMap, editLog, lineOverrides, onUndoEdit, onFlagEdit, onViewInText, onRestore, activeTab, onTabChange, historyFilter, onClearHistoryFilter }) {
   const tab = activeTab;
   const setTab = onTabChange;
   return (
@@ -1359,6 +1455,8 @@ function DetailsPanel({ artifact, sources, sourceIds, colorMap, editLog, lineOve
           colorMap={colorMap}
           sources={sources}
           sourceIds={sourceIds}
+          historyFilter={historyFilter}
+          onClearHistoryFilter={onClearHistoryFilter}
         />
       )}
     </div>
@@ -1375,6 +1473,20 @@ export default function ArtifactDisplay() {
 
   const { data: allSets } = useFetch(artifact ? `/api/artifacts/${artifact.id}/sets` : null);
   const sets = Array.isArray(allSets) ? allSets : [];
+
+  const { data: rawPageDivs } = useFetch(artifact ? `/api/artifacts/${artifact.id}/divs/page` : null);
+  const firstPageDivId = Array.isArray(rawPageDivs) && rawPageDivs.length > 0 ? rawPageDivs[0].id : null;
+  const { data: rawLineSubs } = useFetch(firstPageDivId ? `/api/content/divisions/${firstPageDivId}/subdivisions` : null);
+  const lineSubs = Array.isArray(rawLineSubs) ? rawLineSubs : [];
+  const lineRegionsByContentId = {};
+  lineSubs.forEach(sub => {
+    const cid = sub.start_content_id;
+    if (!lineRegionsByContentId[cid]) lineRegionsByContentId[cid] = [];
+    lineRegionsByContentId[cid].push(sub);
+  });
+  const firstLineImageId = lineSubs.flatMap(s => s.selections || []).find(s => s.image_id)?.image_id ?? null;
+  const { data: lineImageMeta } = useFetch(firstLineImageId ? `/api/images/${firstLineImageId}` : null);
+  const lineImageUri = lineImageMeta ? `/api/images/${lineImageMeta.uri}` : null;
   const sourceIds = [...new Set(sets.map(s => String(s.source_id)))];
 
   const [sources, setSources] = useState({});
@@ -1412,6 +1524,7 @@ export default function ArtifactDisplay() {
   const [activeEditor, setActiveEditor]     = useState(null);
   const [highlightedLine, setHighlightedLine] = useState(null);
   const [rightTab, setRightTab]             = useState('details');
+  const [historyFilter, setHistoryFilter]   = useState(null);
 
   // Non-stale refs for use inside callbacks
   const editLogRef      = useRef(editLog);
@@ -1467,7 +1580,12 @@ export default function ArtifactDisplay() {
     setTimeout(() => setHighlightedLine(null), 2000);
   }, []);
 
-  const openHistory = useCallback(() => setRightTab('history'), []);
+  const openHistory = useCallback((lineKey, meta) => {
+    setRightTab('history');
+    if (!lineKey) { setHistoryFilter(null); return; }
+    const entryLabel = `Entry ${parseInt(lineKey.split('-')[0])}`;
+    setHistoryFilter(prev => prev?.lineKey === lineKey ? null : { lineKey, entryLabel, ...meta });
+  }, []);
 
   const restoreVersion = useCallback((lineKey, newText) => {
     const entry = editLogRef.current.find(e => e.lineKey === lineKey);
@@ -1578,6 +1696,8 @@ export default function ArtifactDisplay() {
                   sets={seqSets} sources={sources} colorMap={colorMap}
                   contributions={contributions} onAddContribution={addContribution}
                   grouping={grouping} editProps={editProps}
+                  lineRegionsByContentId={lineRegionsByContentId}
+                  lineImageUri={lineImageUri}
                 />
               );
             })
@@ -1606,7 +1726,8 @@ export default function ArtifactDisplay() {
       <DetailsPanel artifact={artifact} sources={sources} sourceIds={sourceIds} colorMap={colorMap}
         editLog={editLog} lineOverrides={lineOverrides}
         onUndoEdit={undoEdit} onFlagEdit={flagEdit} onViewInText={viewInText} onRestore={restoreVersion}
-        activeTab={rightTab} onTabChange={setRightTab} />
+        activeTab={rightTab} onTabChange={setRightTab}
+        historyFilter={historyFilter} onClearHistoryFilter={() => setHistoryFilter(null)} />
     </div>
   );
 }

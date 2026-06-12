@@ -12,6 +12,7 @@ import SourcesPage from './Components/Sources/SourcesPage';
 import ConcordancePage from './Components/Concordance/ConcordancePage';
 import Login from './Components/Login/Login';
 import './Components/Login/Login.css';
+import DivisionView from './Components/DivisionView/DivisionView';
 import {
   BrowserRouter as Router,
   Routes,
@@ -38,6 +39,7 @@ function App() {
           <Route path="/sources"             element={<SourcesPage />}    />
           <Route path="/concordance"         element={<ConcordancePage />}/>
           <Route path="/login"               element={<Login />}          />
+          <Route path="/divisions/:id"       element={<DivisionView />}   />
         </Routes>
       </Router>
     </div>

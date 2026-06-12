@@ -1609,10 +1609,14 @@ button { cursor: pointer; }
 }
 
 /* ── Line ghost buttons (pin · clock · pencil) ── */
+.line-btn-group {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex-shrink: 0;
+  align-self: center;
+}
 .pin-btn, .clock-btn, .pencil-btn {
-  position: absolute;
-  top: 50%;
-  transform: translateY(-50%);
   padding: 0;
   width: 22px;
   height: 22px;
@@ -1630,16 +1634,9 @@ button { cursor: pointer; }
   box-shadow: none;
   -webkit-appearance: none;
   appearance: none;
-}
-/* left-to-right: pin → clock → pencil */
-.pin-btn   { left: 0.15rem; color: var(--v2-text-3); }
-.clock-btn { left: calc(0.15rem + 24px); color: var(--v2-text-3); }
-/* when no pin button, clock stays at original position */
-.author-line:not(.has-pin) .clock-btn,
-.editable-text-wrap .clock-btn { left: 0.15rem; }
-.pencil-btn {
-  right: 0.3rem;
   color: var(--v2-text-3);
+}
+.pencil-btn {
   border: 0.5px solid var(--v2-bd) !important;
   background: var(--v2-bg) !important;
   border-radius: 3px;
@@ -1651,7 +1648,7 @@ button { cursor: pointer; }
 .editable-text-wrap:hover .pencil-btn { opacity: 1; }
 .pin-btn:hover    { color: var(--v2-text); }
 .pencil-btn:hover { color: var(--v2-text); }
-.clock-btn:hover  { color: var(--v2-text-2); }
+.clock-btn:hover  { color: var(--v2-text); }
 
 /* Active pin — gold, always visible */
 .pin-btn-active {
@@ -2130,6 +2127,18 @@ button { cursor: pointer; }
   color: var(--v2-text-3);
   letter-spacing: 0.04em;
 }
+.eh-filter-bar {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.3rem 1rem;
+  border-bottom: 1px solid var(--v2-bd);
+  font-size: 10px;
+  color: var(--v2-text-3);
+  flex-shrink: 0;
+}
+.eh-filter-label { flex: 1; }
 .eh-feed { flex: 1; overflow-y: auto; }
 .eh-empty {
   padding: 2rem 1.25rem;
