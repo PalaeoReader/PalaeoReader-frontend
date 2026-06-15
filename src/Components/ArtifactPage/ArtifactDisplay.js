@@ -828,7 +828,6 @@ function CroppedLineImage({ src, sel, color, label }) {
 
   return (
     <div style={{ marginBottom: '0.35rem' }}>
-      <div style={{ fontSize: '0.65rem', color, fontWeight: 700, marginBottom: 2, letterSpacing: '0.03em' }}>{cleanLabel}</div>
       {isVertical ? (
         /* Outer div claims the rotated (displayW × displayH) space in flow */
         <div style={{ width: displayW, height: displayH, position: 'relative' }}>
@@ -1381,19 +1380,52 @@ function LayerFilterRow({ hiddenLayers, onToggle }) {
   );
 }
 
+const THUMB_VISIBLE = 3;
+
 function ManuscriptPanel({ artifact }) {
   const [activeImgObj, setActiveImgObj] = useState(null);
   const [fullscreen, setFullscreen]     = useState(false);
+  const [thumbOffset, setThumbOffset]   = useState(0);
   const { data: groups } = useFetch(`/api/artifacts/${artifact.shortname}/image_groups`);
   const allImgs = Array.isArray(groups) ? groups.flatMap(g => g.images || []) : [];
 
   const currentImgObj = activeImgObj || allImgs[0] || null;
   const currentImgSrc = currentImgObj ? `/api/images/${currentImgObj.uri}` : null;
+  const currentIdx    = allImgs.findIndex(img => img.id === currentImgObj?.id);
 
   const { data: rawSelections } = useFetch(
     currentImgObj ? `/api/images/${currentImgObj.id}/selections` : null
   );
   const selections = Array.isArray(rawSelections) ? rawSelections : [];
+
+  const maxOffset  = Math.max(0, allImgs.length - THUMB_VISIBLE);
+  const canLeft    = thumbOffset > 0;
+  const canRight   = thumbOffset < maxOffset;
+  const visibleImgs = allImgs.slice(thumbOffset, thumbOffset + THUMB_VISIBLE);
+
+  const goLeft  = () => setThumbOffset(o => Math.max(0, o - 1));
+  const goRight = () => setThumbOffset(o => Math.min(maxOffset, o + 1));
+
+  const canPrev = currentIdx > 0;
+  const canNext = currentIdx < allImgs.length - 1;
+  const goPrev = () => {
+    if (!canPrev) return;
+    const newIdx = currentIdx - 1;
+    setActiveImgObj(allImgs[newIdx]);
+    setThumbOffset(o => Math.min(o, newIdx));
+  };
+  const goNext = () => {
+    if (!canNext) return;
+    const newIdx = currentIdx + 1;
+    setActiveImgObj(allImgs[newIdx]);
+    setThumbOffset(o => Math.max(o, newIdx - THUMB_VISIBLE + 1));
+  };
+
+  const arrowBase = {
+    background: 'none', border: 'none', cursor: 'pointer',
+    padding: 4, fontSize: 18, color: 'var(--text-tertiary, #999)',
+    lineHeight: 1, flexShrink: 0,
+  };
 
   return (
     <>
@@ -1426,15 +1458,100 @@ function ManuscriptPanel({ artifact }) {
           )
           : <div className="v2-img-placeholder">No image available</div>
         }
+
         {allImgs.length > 1 && (
-          <div className="v2-thumb-strip">
-            {allImgs.map(img => (
-              <img key={img.id}
-                className={`v2-thumb${currentImgObj?.id === img.id ? ' active' : ''}`}
-                src={`/api/images/${img.uri}`} alt=""
-                onClick={() => setActiveImgObj(img)}
-                onError={e => { e.target.style.display = 'none'; }} />
-            ))}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '4px 8px 2px' }}>
+            <button
+              onClick={goPrev}
+              style={{
+                background: 'none', border: 'none', padding: '2px 6px',
+                fontSize: 13, color: 'var(--text-tertiary, #999)',
+                cursor: canPrev ? 'pointer' : 'default',
+                opacity: canPrev ? 1 : 0.3,
+                display: 'flex', alignItems: 'center', gap: 3,
+              }}
+            >
+              <i className="ti ti-chevron-left" /> Prev
+            </button>
+            <span style={{ fontSize: 11, color: 'var(--text-tertiary, #999)' }}>
+              {currentIdx + 1} of {allImgs.length}
+            </span>
+            <button
+              onClick={goNext}
+              style={{
+                background: 'none', border: 'none', padding: '2px 6px',
+                fontSize: 13, color: 'var(--text-tertiary, #999)',
+                cursor: canNext ? 'pointer' : 'default',
+                opacity: canNext ? 1 : 0.3,
+                display: 'flex', alignItems: 'center', gap: 3,
+              }}
+            >
+              Next <i className="ti ti-chevron-right" />
+            </button>
+          </div>
+        )}
+
+        {allImgs.length > 1 && (
+          <div style={{ marginTop: 6, padding: '0 8px' }}>
+            {/* arrow · thumbnails · arrow */}
+            <div style={{ display: 'flex', alignItems: 'center' }}>
+              <button
+                onClick={goLeft}
+                style={{
+                  background: 'none', border: 'none', padding: '0 4px',
+                  fontSize: 16, color: 'var(--text-tertiary, #999)',
+                  cursor: canLeft ? 'pointer' : 'default',
+                  opacity: canLeft ? 1 : 0.3,
+                  pointerEvents: canLeft ? 'auto' : 'none',
+                  flexShrink: 0, lineHeight: 1,
+                }}
+                onMouseEnter={e => { if (canLeft) e.currentTarget.style.color = 'var(--text-primary, #222)'; }}
+                onMouseLeave={e => e.currentTarget.style.color = 'var(--text-tertiary, #999)'}
+              >
+                <i className="ti ti-chevron-left" />
+              </button>
+
+              {/* thumbnail row — flex:1 + overflow:hidden keeps exactly 3 visible */}
+              <div style={{ flex: 1, overflow: 'hidden', display: 'flex', gap: 6 }}>
+                {visibleImgs.map(img => (
+                  <img
+                    key={img.id}
+                    src={`/api/images/${img.uri}`}
+                    alt=""
+                    onClick={() => setActiveImgObj(img)}
+                    onError={e => { e.target.style.display = 'none'; }}
+                    style={{
+                      flex: 1,
+                      minWidth: 0,
+                      height: 56,
+                      objectFit: 'cover',
+                      borderRadius: 'var(--border-radius-md, 4px)',
+                      border: img.id === currentImgObj?.id
+                        ? '1.5px solid #C9A84C'
+                        : '0.5px solid var(--border-tertiary, #ddd)',
+                      cursor: 'pointer',
+                    }}
+                  />
+                ))}
+              </div>
+
+              <button
+                onClick={goRight}
+                style={{
+                  background: 'none', border: 'none', padding: '0 4px',
+                  fontSize: 16, color: 'var(--text-tertiary, #999)',
+                  cursor: canRight ? 'pointer' : 'default',
+                  opacity: canRight ? 1 : 0.3,
+                  pointerEvents: canRight ? 'auto' : 'none',
+                  flexShrink: 0, lineHeight: 1,
+                }}
+                onMouseEnter={e => { if (canRight) e.currentTarget.style.color = 'var(--text-primary, #222)'; }}
+                onMouseLeave={e => e.currentTarget.style.color = 'var(--text-tertiary, #999)'}
+              >
+                <i className="ti ti-chevron-right" />
+              </button>
+            </div>
+
           </div>
         )}
       </div>
