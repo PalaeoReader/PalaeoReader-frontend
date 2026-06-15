@@ -3473,52 +3473,70 @@ button { cursor: pointer; }
 /* ── Minimal toolbar (Authors / Layers / Group by) ── */
 .mtb-toolbar {
   display: flex;
-  align-items: flex-start;
-  gap: 16px;
+  flex-direction: column;
+  gap: 6px;
   padding: 8px 14px;
   border-bottom: 0.5px solid var(--v2-bd);
   background: var(--v2-bg-2);
   flex-shrink: 0;
 }
 
-/* each dropdown + its pills side by side */
-.mtb-group {
+.mtb-row {
   display: flex;
-  align-items: flex-start;
-  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.mtb-row-group {
+  align-items: center;
+}
+
+.mtb-row-label {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--v2-text-3);
+  font-family: 'Inter', sans-serif;
+  font-weight: 600;
+  width: 52px;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.mtb-row-pills {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px;
 }
 
 /* anchors the popover */
-.mtb-btn-wrap {
+.mtb-add-wrap {
   position: relative;
   flex-shrink: 0;
 }
 
-.mtb-drop-btn {
+.mtb-add-btn {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
+  justify-content: center;
   font-size: 11px;
   font-family: 'Inter', sans-serif;
-  color: var(--v2-text-2);
-  border: 0.5px solid var(--v2-bd);
-  border-radius: var(--border-radius-md, 4px);
-  background: var(--v2-bg);
-  padding: 4px 10px;
+  color: var(--v2-text-3);
+  border: 0.5px dashed var(--v2-bd);
+  border-radius: 20px;
+  background: none;
+  padding: 2px 8px;
   cursor: pointer;
   line-height: 1;
   transition: border-color 0.1s, color 0.1s;
 }
 
-.mtb-drop-btn:hover,
-.mtb-drop-btn.mtb-open {
+.mtb-add-btn:hover,
+.mtb-add-btn.mtb-open {
   border-color: var(--v2-bd-em);
-  color: var(--v2-text);
-}
-
-.mtb-chevron {
-  font-size: 11px;
-  line-height: 1;
+  color: var(--v2-text-2);
 }
 
 .mtb-popover {
@@ -3526,11 +3544,11 @@ button { cursor: pointer; }
   top: calc(100% + 4px);
   left: 0;
   z-index: 200;
-  min-width: 200px;
-  border: 0.5px solid var(--v2-bd-em);
+  min-width: 180px;
+  border: 0.5px solid var(--v2-bd);
   border-radius: var(--border-radius-md, 4px);
   background: var(--v2-bg);
-  padding: 8px;
+  padding: 6px;
 }
 
 .mtb-pop-row {
@@ -3547,7 +3565,7 @@ button { cursor: pointer; }
 }
 
 .mtb-pop-row:hover { background: var(--v2-bg-2); color: var(--v2-text); }
-.mtb-pop-row.mtb-selected { background: var(--v2-bg-2); }
+.mtb-pop-row.mtb-selected { color: var(--v2-text-3); }
 
 .mtb-dot {
   font-size: 8px;
@@ -3562,13 +3580,6 @@ button { cursor: pointer; }
   color: var(--v2-text-3);
   margin-left: auto;
   flex-shrink: 0;
-}
-
-.mtb-group-pills {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-  padding-top: 1px;
 }
 
 .mtb-pill {
@@ -3599,5 +3610,12 @@ button { cursor: pointer; }
 }
 
 .mtb-pill-x:hover { color: var(--v2-text); }
+
+.mtb-group-segs {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  flex-wrap: wrap;
+}
 
 .hide-layer-image .layer-image { display: none; }

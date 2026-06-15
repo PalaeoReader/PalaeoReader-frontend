@@ -855,7 +855,7 @@ function CroppedLineImage({ src, sel, color, label }) {
 }
 
 // Unified omen block — supports entry-layer-author and entry-author-layer grouping modes.
-function OmenBlock({ omenSeq, omenType, sets, sources, colorMap, contributions, onAddContribution, grouping, editProps, lineRegionsByContentId, lineImageUri }) {
+function OmenBlock({ omenSeq, omenType, sets, sources, colorMap, contributions, onAddContribution, grouping, editProps, lineRegionsByContentId, lineImageUri, canonicalFirstContentId }) {
   const label = omenType === 'omen' ? `Omen ${omenSeq}` : `Line ${omenSeq}`;
   const firstSet = sets[0];
   const morphs = firstSet?.morphs || [];
@@ -887,7 +887,7 @@ function OmenBlock({ omenSeq, omenType, sets, sources, colorMap, contributions, 
     contribsByLayer[lk].push(c);
   });
 
-  const firstContentId = sets[0]?.contents?.[0]?.id ?? null;
+  const firstContentId = canonicalFirstContentId ?? sets[0]?.contents?.[0]?.id ?? null;
   const lineRegions = (firstContentId && lineRegionsByContentId)
     ? (lineRegionsByContentId[firstContentId] || [])
     : [];
@@ -897,18 +897,20 @@ function OmenBlock({ omenSeq, omenType, sets, sources, colorMap, contributions, 
       <div className="v2-omen-label">{label}</div>
 
       {lineImageUri && lineRegions.length > 0 && (
-        <div className="layer-image" style={{ marginBottom: '0.75rem', display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
-          {lineRegions.map((sub, i) =>
-            (sub.selections || []).map((sel, j) => (
-              <CroppedLineImage
-                key={`${i}-${j}`}
-                src={lineImageUri}
-                sel={sel}
-                color={LINE_COLORS[i % LINE_COLORS.length]}
-                label={sub.label}
-              />
-            ))
-          )}
+        <div className="layer-image" style={{ marginBottom: '0.75rem' }}>
+          <div style={{ display: 'flex', flexDirection: 'row-reverse', flexWrap: 'wrap', gap: 6, alignItems: 'flex-start' }}>
+            {lineRegions.map((sub, i) =>
+              (sub.selections || []).map((sel, j) => (
+                <CroppedLineImage
+                  key={`${i}-${j}`}
+                  src={lineImageUri}
+                  sel={sel}
+                  color={LINE_COLORS[i % LINE_COLORS.length]}
+                  label={sub.label}
+                />
+              ))
+            )}
+          </div>
         </div>
       )}
 
@@ -1635,8 +1637,6 @@ function MinimalToolbar({ sourceIds, sources, hiddenAuthors, onToggleAuthor, hid
     return () => document.removeEventListener('mousedown', onDown);
   }, []);
 
-  const toggle = key => setOpenPopover(p => p === key ? null : key);
-
   const layerItems = [
     { key: 'script',        label: 'Script',          short: 'Script' },
     { key: 'translit',      label: 'Transliteration', short: 'Translit.' },
@@ -1655,125 +1655,132 @@ function MinimalToolbar({ sourceIds, sources, hiddenAuthors, onToggleAuthor, hid
     else onToggleLayer(key);
   };
 
-  const groupOptions = [
-    { value: 'author-layer',       label: 'Author → Layer' },
-    { value: 'entry-layer-author', label: 'Entry → Layer → Author' },
-    { value: 'entry-author-layer', label: 'Entry → Author → Layer' },
-  ];
+  const [first, second] = GROUPING_MODES[grouping] || ['entry', 'layer', 'author'];
+  const secondOpts = SECOND_OPTS[first];
+  const third = GROUPING_MODES[grouping]?.[2];
+
+  const setFirst = v => {
+    const newOpts = SECOND_OPTS[v];
+    const newSecond = newOpts.includes(second) ? second : newOpts[0];
+    onGroupingChange(resolveMode(v, newSecond));
+  };
+  const setSecond = v => onGroupingChange(resolveMode(first, v));
 
   const activeAuthorIds = sourceIds.filter(id => !hiddenAuthors.has(id));
   const activeLayerItems = layerItems.filter(l => isLayerOn(l.key));
 
   return (
     <div className="mtb-toolbar" ref={ref}>
-      {/* Authors: button + stacked pills to the right */}
-      <div className="mtb-group">
-        <div className="mtb-btn-wrap">
-          <button
-            className={`mtb-drop-btn${openPopover === 'authors' ? ' mtb-open' : ''}`}
-            onClick={() => toggle('authors')}
-          >
-            Authors <i className="ti ti-chevron-down mtb-chevron" />
-          </button>
-          {openPopover === 'authors' && (
-            <div className="mtb-popover">
-              {sourceIds.map(id => {
-                const color = colorMap[id] || COLOR_SLOTS[0];
-                const src = sources[id];
-                const selected = !hiddenAuthors.has(id);
-                const label = src
-                  ? (src.date_published ? `${src.author.split(' ').pop()} ${src.date_published}` : src.author.split(' ').pop())
-                  : `Source ${id}`;
-                return (
-                  <div key={id} className={`mtb-pop-row${selected ? ' mtb-selected' : ''}`} onClick={() => onToggleAuthor(id)}>
-                    <span className="mtb-dot" style={{ color: color.border }}>●</span>
-                    <span className="mtb-pop-label">{label}</span>
-                    {selected && <i className="ti ti-check mtb-check" />}
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
-        {activeAuthorIds.length > 0 && (
-          <div className="mtb-group-pills">
-            {activeAuthorIds.map(id => {
-              const color = colorMap[id] || COLOR_SLOTS[0];
-              const src = sources[id];
-              const shortName = src ? src.author.split(' ').pop() : `Source ${id}`;
-              return (
-                <span key={id} className="mtb-pill" style={{ borderColor: color.border }}>
-                  <span className="mtb-dot" style={{ color: color.border }}>●</span>
-                  {shortName}
-                  <button className="mtb-pill-x" onClick={() => onToggleAuthor(id)}>✕</button>
-                </span>
-              );
-            })}
+      {/* Row 1 — Authors */}
+      <div className="mtb-row">
+        <span className="mtb-row-label">Authors</span>
+        <div className="mtb-row-pills">
+          {activeAuthorIds.map(id => {
+            const color = colorMap[id] || COLOR_SLOTS[0];
+            const src = sources[id];
+            const shortName = src
+              ? (src.date_published ? `${src.author.split(' ').pop()} ${src.date_published}` : src.author.split(' ').pop())
+              : `Source ${id}`;
+            return (
+              <span key={id} className="mtb-pill" style={{ borderColor: color.border }}>
+                <span className="mtb-dot" style={{ color: color.border }}>●</span>
+                {shortName}
+                <button className="mtb-pill-x" onClick={() => onToggleAuthor(id)}>✕</button>
+              </span>
+            );
+          })}
+          <div className="mtb-add-wrap">
+            <button
+              className={`mtb-add-btn${openPopover === 'authors' ? ' mtb-open' : ''}`}
+              onClick={() => setOpenPopover(p => p === 'authors' ? null : 'authors')}
+            >
+              +
+            </button>
+            {openPopover === 'authors' && (
+              <div className="mtb-popover">
+                {sourceIds.map(id => {
+                  const color = colorMap[id] || COLOR_SLOTS[0];
+                  const src = sources[id];
+                  const selected = !hiddenAuthors.has(id);
+                  const label = src
+                    ? (src.date_published ? `${src.author.split(' ').pop()} ${src.date_published}` : src.author.split(' ').pop())
+                    : `Source ${id}`;
+                  return (
+                    <div
+                      key={id}
+                      className={`mtb-pop-row${selected ? ' mtb-selected' : ''}`}
+                      onClick={() => onToggleAuthor(id)}
+                    >
+                      <span className="mtb-dot" style={{ color: color.border }}>●</span>
+                      <span className="mtb-pop-label">{label}</span>
+                      {selected && <i className="ti ti-check mtb-check" />}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
-        )}
+        </div>
       </div>
 
-      {/* Layers: button + stacked pills to the right */}
-      <div className="mtb-group">
-        <div className="mtb-btn-wrap">
-          <button
-            className={`mtb-drop-btn${openPopover === 'layers' ? ' mtb-open' : ''}`}
-            onClick={() => toggle('layers')}
-          >
-            Layers <i className="ti ti-chevron-down mtb-chevron" />
-          </button>
-          {openPopover === 'layers' && (
-            <div className="mtb-popover">
-              {layerItems.map(l => {
-                const selected = isLayerOn(l.key);
-                return (
-                  <div key={l.key} className={`mtb-pop-row${selected ? ' mtb-selected' : ''}`} onClick={() => toggleLayer(l.key)}>
-                    <span className="mtb-pop-label">{l.label}</span>
-                    {selected && <i className="ti ti-check mtb-check" />}
-                  </div>
-                );
-              })}
-            </div>
-          )}
+      {/* Row 2 — Layers */}
+      <div className="mtb-row">
+        <span className="mtb-row-label">Layers</span>
+        <div className="mtb-row-pills">
+          {activeLayerItems.map(l => (
+            <span key={l.key} className="mtb-pill">
+              {l.short}
+              <button className="mtb-pill-x" onClick={() => toggleLayer(l.key)}>✕</button>
+            </span>
+          ))}
+          <div className="mtb-add-wrap">
+            <button
+              className={`mtb-add-btn${openPopover === 'layers' ? ' mtb-open' : ''}`}
+              onClick={() => setOpenPopover(p => p === 'layers' ? null : 'layers')}
+            >
+              +
+            </button>
+            {openPopover === 'layers' && (
+              <div className="mtb-popover">
+                {layerItems.map(l => {
+                  const selected = isLayerOn(l.key);
+                  return (
+                    <div
+                      key={l.key}
+                      className={`mtb-pop-row${selected ? ' mtb-selected' : ''}`}
+                      onClick={() => toggleLayer(l.key)}
+                    >
+                      <span className="mtb-pop-label">{l.label}</span>
+                      {selected && <i className="ti ti-check mtb-check" />}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
         </div>
-        {activeLayerItems.length > 0 && (
-          <div className="mtb-group-pills">
-            {activeLayerItems.map(l => (
-              <span key={l.key} className="mtb-pill">
-                {l.short}
-                <button className="mtb-pill-x" onClick={() => toggleLayer(l.key)}>✕</button>
-              </span>
+      </div>
+
+      {/* Row 3 — Group by */}
+      <div className="mtb-row mtb-row-group">
+        <span className="mtb-row-label">Group</span>
+        <div className="mtb-group-segs">
+          <div className="seg-ctrl">
+            {['author', 'entry', 'layer'].map(v => (
+              <button key={v} className={`seg-btn${first === v ? ' active' : ''}`} onClick={() => setFirst(v)}>
+                {GROUPING_LABELS[v]}
+              </button>
             ))}
           </div>
-        )}
-      </div>
-
-      {/* Group by: button only */}
-      <div className="mtb-group">
-        <div className="mtb-btn-wrap">
-          <button
-            className={`mtb-drop-btn${openPopover === 'group' ? ' mtb-open' : ''}`}
-            onClick={() => toggle('group')}
-          >
-            Group by <i className="ti ti-chevron-down mtb-chevron" />
-          </button>
-          {openPopover === 'group' && (
-            <div className="mtb-popover">
-              {groupOptions.map(opt => {
-                const selected = grouping === opt.value;
-                return (
-                  <div
-                    key={opt.value}
-                    className={`mtb-pop-row${selected ? ' mtb-selected' : ''}`}
-                    onClick={() => { onGroupingChange(opt.value); setOpenPopover(null); }}
-                  >
-                    <span className="mtb-pop-label">{opt.label}</span>
-                    {selected && <i className="ti ti-check mtb-check" />}
-                  </div>
-                );
-              })}
-            </div>
-          )}
+          <span className="grouping-then">→ then</span>
+          <div className="seg-ctrl">
+            {secondOpts.map(v => (
+              <button key={v} className={`seg-btn${second === v ? ' active' : ''}`} onClick={() => setSecond(v)}>
+                {GROUPING_LABELS[v]}
+              </button>
+            ))}
+          </div>
+          {third && <span className="grouping-static">→ {GROUPING_LABELS[third]}</span>}
         </div>
       </div>
     </div>
@@ -1991,6 +1998,10 @@ export default function ArtifactDisplay() {
               const seqSets = activeSets
                 .filter(s => s.seq === seq)
                 .sort((a, b) => sourceIds.indexOf(String(a.source_id)) - sourceIds.indexOf(String(b.source_id)));
+              const canonicalFirstContentId = sets
+                .filter(s => s.seq === seq)
+                .sort((a, b) => sourceIds.indexOf(String(a.source_id)) - sourceIds.indexOf(String(b.source_id)))[0]
+                ?.contents?.[0]?.id ?? null;
               return (
                 <OmenBlock
                   key={seq} omenSeq={seq} omenType={seqSets[0]?.type || 'omen'}
@@ -1999,6 +2010,7 @@ export default function ArtifactDisplay() {
                   grouping={grouping} editProps={editProps}
                   lineRegionsByContentId={lineRegionsByContentId}
                   lineImageUri={lineImageUri}
+                  canonicalFirstContentId={canonicalFirstContentId}
                 />
               );
             })
