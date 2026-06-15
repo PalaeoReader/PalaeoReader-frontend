@@ -897,7 +897,7 @@ function OmenBlock({ omenSeq, omenType, sets, sources, colorMap, contributions, 
       <div className="v2-omen-label">{label}</div>
 
       {lineImageUri && lineRegions.length > 0 && (
-        <div style={{ marginBottom: '0.75rem', display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
+        <div className="layer-image" style={{ marginBottom: '0.75rem', display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
           {lineRegions.map((sub, i) =>
             (sub.selections || []).map((sel, j) => (
               <CroppedLineImage
@@ -1623,6 +1623,163 @@ function DetailsPanel({ artifact, sources, sourceIds, colorMap, editLog, lineOve
 }
 
 
+function MinimalToolbar({ sourceIds, sources, hiddenAuthors, onToggleAuthor, hiddenLayers, onToggleLayer, grouping, onGroupingChange, colorMap }) {
+  const [openPopover, setOpenPopover] = useState(null);
+  const ref = useRef(null);
+
+  useEffect(() => {
+    const onDown = e => {
+      if (ref.current && !ref.current.contains(e.target)) setOpenPopover(null);
+    };
+    document.addEventListener('mousedown', onDown);
+    return () => document.removeEventListener('mousedown', onDown);
+  }, []);
+
+  const toggle = key => setOpenPopover(p => p === key ? null : key);
+
+  const layerItems = [
+    { key: 'script',        label: 'Script',          short: 'Script' },
+    { key: 'translit',      label: 'Transliteration', short: 'Translit.' },
+    { key: 'transcription', label: 'Transcription',   short: 'Transcr.' },
+    { key: 'translation',   label: 'Translation',     short: 'Transl.' },
+    { key: 'morph',         label: 'Morphology',      short: 'Morph.' },
+    { key: 'image',         label: 'Image',            short: 'Image' },
+  ];
+
+  const isLayerOn = key => key === 'morph'
+    ? !hiddenLayers.has('morph-transcr') && !hiddenLayers.has('morph-gloss')
+    : !hiddenLayers.has(key);
+
+  const toggleLayer = key => {
+    if (key === 'morph') { onToggleLayer('morph-transcr'); onToggleLayer('morph-gloss'); }
+    else onToggleLayer(key);
+  };
+
+  const groupOptions = [
+    { value: 'author-layer',       label: 'Author → Layer' },
+    { value: 'entry-layer-author', label: 'Entry → Layer → Author' },
+    { value: 'entry-author-layer', label: 'Entry → Author → Layer' },
+  ];
+
+  const activeAuthorIds = sourceIds.filter(id => !hiddenAuthors.has(id));
+  const activeLayerItems = layerItems.filter(l => isLayerOn(l.key));
+
+  return (
+    <div className="mtb-toolbar" ref={ref}>
+      {/* Authors: button + stacked pills to the right */}
+      <div className="mtb-group">
+        <div className="mtb-btn-wrap">
+          <button
+            className={`mtb-drop-btn${openPopover === 'authors' ? ' mtb-open' : ''}`}
+            onClick={() => toggle('authors')}
+          >
+            Authors <i className="ti ti-chevron-down mtb-chevron" />
+          </button>
+          {openPopover === 'authors' && (
+            <div className="mtb-popover">
+              {sourceIds.map(id => {
+                const color = colorMap[id] || COLOR_SLOTS[0];
+                const src = sources[id];
+                const selected = !hiddenAuthors.has(id);
+                const label = src
+                  ? (src.date_published ? `${src.author.split(' ').pop()} ${src.date_published}` : src.author.split(' ').pop())
+                  : `Source ${id}`;
+                return (
+                  <div key={id} className={`mtb-pop-row${selected ? ' mtb-selected' : ''}`} onClick={() => onToggleAuthor(id)}>
+                    <span className="mtb-dot" style={{ color: color.border }}>●</span>
+                    <span className="mtb-pop-label">{label}</span>
+                    {selected && <i className="ti ti-check mtb-check" />}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+        {activeAuthorIds.length > 0 && (
+          <div className="mtb-group-pills">
+            {activeAuthorIds.map(id => {
+              const color = colorMap[id] || COLOR_SLOTS[0];
+              const src = sources[id];
+              const shortName = src ? src.author.split(' ').pop() : `Source ${id}`;
+              return (
+                <span key={id} className="mtb-pill" style={{ borderColor: color.border }}>
+                  <span className="mtb-dot" style={{ color: color.border }}>●</span>
+                  {shortName}
+                  <button className="mtb-pill-x" onClick={() => onToggleAuthor(id)}>✕</button>
+                </span>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* Layers: button + stacked pills to the right */}
+      <div className="mtb-group">
+        <div className="mtb-btn-wrap">
+          <button
+            className={`mtb-drop-btn${openPopover === 'layers' ? ' mtb-open' : ''}`}
+            onClick={() => toggle('layers')}
+          >
+            Layers <i className="ti ti-chevron-down mtb-chevron" />
+          </button>
+          {openPopover === 'layers' && (
+            <div className="mtb-popover">
+              {layerItems.map(l => {
+                const selected = isLayerOn(l.key);
+                return (
+                  <div key={l.key} className={`mtb-pop-row${selected ? ' mtb-selected' : ''}`} onClick={() => toggleLayer(l.key)}>
+                    <span className="mtb-pop-label">{l.label}</span>
+                    {selected && <i className="ti ti-check mtb-check" />}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+        {activeLayerItems.length > 0 && (
+          <div className="mtb-group-pills">
+            {activeLayerItems.map(l => (
+              <span key={l.key} className="mtb-pill">
+                {l.short}
+                <button className="mtb-pill-x" onClick={() => toggleLayer(l.key)}>✕</button>
+              </span>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Group by: button only */}
+      <div className="mtb-group">
+        <div className="mtb-btn-wrap">
+          <button
+            className={`mtb-drop-btn${openPopover === 'group' ? ' mtb-open' : ''}`}
+            onClick={() => toggle('group')}
+          >
+            Group by <i className="ti ti-chevron-down mtb-chevron" />
+          </button>
+          {openPopover === 'group' && (
+            <div className="mtb-popover">
+              {groupOptions.map(opt => {
+                const selected = grouping === opt.value;
+                return (
+                  <div
+                    key={opt.value}
+                    className={`mtb-pop-row${selected ? ' mtb-selected' : ''}`}
+                    onClick={() => { onGroupingChange(opt.value); setOpenPopover(null); }}
+                  >
+                    <span className="mtb-pop-label">{opt.label}</span>
+                    {selected && <i className="ti ti-check mtb-check" />}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function ArtifactDisplay() {
   const { shortName } = useParams();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -1805,30 +1962,15 @@ export default function ArtifactDisplay() {
       <div className="v2-resize-handle" onMouseDown={e => startDrag('left', e)} />
 
       <div className="v2-center-panel">
-        {/* filter bar — authors row + layers row */}
-        <div className="v2-controls-bar">
-          <div className="v2-controls-row">
-            <AuthorFilterRow
-              sourceIds={sourceIds}
-              sources={sources}
-              hiddenAuthors={hiddenAuthors}
-              onToggle={toggleAuthor}
-              colorMap={colorMap}
-            />
-          </div>
-          <div className="v2-controls-row">
-            <LayerFilterRow hiddenLayers={hiddenLayers} onToggle={toggleLayer} />
-          </div>
-          <div className="v2-controls-row">
-            <GroupingControl grouping={grouping} onChange={setGrouping} />
-          </div>
-        </div>
-
-        {/* legend bar: only appears when >1 author active */}
-        <LegendBar
+        <MinimalToolbar
           sourceIds={sourceIds}
           sources={sources}
           hiddenAuthors={hiddenAuthors}
+          onToggleAuthor={toggleAuthor}
+          hiddenLayers={hiddenLayers}
+          onToggleLayer={toggleLayer}
+          grouping={grouping}
+          onGroupingChange={setGrouping}
           colorMap={colorMap}
         />
 

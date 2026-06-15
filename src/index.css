@@ -3469,3 +3469,135 @@ button { cursor: pointer; }
   font-size: 0.5rem;
   line-height: 1;
 }
+
+/* ── Minimal toolbar (Authors / Layers / Group by) ── */
+.mtb-toolbar {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  padding: 8px 14px;
+  border-bottom: 0.5px solid var(--v2-bd);
+  background: var(--v2-bg-2);
+  flex-shrink: 0;
+}
+
+/* each dropdown + its pills side by side */
+.mtb-group {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+/* anchors the popover */
+.mtb-btn-wrap {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.mtb-drop-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  font-family: 'Inter', sans-serif;
+  color: var(--v2-text-2);
+  border: 0.5px solid var(--v2-bd);
+  border-radius: var(--border-radius-md, 4px);
+  background: var(--v2-bg);
+  padding: 4px 10px;
+  cursor: pointer;
+  line-height: 1;
+  transition: border-color 0.1s, color 0.1s;
+}
+
+.mtb-drop-btn:hover,
+.mtb-drop-btn.mtb-open {
+  border-color: var(--v2-bd-em);
+  color: var(--v2-text);
+}
+
+.mtb-chevron {
+  font-size: 11px;
+  line-height: 1;
+}
+
+.mtb-popover {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  z-index: 200;
+  min-width: 200px;
+  border: 0.5px solid var(--v2-bd-em);
+  border-radius: var(--border-radius-md, 4px);
+  background: var(--v2-bg);
+  padding: 8px;
+}
+
+.mtb-pop-row {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12px;
+  font-family: 'Inter', sans-serif;
+  color: var(--v2-text-2);
+  padding: 5px 8px;
+  border-radius: 3px;
+  cursor: pointer;
+  transition: background 0.1s;
+}
+
+.mtb-pop-row:hover { background: var(--v2-bg-2); color: var(--v2-text); }
+.mtb-pop-row.mtb-selected { background: var(--v2-bg-2); }
+
+.mtb-dot {
+  font-size: 8px;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.mtb-pop-label { flex: 1; }
+
+.mtb-check {
+  font-size: 11px;
+  color: var(--v2-text-3);
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+.mtb-group-pills {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding-top: 1px;
+}
+
+.mtb-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-family: 'Inter', sans-serif;
+  color: var(--v2-text-2);
+  border: 0.5px solid var(--v2-bd-em);
+  border-radius: 20px;
+  padding: 2px 8px;
+  background: var(--v2-bg);
+  line-height: 1;
+}
+
+.mtb-pill-x {
+  background: none;
+  border: none;
+  padding: 0;
+  margin-left: 2px;
+  font-size: 9px;
+  color: var(--v2-text-3);
+  cursor: pointer;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+}
+
+.mtb-pill-x:hover { color: var(--v2-text); }
+
+.hide-layer-image .layer-image { display: none; }
