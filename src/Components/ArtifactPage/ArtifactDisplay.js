@@ -791,22 +791,66 @@ function CroppedLineImage({ src, sel, color, label }) {
     img.src = src;
   }, [src]);
   if (!dims) return null;
-  const refW = 500;
-  const scale = refW / (sel.width * dims.w);
-  const cropH = Math.round(sel.height * dims.h * scale);
+
+  const actualW = sel.width * dims.w;
+  const actualH = sel.height * dims.h;
+  const isVertical = actualH > actualW * 1.5;
+
+  // For vertical selections: rotate -90deg so they display as horizontal strips.
+  // Scale so the rotated result fits maxDisplayW × maxDisplayH.
+  // After rotation, displayed width = cropH and displayed height = cropW.
+  const maxDisplayW = 220, maxDisplayH = 50;
+  const scale = isVertical
+    ? Math.min(maxDisplayH / actualW, maxDisplayW / actualH)
+    : Math.min(maxDisplayW / actualW, maxDisplayH / actualH);
+  const cropW = Math.round(actualW * scale);
+  const cropH = Math.round(actualH * scale);
+
+  // displayW/H are the final on-screen dimensions
+  const displayW = isVertical ? cropH : cropW;
+  const displayH = isVertical ? cropW : cropH;
+
+  const cleanLabel = label
+    .replace(/\s*\((vertical|horizontal)\)/gi, '')
+    .replace(/\bline\b\s*/gi, '')
+    .trim();
+
+  const imgEl = (
+    <img src={src} alt="" style={{
+      position: 'absolute',
+      width:  Math.round(dims.w * scale),
+      height: Math.round(dims.h * scale),
+      left: -Math.round(sel.left * dims.w * scale),
+      top:  -Math.round(sel.top  * dims.h * scale),
+      display: 'block',
+    }} />
+  );
+
   return (
-    <div style={{ marginBottom: '0.5rem' }}>
-      <div style={{ fontSize: '0.68rem', color, fontWeight: 700, marginBottom: 2, letterSpacing: '0.03em' }}>{label}</div>
-      <div style={{ width: refW, height: cropH, overflow: 'hidden', position: 'relative', border: `2px solid ${color}`, borderRadius: 2 }}>
-        <img src={src} alt="" style={{
-          position: 'absolute',
-          width: dims.w * scale,
-          height: dims.h * scale,
-          left: -(sel.left * dims.w * scale),
-          top:  -(sel.top  * dims.h * scale),
-          display: 'block',
-        }} />
-      </div>
+    <div style={{ marginBottom: '0.35rem' }}>
+      <div style={{ fontSize: '0.65rem', color, fontWeight: 700, marginBottom: 2, letterSpacing: '0.03em' }}>{cleanLabel}</div>
+      {isVertical ? (
+        /* Outer div claims the rotated (displayW × displayH) space in flow */
+        <div style={{ width: displayW, height: displayH, position: 'relative' }}>
+          {/* Inner div is the actual cropW×cropH crop region, rotated -90deg around its center,
+              positioned so its rotated bounds exactly fill the outer div */}
+          <div style={{
+            width: cropW, height: cropH,
+            position: 'absolute',
+            left: Math.round((cropH - cropW) / 2),
+            top:  Math.round((cropW - cropH) / 2),
+            overflow: 'hidden',
+            transform: 'rotate(90deg)',
+            borderRadius: 2,
+          }}>
+            {imgEl}
+          </div>
+        </div>
+      ) : (
+        <div style={{ width: displayW, height: displayH, overflow: 'hidden', position: 'relative', borderRadius: 2 }}>
+          {imgEl}
+        </div>
+      )}
     </div>
   );
 }
@@ -854,7 +898,7 @@ function OmenBlock({ omenSeq, omenType, sets, sources, colorMap, contributions, 
       <div className="v2-omen-label">{label}</div>
 
       {lineImageUri && lineRegions.length > 0 && (
-        <div style={{ marginBottom: '0.75rem' }}>
+        <div style={{ marginBottom: '0.75rem', display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
           {lineRegions.map((sub, i) =>
             (sub.selections || []).map((sel, j) => (
               <CroppedLineImage
@@ -862,7 +906,7 @@ function OmenBlock({ omenSeq, omenType, sets, sources, colorMap, contributions, 
                 src={lineImageUri}
                 sel={sel}
                 color={LINE_COLORS[i % LINE_COLORS.length]}
-                label={`Line ${sub.label}`}
+                label={sub.label}
               />
             ))
           )}
@@ -1374,8 +1418,6 @@ function ManuscriptPanel({ artifact }) {
                   left:   `${sel.left   * 100}%`,
                   width:  `${sel.width  * 100}%`,
                   height: `${sel.height * 100}%`,
-                  border: '2px solid yellow',
-                  outline: '1px solid rgba(0,0,0,0.5)',
                   pointerEvents: 'none',
                 }} />
               ))}
