@@ -855,7 +855,7 @@ function CroppedLineImage({ src, sel, color, label }) {
 }
 
 // Unified omen block — supports entry-layer-author and entry-author-layer grouping modes.
-function OmenBlock({ omenSeq, omenType, sets, sources, colorMap, contributions, onAddContribution, grouping, editProps, lineRegionsByContentId, lineImageUri, canonicalFirstContentId }) {
+function OmenBlock({ omenSeq, omenType, sets, sources, colorMap, contributions, onAddContribution, grouping, editProps, lineRegionsByContentId, lineContentIds, canonicalFirstContentId }) {
   const label = omenType === 'omen' ? `Omen ${omenSeq}` : `Line ${omenSeq}`;
   const firstSet = sets[0];
   const morphs = firstSet?.morphs || [];
@@ -888,27 +888,33 @@ function OmenBlock({ omenSeq, omenType, sets, sources, colorMap, contributions, 
   });
 
   const firstContentId = canonicalFirstContentId ?? sets[0]?.contents?.[0]?.id ?? null;
-  const lineRegions = (firstContentId && lineRegionsByContentId)
-    ? (lineRegionsByContentId[firstContentId] || [])
+  // Show the crop from every source that has one for this line, not just one.
+  const contentIdsForLine = (lineContentIds && lineContentIds.length > 0)
+    ? lineContentIds
+    : (firstContentId ? [firstContentId] : []);
+  const lineRegions = lineRegionsByContentId
+    ? contentIdsForLine.flatMap(cid => lineRegionsByContentId[cid] || [])
     : [];
 
   return (
     <div className="v2-omen-block" id={`omen-${omenSeq}`}>
       <div className="v2-omen-label">{label}</div>
 
-      {lineImageUri && lineRegions.length > 0 && (
+      {lineRegions.length > 0 && (
         <div className="layer-image" style={{ marginBottom: '0.75rem' }}>
-          <div style={{ display: 'flex', flexDirection: 'row-reverse', flexWrap: 'wrap', gap: 6, alignItems: 'flex-start' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6, alignItems: 'flex-end' }}>
             {lineRegions.map((sub, i) =>
-              (sub.selections || []).map((sel, j) => (
-                <CroppedLineImage
-                  key={`${i}-${j}`}
-                  src={lineImageUri}
-                  sel={sel}
-                  color={LINE_COLORS[i % LINE_COLORS.length]}
-                  label={sub.label}
-                />
-              ))
+              (sub.selections || [])
+                .filter(sel => sel.uri)
+                .map((sel, j) => (
+                  <CroppedLineImage
+                    key={`${i}-${j}`}
+                    src={`/api/images/${sel.uri}`}
+                    sel={sel}
+                    color={LINE_COLORS[i % LINE_COLORS.length]}
+                    label={sub.label}
+                  />
+                ))
             )}
           </div>
         </div>
@@ -1797,19 +1803,21 @@ export default function ArtifactDisplay() {
   const { data: allSets } = useFetch(artifact ? `/api/artifacts/${artifact.id}/sets` : null);
   const sets = Array.isArray(allSets) ? allSets : [];
 
-  const { data: rawPageDivs } = useFetch(artifact ? `/api/artifacts/${artifact.id}/divs/page` : null);
-  const firstPageDivId = Array.isArray(rawPageDivs) && rawPageDivs.length > 0 ? rawPageDivs[0].id : null;
-  const { data: rawLineSubs } = useFetch(firstPageDivId ? `/api/content/divisions/${firstPageDivId}/subdivisions` : null);
-  const lineSubs = Array.isArray(rawLineSubs) ? rawLineSubs : [];
+  // Selections live nested under set.contents[].divisions[].selections already
+  // (each carries its own image uri), so build the line-region map straight off
+  // `sets` instead of depending on a `page`-type division existing for this
+  // artifact — many artifacts (e.g. Memorial 118) only have `line` divisions.
   const lineRegionsByContentId = {};
-  lineSubs.forEach(sub => {
-    const cid = sub.start_content_id;
-    if (!lineRegionsByContentId[cid]) lineRegionsByContentId[cid] = [];
-    lineRegionsByContentId[cid].push(sub);
+  sets.forEach(set => {
+    (set.contents || []).forEach(c => {
+      (c.divisions || []).forEach(div => {
+        if (!div.selections || div.selections.length === 0) return;
+        const cid = div.start_content_id;
+        if (!lineRegionsByContentId[cid]) lineRegionsByContentId[cid] = [];
+        lineRegionsByContentId[cid].push(div);
+      });
+    });
   });
-  const firstLineImageId = lineSubs.flatMap(s => s.selections || []).find(s => s.image_id)?.image_id ?? null;
-  const { data: lineImageMeta } = useFetch(firstLineImageId ? `/api/images/${firstLineImageId}` : null);
-  const lineImageUri = lineImageMeta ? `/api/images/${lineImageMeta.uri}` : null;
   const sourceIds = [...new Set(sets.map(s => String(s.source_id)))];
 
   const [sources, setSources] = useState({});
@@ -1998,10 +2006,17 @@ export default function ArtifactDisplay() {
               const seqSets = activeSets
                 .filter(s => s.seq === seq)
                 .sort((a, b) => sourceIds.indexOf(String(a.source_id)) - sourceIds.indexOf(String(b.source_id)));
-              const canonicalFirstContentId = sets
+              const seqSetsBySource = sets
                 .filter(s => s.seq === seq)
-                .sort((a, b) => sourceIds.indexOf(String(a.source_id)) - sourceIds.indexOf(String(b.source_id)))[0]
-                ?.contents?.[0]?.id ?? null;
+                .sort((a, b) => sourceIds.indexOf(String(a.source_id)) - sourceIds.indexOf(String(b.source_id)));
+              // Every source that has image selections for this line should
+              // show its crop, not just the first one found.
+              const lineContentIds = seqSetsBySource
+                .map(s => s.contents?.[0]?.id)
+                .filter(cid => cid && lineRegionsByContentId[cid]);
+              const canonicalFirstContentId = lineContentIds[0]
+                ?? seqSetsBySource[0]?.contents?.[0]?.id
+                ?? null;
               return (
                 <OmenBlock
                   key={seq} omenSeq={seq} omenType={seqSets[0]?.type || 'omen'}
@@ -2009,7 +2024,7 @@ export default function ArtifactDisplay() {
                   contributions={contributions} onAddContribution={addContribution}
                   grouping={grouping} editProps={editProps}
                   lineRegionsByContentId={lineRegionsByContentId}
-                  lineImageUri={lineImageUri}
+                  lineContentIds={lineContentIds}
                   canonicalFirstContentId={canonicalFirstContentId}
                 />
               );
