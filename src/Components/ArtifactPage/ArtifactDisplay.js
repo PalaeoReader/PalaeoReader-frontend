@@ -1394,8 +1394,18 @@ function ManuscriptPanel({ artifact }) {
   const [activeImgObj, setActiveImgObj] = useState(null);
   const [fullscreen, setFullscreen]     = useState(false);
   const [thumbOffset, setThumbOffset]   = useState(0);
+  const [activeGroupId, setActiveGroupId] = useState(null);
   const { data: groups } = useFetch(`/api/artifacts/${artifact.shortname}/image_groups`);
-  const allImgs = Array.isArray(groups) ? groups.flatMap(g => g.images || []) : [];
+  const groupList = Array.isArray(groups) ? groups : [];
+
+  const activeGroup = groupList.find(g => g.id === activeGroupId) || groupList[0] || null;
+  const allImgs = activeGroup?.images || [];
+
+  const switchGroup = g => {
+    setActiveGroupId(g.id);
+    setActiveImgObj((g.images || [])[0] || null);
+    setThumbOffset(0);
+  };
 
   const currentImgObj = activeImgObj || allImgs[0] || null;
   const currentImgSrc = currentImgObj ? `/api/images/${currentImgObj.uri}` : null;
@@ -1445,6 +1455,28 @@ function ManuscriptPanel({ artifact }) {
       )}
       <div className="v2-manuscript-panel">
         <div className="v2-panel-header">Manuscript</div>
+        {groupList.length > 1 && (
+          <div style={{ display: 'flex', gap: 2, padding: '0 8px', flexWrap: 'wrap' }}>
+            {groupList.map(g => {
+              const isActive = g.id === activeGroup?.id;
+              return (
+                <button
+                  key={g.id}
+                  onClick={() => switchGroup(g)}
+                  style={{
+                    background: 'none', border: 'none',
+                    borderBottom: isActive ? '1.5px solid #C9A84C' : '1.5px solid transparent',
+                    padding: '3px 8px', fontSize: 11, cursor: 'pointer',
+                    color: isActive ? 'var(--text-primary, #222)' : 'var(--text-secondary, #666)',
+                    fontWeight: isActive ? 500 : 400,
+                  }}
+                >
+                  {g.name}
+                </button>
+              );
+            })}
+          </div>
+        )}
         {currentImgSrc
           ? (
             <div className="img-wrapper" style={{ position: 'relative' }}>
