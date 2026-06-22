@@ -1,5 +1,6 @@
 import React from 'react';
 import { createRoot } from 'react-dom/client';
+import '@coreui/coreui/dist/css/coreui.min.css';
 import './index.css';
 import './Components/NavBar/NavBar.css';
 import NavBar from './Components/NavBar/NavBar';

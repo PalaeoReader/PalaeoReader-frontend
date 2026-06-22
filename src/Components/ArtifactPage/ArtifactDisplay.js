@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
+import { CButtonGroup, CButton } from '@coreui/react';
 
 function useFetch(url) {
   const [data, setData] = useState(null);
@@ -1456,25 +1457,23 @@ function ManuscriptPanel({ artifact }) {
       <div className="v2-manuscript-panel">
         <div className="v2-panel-header">Manuscript</div>
         {groupList.length > 1 && (
-          <div style={{ display: 'flex', gap: 2, padding: '0 8px', flexWrap: 'wrap' }}>
-            {groupList.map(g => {
-              const isActive = g.id === activeGroup?.id;
-              return (
-                <button
-                  key={g.id}
-                  onClick={() => switchGroup(g)}
-                  style={{
-                    background: 'none', border: 'none',
-                    borderBottom: isActive ? '1.5px solid #C9A84C' : '1.5px solid transparent',
-                    padding: '3px 8px', fontSize: 11, cursor: 'pointer',
-                    color: isActive ? 'var(--text-primary, #222)' : 'var(--text-secondary, #666)',
-                    fontWeight: isActive ? 500 : 400,
-                  }}
-                >
-                  {g.name}
-                </button>
-              );
-            })}
+          <div style={{ padding: '4px 8px' }}>
+            <CButtonGroup role="group" size="sm" vertical style={{ width: '100%' }}>
+              {groupList.map(g => {
+                const isActive = g.id === activeGroup?.id;
+                return (
+                  <CButton
+                    key={g.id}
+                    color={isActive ? 'warning' : 'secondary'}
+                    variant={isActive ? undefined : 'outline'}
+                    onClick={() => switchGroup(g)}
+                    style={{ fontSize: 11 }}
+                  >
+                    {g.name}
+                  </CButton>
+                );
+              })}
+            </CButtonGroup>
           </div>
         )}
         {currentImgSrc
