@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { CButton } from '@coreui/react';
 import { useParams, useSearchParams } from 'react-router-dom';
-import { CButtonGroup, CButton } from '@coreui/react';
+
 
 function useFetch(url) {
   const [data, setData] = useState(null);
@@ -784,7 +785,7 @@ function LayerEntryGroup({ seq, entryLabel, rows, sources, layerKey, layerLabel,
 
 const LINE_COLORS = ['#e74c3c', '#3498db', '#2ecc71', '#f39c12', '#9b59b6', '#1abc9c', '#e67e22'];
 
-function CroppedLineImage({ src, sel, color, label }) {
+function CroppedLineImage({ src, sel, color, label, maxW }) {
   const [dims, setDims] = useState(null);
   useEffect(() => {
     const img = new window.Image();
@@ -800,7 +801,7 @@ function CroppedLineImage({ src, sel, color, label }) {
   // For vertical selections: rotate -90deg so they display as horizontal strips.
   // Scale so the rotated result fits maxDisplayW × maxDisplayH.
   // After rotation, displayed width = cropH and displayed height = cropW.
-  const maxDisplayW = 220, maxDisplayH = 50;
+  const maxDisplayW = maxW ?? 220, maxDisplayH = 50;
   const scale = isVertical
     ? Math.min(maxDisplayH / actualW, maxDisplayW / actualH)
     : Math.min(maxDisplayW / actualW, maxDisplayH / actualH);
@@ -855,7 +856,47 @@ function CroppedLineImage({ src, sel, color, label }) {
   );
 }
 
-// Unified omen block — supports entry-layer-author and entry-author-layer grouping modes.
+function ResizableCrop({ src, sel, color, label }) {
+  const [w, setW] = useState(220);
+  const [hovered, setHovered] = useState(false);
+
+  const startDrag = e => {
+    e.preventDefault();
+    const startX = e.clientX;
+    const startW = w;
+    // track mouse globally so dragging outside the element still works
+    const onMove = ev => setW(Math.max(80, Math.min(480, startW + ev.clientX - startX)));
+    const onUp = () => { document.removeEventListener('mousemove', onMove); document.removeEventListener('mouseup', onUp); };
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+  };
+
+  return (
+    <div
+      style={{ position: 'relative', display: 'inline-block' }}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+    >
+      <CroppedLineImage src={src} sel={sel} color={color} label={label} maxW={w} />
+      {/* corner resize icon that only shows on hover */}
+      <i
+        className="fas fa-expand-arrows-alt"
+        onMouseDown={startDrag}
+        style={{
+          position: 'absolute', bottom: 4, right: 4,
+          fontSize: 13, cursor: 'nwse-resize',
+          color: hovered ? '#333' : '#999',
+          opacity: hovered ? 0.85 : 0.35,
+          transition: 'opacity 0.15s, color 0.15s',
+          userSelect: 'none',
+          zIndex: 10,
+        }}
+      />
+    </div>
+  );
+}
+
+// Unified omen block supports entry-layer-author and entry-author-layer grouping modes.
 function OmenBlock({ omenSeq, omenType, sets, sources, colorMap, contributions, onAddContribution, grouping, editProps, lineRegionsByContentId, lineContentIds, canonicalFirstContentId }) {
   const label = omenType === 'omen' ? `Omen ${omenSeq}` : `Line ${omenSeq}`;
   const firstSet = sets[0];
@@ -889,7 +930,6 @@ function OmenBlock({ omenSeq, omenType, sets, sources, colorMap, contributions, 
   });
 
   const firstContentId = canonicalFirstContentId ?? sets[0]?.contents?.[0]?.id ?? null;
-  // Show the crop from every source that has one for this line, not just one.
   const contentIdsForLine = (lineContentIds && lineContentIds.length > 0)
     ? lineContentIds
     : (firstContentId ? [firstContentId] : []);
@@ -897,18 +937,31 @@ function OmenBlock({ omenSeq, omenType, sets, sources, colorMap, contributions, 
     ? contentIdsForLine.flatMap(cid => lineRegionsByContentId[cid] || [])
     : [];
 
+  // detect RTL from the script layer of the first set
+  const scriptText = sets[0]?.contents?.find(c => contentTypeToLayer(c.type) === 'script')?.text || '';
+  const isRtl = detectDir(scriptText) === 'rtl' || detectDir(scriptText) === 'auto';
+
+  const allSels = lineRegions.flatMap(sub => (sub.selections || []).filter(s => s.uri));
+
   return (
     <div className="v2-omen-block" id={`omen-${omenSeq}`}>
       <div className="v2-omen-label">{label}</div>
 
-      {lineRegions.length > 0 && (
+      {allSels.length > 0 && (
         <div className="layer-image" style={{ marginBottom: '0.75rem' }}>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 6, alignItems: 'flex-end' }}>
+          <div style={{
+            display: 'flex',
+            flexDirection: 'row',
+            flexWrap: 'wrap',
+            gap: 10,
+            direction: isRtl ? 'rtl' : 'ltr',
+            justifyContent: 'flex-start',
+          }}>
             {lineRegions.map((sub, i) =>
               (sub.selections || [])
                 .filter(sel => sel.uri)
                 .map((sel, j) => (
-                  <CroppedLineImage
+                  <ResizableCrop
                     key={`${i}-${j}`}
                     src={`/api/images/${sel.uri}`}
                     sel={sel}
@@ -922,7 +975,7 @@ function OmenBlock({ omenSeq, omenType, sets, sources, colorMap, contributions, 
       )}
 
       {grouping !== 'entry-author-layer' ? (
-        /* ── Entry → Layer → Author ── */
+        
         <>
           {contentLayers.map(l => {
             const activeRows = byLayer[l.key].filter(r => r.text);
@@ -1391,59 +1444,161 @@ function LayerFilterRow({ hiddenLayers, onToggle }) {
 
 const THUMB_VISIBLE = 3;
 
-function ManuscriptPanel({ artifact }) {
-  const [activeImgObj, setActiveImgObj] = useState(null);
-  const [fullscreen, setFullscreen]     = useState(false);
-  const [thumbOffset, setThumbOffset]   = useState(0);
-  const [activeGroupId, setActiveGroupId] = useState(null);
-  const { data: groups } = useFetch(`/api/artifacts/${artifact.shortname}/image_groups`);
+function ManuscriptPanel({ artifact, groups, hiddenAuthors, activeSourceIds, sources }) {
+  const [activeImgObj, setActiveImgObj]         = useState(null);
+  const [fullscreen, setFullscreen]             = useState(false);
+  const [openSources, setOpenSources]           = useState(new Set());
+  const [openGroups, setOpenGroups]             = useState(new Set());
+  const [groupThumbOffsets, setGroupThumbOffsets] = useState({});
+
   const groupList = Array.isArray(groups) ? groups : [];
 
-  const activeGroup = groupList.find(g => g.id === activeGroupId) || groupList[0] || null;
-  const allImgs = activeGroup?.images || [];
+  const groupsBySource = {};
+  groupList.forEach(g => {
+    const sid = String(g.images?.[0]?.source_id ?? '');
+    if (!sid || sid === 'null' || sid === 'undefined') return;
+    if (!groupsBySource[sid]) groupsBySource[sid] = [];
+    groupsBySource[sid].push(g);
+  });
 
-  const switchGroup = g => {
-    setActiveGroupId(g.id);
-    setActiveImgObj((g.images || [])[0] || null);
-    setThumbOffset(0);
-  };
+  const hasSourceInfo = Object.keys(groupsBySource).length > 0;
+  const activeSourcesWithImages = hasSourceInfo
+    ? activeSourceIds.filter(sid => (groupsBySource[sid]?.length ?? 0) > 0)
+    : [];
 
-  const currentImgObj = activeImgObj || allImgs[0] || null;
+  const sortedGroups = [...groupList].sort((a, b) => (a.seq ?? 0) - (b.seq ?? 0));
+
+  useEffect(() => {
+    if (hasSourceInfo) {
+      if (activeSourcesWithImages.length === 0) return;
+      setOpenSources(prev => {
+        const next = new Set(prev);
+        activeSourcesWithImages.forEach(sid => next.add(sid));
+        return next;
+      });
+      setOpenGroups(prev => {
+        const next = new Set(prev);
+        activeSourcesWithImages.forEach(sid => {
+          const first = (groupsBySource[sid] || []).sort((a, b) => (a.seq ?? 0) - (b.seq ?? 0))[0];
+          if (first) next.add(first.id);
+        });
+        return next;
+      });
+    } else if (sortedGroups.length > 0) {
+      setOpenGroups(prev => {
+        if (prev.size > 0) return prev;
+        return new Set([sortedGroups[0].id]);
+      });
+    }
+  }, [hasSourceInfo, activeSourcesWithImages.join(','), sortedGroups.map(g => g.id).join(',')]);
+
+  const firstAvailableImg = hasSourceInfo && activeSourcesWithImages.length > 0
+    ? (groupsBySource[activeSourcesWithImages[0]] || []).sort((a, b) => (a.seq ?? 0) - (b.seq ?? 0))[0]?.images?.[0] ?? null
+    : sortedGroups[0]?.images?.[0] ?? null;
+  const currentImgObj = activeImgObj || firstAvailableImg;
   const currentImgSrc = currentImgObj ? `/api/images/${currentImgObj.uri}` : null;
-  const currentIdx    = allImgs.findIndex(img => img.id === currentImgObj?.id);
 
-  const { data: rawSelections } = useFetch(
-    currentImgObj ? `/api/images/${currentImgObj.id}/selections` : null
-  );
+  const { data: rawSelections } = useFetch(currentImgObj ? `/api/images/${currentImgObj.id}/selections` : null);
   const selections = Array.isArray(rawSelections) ? rawSelections : [];
 
-  const maxOffset  = Math.max(0, allImgs.length - THUMB_VISIBLE);
-  const canLeft    = thumbOffset > 0;
-  const canRight   = thumbOffset < maxOffset;
-  const visibleImgs = allImgs.slice(thumbOffset, thumbOffset + THUMB_VISIBLE);
+  const isSingleSource = activeSourcesWithImages.length === 1;
 
-  const goLeft  = () => setThumbOffset(o => Math.max(0, o - 1));
-  const goRight = () => setThumbOffset(o => Math.min(maxOffset, o + 1));
+  const toggleSource = sid => setOpenSources(prev => {
+    const n = new Set(prev); n.has(sid) ? n.delete(sid) : n.add(sid); return n;
+  });
+  const toggleGroup = gid => setOpenGroups(prev => {
+    const n = new Set(prev); n.has(gid) ? n.delete(gid) : n.add(gid); return n;
+  });
+  const setGroupOffset = (gid, off) => setGroupThumbOffsets(prev => ({ ...prev, [gid]: off }));
 
-  const canPrev = currentIdx > 0;
-  const canNext = currentIdx < allImgs.length - 1;
-  const goPrev = () => {
-    if (!canPrev) return;
-    const newIdx = currentIdx - 1;
-    setActiveImgObj(allImgs[newIdx]);
-    setThumbOffset(o => Math.min(o, newIdx));
-  };
-  const goNext = () => {
-    if (!canNext) return;
-    const newIdx = currentIdx + 1;
-    setActiveImgObj(allImgs[newIdx]);
-    setThumbOffset(o => Math.max(o, newIdx - THUMB_VISIBLE + 1));
-  };
+  const renderLineGroup = (g, indent) => {
+    const isOpen    = openGroups.has(g.id);
+    const allImgs   = g.images || [];
+    const thumbOff  = groupThumbOffsets[g.id] ?? 0;
+    const maxOff    = Math.max(0, allImgs.length - THUMB_VISIBLE);
+    const visible   = allImgs.slice(thumbOff, thumbOff + THUMB_VISIBLE);
+    const curIdx    = allImgs.findIndex(img => img.id === currentImgObj?.id);
+    const btnBase   = { background: 'none', border: 'none', padding: '0 3px', fontSize: 14, lineHeight: 1, flexShrink: 0, color: 'var(--text-tertiary, #999)', cursor: 'pointer' };
 
-  const arrowBase = {
-    background: 'none', border: 'none', cursor: 'pointer',
-    padding: 4, fontSize: 18, color: 'var(--text-tertiary, #999)',
-    lineHeight: 1, flexShrink: 0,
+    const canPrev = curIdx > 0;
+    const canNext = curIdx < allImgs.length - 1;
+    const goPrev = e => {
+      e.stopPropagation();
+      if (!canPrev) return;
+      const next = allImgs[curIdx - 1];
+      setActiveImgObj(next);
+      setGroupOffset(g.id, Math.min(thumbOff, curIdx - 1));
+    };
+    const goNext = e => {
+      e.stopPropagation();
+      if (!canNext) return;
+      const next = allImgs[curIdx + 1];
+      setActiveImgObj(next);
+      setGroupOffset(g.id, Math.max(thumbOff, curIdx + 1 - THUMB_VISIBLE + 1));
+    };
+
+    return (
+      <div key={g.id} style={{ padding: '3px 6px' }}>
+        <CButton
+          color="light"
+          onClick={() => toggleGroup(g.id)}
+          style={{
+            display: 'flex', alignItems: 'center', gap: 5, width: '100%',
+            padding: `5px 8px 5px ${8 + (indent || 0)}px`,
+            borderRadius: 5, textAlign: 'left',
+          }}
+        >
+          <i className={`fas fa-chevron-${isOpen ? 'down' : 'right'}`} style={{ fontSize: 11, color: 'var(--text-tertiary, #888)', flexShrink: 0 }} />
+          <span style={{ fontSize: 11, fontWeight: 500, color: 'var(--text-primary, #222)', flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {g.name}
+          </span>
+          {allImgs.length > 0 && (
+            <span style={{ fontSize: 10, color: 'var(--text-tertiary, #888)', background: '#fff', border: '0.5px solid #ddd', borderRadius: 10, padding: '0 6px', flexShrink: 0 }}>
+              {allImgs.length}
+            </span>
+          )}
+        </CButton>
+        {isOpen && allImgs.length > 0 && (
+          <div style={{ padding: '4px 8px 8px' }}>
+            {/* thumbnail strip */}
+            <div style={{ display: 'flex', alignItems: 'center' }}>
+              <button onClick={e => { e.stopPropagation(); setGroupOffset(g.id, Math.max(0, thumbOff - 1)); }}
+                style={{ ...btnBase, opacity: thumbOff > 0 ? 1 : 0.3 }}>
+                <i className="fas fa-chevron-left" />
+              </button>
+              <div style={{ flex: 1, overflow: 'hidden', display: 'flex', gap: 5 }}>
+                {visible.map(img => (
+                  <img key={img.id} src={`/api/images/${img.uri}`} alt=""
+                    onClick={() => setActiveImgObj(img)}
+                    onError={e => { e.target.style.display = 'none'; }}
+                    style={{
+                      flex: 1, minWidth: 0, height: 52, objectFit: 'cover', borderRadius: 3, cursor: 'pointer',
+                      border: img.id === currentImgObj?.id ? '1.5px solid #C9A84C' : '0.5px solid var(--border-tertiary, #ddd)',
+                    }}
+                  />
+                ))}
+              </div>
+              <button onClick={e => { e.stopPropagation(); setGroupOffset(g.id, Math.min(maxOff, thumbOff + 1)); }}
+                style={{ ...btnBase, opacity: thumbOff < maxOff ? 1 : 0.3 }}>
+                <i className="fas fa-chevron-right" />
+              </button>
+            </div>
+            {/* prev / counter / next */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 4 }}>
+              <button onClick={goPrev} style={{ ...btnBase, fontSize: 11, opacity: canPrev ? 1 : 0.3, padding: '1px 4px', display: 'flex', alignItems: 'center', gap: 2 }}>
+                <i className="fas fa-chevron-left" style={{ fontSize: 10 }} /> Prev
+              </button>
+              <span style={{ fontSize: 10, color: 'var(--text-tertiary, #999)' }}>
+                {curIdx >= 0 ? `${curIdx + 1} of ${allImgs.length}` : `${allImgs.length}`}
+              </span>
+              <button onClick={goNext} style={{ ...btnBase, fontSize: 11, opacity: canNext ? 1 : 0.3, padding: '1px 4px', display: 'flex', alignItems: 'center', gap: 2 }}>
+                Next <i className="fas fa-chevron-right" style={{ fontSize: 10 }} />
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+    );
   };
 
   return (
@@ -1455,142 +1610,71 @@ function ManuscriptPanel({ artifact }) {
         </div>
       )}
       <div className="v2-manuscript-panel">
-        <div className="v2-panel-header">Manuscript</div>
-        {groupList.length > 1 && (
-          <div style={{ padding: '4px 8px' }}>
-            <CButtonGroup role="group" size="sm" vertical style={{ width: '100%' }}>
-              {groupList.map(g => {
-                const isActive = g.id === activeGroup?.id;
-                return (
-                  <CButton
-                    key={g.id}
-                    color={isActive ? 'warning' : 'secondary'}
-                    variant={isActive ? undefined : 'outline'}
-                    onClick={() => switchGroup(g)}
-                    style={{ fontSize: 11 }}
-                  >
-                    {g.name}
-                  </CButton>
-                );
-              })}
-            </CButtonGroup>
-          </div>
-        )}
-        {currentImgSrc
-          ? (
-            <div className="img-wrapper" style={{ position: 'relative' }}>
-              <img className="v2-manuscript-img" src={currentImgSrc} alt={artifact.label}
-                style={{ display: 'block', width: '100%' }}
-                onError={e => { e.target.style.display = 'none'; }} />
-              {selections.map(sel => (
-                <div key={sel.id} style={{
-                  position: 'absolute',
-                  top:    `${sel.top    * 100}%`,
-                  left:   `${sel.left   * 100}%`,
-                  width:  `${sel.width  * 100}%`,
-                  height: `${sel.height * 100}%`,
-                  pointerEvents: 'none',
-                }} />
-              ))}
-              <button className="img-fullscreen-btn" onClick={() => setFullscreen(true)} title="Fullscreen">⛶</button>
-            </div>
-          )
-          : <div className="v2-img-placeholder">No image available</div>
-        }
-
-        {allImgs.length > 1 && (
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '4px 8px 2px' }}>
-            <button
-              onClick={goPrev}
-              style={{
-                background: 'none', border: 'none', padding: '2px 6px',
-                fontSize: 13, color: 'var(--text-tertiary, #999)',
-                cursor: canPrev ? 'pointer' : 'default',
-                opacity: canPrev ? 1 : 0.3,
-                display: 'flex', alignItems: 'center', gap: 3,
-              }}
-            >
-              <i className="ti ti-chevron-left" /> Prev
-            </button>
-            <span style={{ fontSize: 11, color: 'var(--text-tertiary, #999)' }}>
-              {currentIdx + 1} of {allImgs.length}
+        <div className="v2-panel-header">
+          Manuscript
+          {isSingleSource && (
+            <span style={{ fontSize: 10, color: 'var(--text-tertiary, #999)', marginLeft: 6, fontWeight: 400 }}>
+              {srcLabel(sources[activeSourcesWithImages[0]], activeSourcesWithImages[0])} images
             </span>
-            <button
-              onClick={goNext}
-              style={{
-                background: 'none', border: 'none', padding: '2px 6px',
-                fontSize: 13, color: 'var(--text-tertiary, #999)',
-                cursor: canNext ? 'pointer' : 'default',
-                opacity: canNext ? 1 : 0.3,
-                display: 'flex', alignItems: 'center', gap: 3,
-              }}
-            >
-              Next <i className="ti ti-chevron-right" />
-            </button>
+          )}
+        </div>
+
+        {currentImgSrc ? (
+          <div className="img-wrapper" style={{ position: 'relative' }}>
+            <img className="v2-manuscript-img" src={currentImgSrc} alt={artifact.label}
+              style={{ display: 'block', width: '100%' }}
+              onError={e => { e.target.style.display = 'none'; }} />
+            {selections.map(sel => (
+              <div key={sel.id} style={{
+                position: 'absolute',
+                top: `${sel.top * 100}%`, left: `${sel.left * 100}%`,
+                width: `${sel.width * 100}%`, height: `${sel.height * 100}%`,
+                pointerEvents: 'none',
+              }} />
+            ))}
+            <button className="img-fullscreen-btn" onClick={() => setFullscreen(true)} title="Fullscreen">⛶</button>
           </div>
+        ) : (
+          <div className="v2-img-placeholder">No image available</div>
         )}
 
-        {allImgs.length > 1 && (
-          <div style={{ marginTop: 6, padding: '0 8px' }}>
-            {/* arrow · thumbnails · arrow */}
-            <div style={{ display: 'flex', alignItems: 'center' }}>
-              <button
-                onClick={goLeft}
-                style={{
-                  background: 'none', border: 'none', padding: '0 4px',
-                  fontSize: 16, color: 'var(--text-tertiary, #999)',
-                  cursor: canLeft ? 'pointer' : 'default',
-                  opacity: canLeft ? 1 : 0.3,
-                  pointerEvents: canLeft ? 'auto' : 'none',
-                  flexShrink: 0, lineHeight: 1,
-                }}
-                onMouseEnter={e => { if (canLeft) e.currentTarget.style.color = 'var(--text-primary, #222)'; }}
-                onMouseLeave={e => e.currentTarget.style.color = 'var(--text-tertiary, #999)'}
-              >
-                <i className="ti ti-chevron-left" />
-              </button>
-
-              {/* thumbnail row — flex:1 + overflow:hidden keeps exactly 3 visible */}
-              <div style={{ flex: 1, overflow: 'hidden', display: 'flex', gap: 6 }}>
-                {visibleImgs.map(img => (
-                  <img
-                    key={img.id}
-                    src={`/api/images/${img.uri}`}
-                    alt=""
-                    onClick={() => setActiveImgObj(img)}
-                    onError={e => { e.target.style.display = 'none'; }}
-                    style={{
-                      flex: 1,
-                      minWidth: 0,
-                      height: 56,
-                      objectFit: 'cover',
-                      borderRadius: 'var(--border-radius-md, 4px)',
-                      border: img.id === currentImgObj?.id
-                        ? '1.5px solid #C9A84C'
-                        : '0.5px solid var(--border-tertiary, #ddd)',
-                      cursor: 'pointer',
-                    }}
-                  />
-                ))}
-              </div>
-
-              <button
-                onClick={goRight}
-                style={{
-                  background: 'none', border: 'none', padding: '0 4px',
-                  fontSize: 16, color: 'var(--text-tertiary, #999)',
-                  cursor: canRight ? 'pointer' : 'default',
-                  opacity: canRight ? 1 : 0.3,
-                  pointerEvents: canRight ? 'auto' : 'none',
-                  flexShrink: 0, lineHeight: 1,
-                }}
-                onMouseEnter={e => { if (canRight) e.currentTarget.style.color = 'var(--text-primary, #222)'; }}
-                onMouseLeave={e => e.currentTarget.style.color = 'var(--text-tertiary, #999)'}
-              >
-                <i className="ti ti-chevron-right" />
-              </button>
-            </div>
-
+        {(hasSourceInfo ? activeSourcesWithImages.length > 0 : sortedGroups.length > 0) && (
+          <div style={{ marginTop: 6, borderTop: '0.5px solid var(--border-tertiary, #eee)' }}>
+            {!hasSourceInfo ? (
+              sortedGroups.map(g => renderLineGroup(g, 0))
+            ) : isSingleSource ? (
+              (groupsBySource[activeSourcesWithImages[0]] || [])
+                .sort((a, b) => (a.seq ?? 0) - (b.seq ?? 0))
+                .map(g => renderLineGroup(g, 0))
+            ) : (
+              activeSourcesWithImages.map(sid => {
+                const isSourceOpen = openSources.has(sid);
+                const srcGroups = (groupsBySource[sid] || []).sort((a, b) => (a.seq ?? 0) - (b.seq ?? 0));
+                const totalImgs = srcGroups.reduce((n, g) => n + (g.images?.length ?? 0), 0);
+                const label = srcLabel(sources[sid], sid);
+                return (
+                  <div key={sid} style={{ padding: '3px 6px' }}>
+                    <CButton
+                      color="light"
+                      onClick={() => toggleSource(sid)}
+                      style={{
+                        display: 'flex', alignItems: 'center', gap: 5, width: '100%',
+                        padding: '5px 8px', borderRadius: 5, textAlign: 'left',
+                      }}
+                    >
+                      <i className={`fas fa-chevron-${isSourceOpen ? 'down' : 'right'}`} style={{ fontSize: 11, color: 'var(--text-tertiary, #888)', flexShrink: 0 }} />
+                      <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-primary, #222)', flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {label}
+                      </span>
+                      <span style={{ fontSize: 10, color: 'var(--text-tertiary, #888)', background: '#fff', border: '0.5px solid #ddd', borderRadius: 10, padding: '0 6px', flexShrink: 0 }}>
+                        {totalImgs}
+                      </span>
+                    </CButton>
+                    {isSourceOpen && srcGroups.map(g => renderLineGroup(g, 10))}
+                  </div>
+                );
+              })
+            )}
           </div>
         )}
       </div>
@@ -1662,7 +1746,7 @@ function DetailsPanel({ artifact, sources, sourceIds, colorMap, editLog, lineOve
 }
 
 
-function MinimalToolbar({ sourceIds, sources, hiddenAuthors, onToggleAuthor, hiddenLayers, onToggleLayer, grouping, onGroupingChange, colorMap }) {
+function MinimalToolbar({ sourceIds, sources, hiddenAuthors, onToggleAuthor, hiddenLayers, onToggleLayer, grouping, onGroupingChange, colorMap, sourcesWithImages }) {
   const [openPopover, setOpenPopover] = useState(null);
   const ref = useRef(null);
 
@@ -1722,6 +1806,9 @@ function MinimalToolbar({ sourceIds, sources, hiddenAuthors, onToggleAuthor, hid
               <span key={id} className="mtb-pill" style={{ borderColor: color.border }}>
                 <span className="mtb-dot" style={{ color: color.border }}>●</span>
                 {shortName}
+                {sourcesWithImages?.has(id) && (
+                  <i className="fas fa-camera" style={{ fontSize: 10, color: 'var(--text-tertiary, #999)', marginLeft: 3 }} />
+                )}
                 <button className="mtb-pill-x" onClick={() => onToggleAuthor(id)}>✕</button>
               </span>
             );
@@ -1750,7 +1837,7 @@ function MinimalToolbar({ sourceIds, sources, hiddenAuthors, onToggleAuthor, hid
                     >
                       <span className="mtb-dot" style={{ color: color.border }}>●</span>
                       <span className="mtb-pop-label">{label}</span>
-                      {selected && <i className="ti ti-check mtb-check" />}
+                      {selected && <i className="fas fa-check mtb-check" />}
                     </div>
                   );
                 })}
@@ -1788,7 +1875,7 @@ function MinimalToolbar({ sourceIds, sources, hiddenAuthors, onToggleAuthor, hid
                       onClick={() => toggleLayer(l.key)}
                     >
                       <span className="mtb-pop-label">{l.label}</span>
-                      {selected && <i className="ti ti-check mtb-check" />}
+                      {selected && <i className="fas fa-check mtb-check" />}
                     </div>
                   );
                 })}
@@ -1833,6 +1920,12 @@ export default function ArtifactDisplay() {
 
   const { data: allSets } = useFetch(artifact ? `/api/artifacts/${artifact.id}/sets` : null);
   const sets = Array.isArray(allSets) ? allSets : [];
+
+  const { data: rawGroups } = useFetch(artifact ? `/api/artifacts/${artifact.shortname}/image_groups` : null);
+  const imageGroups = Array.isArray(rawGroups) ? rawGroups : [];
+  const sourcesWithImages = new Set(
+    imageGroups.flatMap(g => (g.images || []).map(img => String(img.source_id)).filter(s => s && s !== 'null' && s !== 'undefined'))
+  );
 
   // Selections live nested under set.contents[].divisions[].selections already
   // (each carries its own image uri), so build the line-region map straight off
@@ -2004,7 +2097,7 @@ export default function ArtifactDisplay() {
 
   return (
     <div className="v2-viewer-layout" style={{ gridTemplateColumns: `${leftW}px 4px 1fr 4px ${rightW}px` }}>
-      <ManuscriptPanel artifact={artifact} />
+      <ManuscriptPanel artifact={artifact} groups={imageGroups} hiddenAuthors={hiddenAuthors} activeSourceIds={activeSourceIds} sources={sources} />
       <div className="v2-resize-handle" onMouseDown={e => startDrag('left', e)} />
 
       <div className="v2-center-panel">
@@ -2018,6 +2111,7 @@ export default function ArtifactDisplay() {
           grouping={grouping}
           onGroupingChange={setGrouping}
           colorMap={colorMap}
+          sourcesWithImages={sourcesWithImages}
         />
 
         <div className={`v2-text-display ${hideClasses}`}>
