@@ -3499,7 +3499,7 @@ button { cursor: pointer; }
   color: var(--v2-text-3);
   font-family: 'Inter', sans-serif;
   font-weight: 600;
-  width: 52px;
+  width: 64px;
   flex-shrink: 0;
   white-space: nowrap;
 }

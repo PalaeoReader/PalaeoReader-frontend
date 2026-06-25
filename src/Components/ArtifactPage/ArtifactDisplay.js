@@ -38,6 +38,16 @@ const COLOR_SLOTS = [
 ];
 const COMMUNITY_COLOR = { border: '#D85A30', bg: '#FAECE7', text: '#993C1D', row: 'rgba(216,90,48,0.05)' };
 
+const LANG_LABELS = { eng: 'English', rus: 'Russian', tur: 'Turkish', kaz: 'Kazakh', hun: 'Hungarian' };
+function extractLangCode(type) {
+  const m = (type || '').match(/\[([a-z]{2,3})\]/);
+  return m ? m[1] : null;
+}
+function contentLangLabel(type) {
+  const code = extractLangCode(type);
+  return code ? (LANG_LABELS[code] || code) : null;
+}
+
 function contentTypeToLayer(type) {
   if (type === 'original') return 'script';
   if (type === 'transliteration' || type === 'tranliteration') return 'translit';
@@ -162,7 +172,7 @@ function EditableMorphLine({ lineKey, sourceId, color, morphs, sourceLabel, edit
   );
 }
 
-function EditableText({ lineKey, sourceId, layerKey, layerLabel, sourceLabel, color, rawText, editProps, className, dir }) {
+function EditableText({ lineKey, sourceId, layerKey, layerLabel, sourceLabel, color, rawText, contentType, editProps, className, dir }) {
   const [hovered, setHovered] = useState(false);
   const isActive  = editProps?.activeEditor?.lineKey === lineKey;
   const isEdited  = lineKey in (editProps?.lineOverrides || {});
@@ -184,9 +194,11 @@ function EditableText({ lineKey, sourceId, layerKey, layerLabel, sourceLabel, co
     );
   }
 
+  const langTip = contentLangLabel(contentType);
   return (
     <div
       className="editable-text-wrap"
+      title={langTip ? `Language: ${langTip}` : undefined}
       style={{
         outline: hovered && editProps ? `1px solid ${color.border}80` : 'none',
         borderRadius: 2,
@@ -387,15 +399,19 @@ function InlineEditor({ initialText, color, sourceLabel, layerLabel, dir, onCanc
   );
 }
 
-function EditableLine({ lineKey, sourceId, color, layerKey, text, isEdited, sourceLabel, layerLabel, editProps, pinProps }) {
+function EditableLine({ lineKey, sourceId, color, layerKey, text, isEdited, sourceLabel, layerLabel, contentType, editProps, pinProps }) {
   const [hovered, setHovered] = useState(false);
   const isActive    = editProps?.activeEditor?.lineKey === lineKey;
   const highlighted = editProps?.highlightedLine === lineKey;
   const dir         = detectDir(text);
   const isRtl       = layerKey === 'script';
+  const langTip     = contentLangLabel(contentType);
 
   const isPinned = pinProps?.pinnedKey === lineKey;
-  const showDiff = pinProps != null && pinProps.pinnedKey != null && !isPinned;
+  const pinnedLang = pinProps?.pinnedContentType ? extractLangCode(pinProps.pinnedContentType) : null;
+  const rowLang    = contentType ? extractLangCode(contentType) : null;
+  const langMismatch = pinnedLang && rowLang && pinnedLang !== rowLang;
+  const showDiff = pinProps != null && pinProps.pinnedKey != null && !isPinned && !langMismatch;
 
   if (isActive) {
     return (
@@ -412,6 +428,7 @@ function EditableLine({ lineKey, sourceId, color, layerKey, text, isEdited, sour
   return (
     <div
       className={`author-line author-${sourceId}${isEdited ? ' line-edited' : ''}${highlighted ? ' line-highlighted' : ''}${pinProps ? ' has-pin' : ''}${pinProps?.pinnedKey != null ? ' line-dimmed' : ''}`}
+      title={langTip ? `Language: ${langTip}` : undefined}
       style={{
         borderLeft: `2px solid ${color.border}`,
         background: hovered ? color.bg : color.row,
@@ -428,6 +445,11 @@ function EditableLine({ lineKey, sourceId, color, layerKey, text, isEdited, sour
         ? <InlineDiff refText={pinProps.pinnedText} otherText={text} layerKey={layerKey} dir={dir} />
         : <span className={`v2-layer-text v2-text-${layerKey}`} dir={dir}>{text}</span>
       }
+      {langMismatch && pinProps?.pinnedKey != null && (
+        <span style={{ fontSize: '0.65rem', color: 'var(--text-muted, #aaa)', fontStyle: 'italic', marginLeft: '0.4rem', flexShrink: 0 }}>
+          ({langTip || 'diff. lang'})
+        </span>
+      )}
       {isPinned && <span className="ref-tag">ref</span>}
       {(pinProps || editProps) && (
         <div className="line-btn-group">
@@ -711,9 +733,11 @@ function OmenLayerGroup({ l, activeRows, extraContribs, omenSeq, sources, editPr
     return { ...r, lKey, text: currentText, isEdited };
   });
 
-  const pinnedText = pinnedKey ? (rowsWithKey.find(r => r.lKey === pinnedKey)?.text ?? null) : null;
-  const pinProps   = hasMultiple
-    ? { pinnedKey, pinnedText, onPin: lk => setPinnedKey(k => k === lk ? null : lk) }
+  const pinnedRow          = pinnedKey ? rowsWithKey.find(r => r.lKey === pinnedKey) : null;
+  const pinnedText         = pinnedRow?.text ?? null;
+  const pinnedContentType  = pinnedRow?.contentType ?? null;
+  const pinProps           = hasMultiple
+    ? { pinnedKey, pinnedText, pinnedContentType, onPin: lk => setPinnedKey(k => k === lk ? null : lk) }
     : null;
 
   return (
@@ -728,6 +752,7 @@ function OmenLayerGroup({ l, activeRows, extraContribs, omenSeq, sources, editPr
               lineKey={r.lKey} sourceId={r.sourceId} color={r.color}
               layerKey={l.key} text={r.text}
               isEdited={r.isEdited}
+              contentType={r.contentType}
               sourceLabel={srcLabel(sources[r.sourceId], r.sourceId)}
               layerLabel={l.label}
               editProps={editProps}
@@ -758,9 +783,11 @@ function LayerEntryGroup({ seq, entryLabel, rows, sources, layerKey, layerLabel,
     return { ...r, lKey, text: currentText, isEdited };
   });
 
-  const pinnedText = pinnedKey ? (rowsWithKey.find(r => r.lKey === pinnedKey)?.text ?? null) : null;
-  const pinProps   = hasMultiple
-    ? { pinnedKey, pinnedText, onPin: lk => setPinnedKey(k => k === lk ? null : lk) }
+  const pinnedRow         = pinnedKey ? rowsWithKey.find(r => r.lKey === pinnedKey) : null;
+  const pinnedText        = pinnedRow?.text ?? null;
+  const pinnedContentType = pinnedRow?.contentType ?? null;
+  const pinProps          = hasMultiple
+    ? { pinnedKey, pinnedText, pinnedContentType, onPin: lk => setPinnedKey(k => k === lk ? null : lk) }
     : null;
 
   return (
@@ -773,6 +800,7 @@ function LayerEntryGroup({ seq, entryLabel, rows, sources, layerKey, layerLabel,
           lineKey={r.lKey} sourceId={r.sourceId} color={r.color}
           layerKey={layerKey} text={r.text}
           isEdited={r.isEdited}
+          contentType={r.contentType}
           sourceLabel={srcLabel(sources[r.sourceId], r.sourceId)}
           layerLabel={layerLabel}
           editProps={editProps}
@@ -897,7 +925,7 @@ function ResizableCrop({ src, sel, color, label }) {
 }
 
 // Unified omen block supports entry-layer-author and entry-author-layer grouping modes.
-function OmenBlock({ omenSeq, omenType, sets, sources, colorMap, contributions, onAddContribution, grouping, editProps, lineRegionsByContentId, lineContentIds, canonicalFirstContentId }) {
+function OmenBlock({ omenSeq, omenType, sets, sources, colorMap, contributions, onAddContribution, grouping, editProps, lineRegionsByContentId }) {
   const label = omenType === 'omen' ? `Omen ${omenSeq}` : `Line ${omenSeq}`;
   const firstSet = sets[0];
   const morphs = firstSet?.morphs || [];
@@ -913,11 +941,11 @@ function OmenBlock({ omenSeq, omenType, sets, sources, colorMap, contributions, 
     const contentByLayer = {};
     (set.contents || []).forEach(c => {
       const lk = contentTypeToLayer(c.type);
-      if (lk && !contentByLayer[lk]) contentByLayer[lk] = { text: c.text, dir: c.text_direction || null };
+      if (lk && !contentByLayer[lk]) contentByLayer[lk] = { text: c.text, dir: c.text_direction || null, contentType: c.type };
     });
     contentLayers.forEach(l => {
       const entry = contentByLayer[l.key];
-      byLayer[l.key].push({ sourceId: String(set.source_id), color, text: entry?.text || null, dir: entry?.dir || null });
+      byLayer[l.key].push({ sourceId: String(set.source_id), color, text: entry?.text || null, dir: entry?.dir || null, contentType: entry?.contentType || null });
     });
     bySrc[String(set.source_id)] = { color, contentByLayer };
   });
@@ -929,48 +957,37 @@ function OmenBlock({ omenSeq, omenType, sets, sources, colorMap, contributions, 
     contribsByLayer[lk].push(c);
   });
 
-  const firstContentId = canonicalFirstContentId ?? sets[0]?.contents?.[0]?.id ?? null;
-  const contentIdsForLine = (lineContentIds && lineContentIds.length > 0)
-    ? lineContentIds
-    : (firstContentId ? [firstContentId] : []);
-  const lineRegions = lineRegionsByContentId
-    ? contentIdsForLine.flatMap(cid => lineRegionsByContentId[cid] || [])
-    : [];
-
   // detect RTL from the script layer of the first set
   const scriptText = sets[0]?.contents?.find(c => contentTypeToLayer(c.type) === 'script')?.text || '';
   const isRtl = detectDir(scriptText) === 'rtl' || detectDir(scriptText) === 'auto';
 
-  const allSels = lineRegions.flatMap(sub => (sub.selections || []).filter(s => s.uri));
+  const sourceImgRows = sets.map(set => {
+    const cid = set.contents?.[0]?.id;
+    const regions = lineRegionsByContentId ? (lineRegionsByContentId[cid] || []) : [];
+    const sels = regions.flatMap(r => (r.selections || []).filter(s => s.uri));
+    return { sourceId: String(set.source_id), color: colorMap[String(set.source_id)] || COLOR_SLOTS[0], sels };
+  }).filter(row => row.sels.length > 0);
 
   return (
     <div className="v2-omen-block" id={`omen-${omenSeq}`}>
       <div className="v2-omen-label">{label}</div>
 
-      {allSels.length > 0 && (
+      {sourceImgRows.length > 0 && (
         <div className="layer-image" style={{ marginBottom: '0.75rem' }}>
-          <div style={{
-            display: 'flex',
-            flexDirection: 'row',
-            flexWrap: 'wrap',
-            gap: 10,
-            direction: isRtl ? 'rtl' : 'ltr',
-            justifyContent: 'flex-start',
-          }}>
-            {lineRegions.map((sub, i) =>
-              (sub.selections || [])
-                .filter(sel => sel.uri)
-                .map((sel, j) => (
-                  <ResizableCrop
-                    key={`${i}-${j}`}
-                    src={`/api/images/${sel.uri}`}
-                    sel={sel}
-                    color={LINE_COLORS[i % LINE_COLORS.length]}
-                    label={sub.label}
-                  />
-                ))
-            )}
-          </div>
+          {sourceImgRows.map(({ sourceId, color, sels }, rowIdx) => (
+            <div key={sourceId} style={{
+              display: 'flex', flexDirection: 'row', flexWrap: 'wrap', gap: 10,
+              direction: isRtl ? 'rtl' : 'ltr',
+              alignItems: 'flex-start',
+              borderLeft: `3px solid ${color.border}`,
+              paddingLeft: 8,
+              marginBottom: rowIdx < sourceImgRows.length - 1 ? 8 : 0,
+            }}>
+              {sels.map((sel, j) => (
+                <ResizableCrop key={j} src={`/api/images/${sel.uri}`} sel={sel} color={color} label={sel.label || ''} />
+              ))}
+            </div>
+          ))}
         </div>
       )}
 
@@ -1038,6 +1055,7 @@ function OmenBlock({ omenSeq, omenType, sets, sources, colorMap, contributions, 
                       sourceLabel={author}
                       color={color}
                       rawText={entry.text}
+                      contentType={entry.contentType}
                       editProps={editProps}
                       className={`v2-layer-text v2-text-${l.key}`}
                       dir={entry.dir || undefined}
@@ -1147,7 +1165,7 @@ function LayerFirstView({ grouping, sets, sources, sourceIds, colorMap, editProp
     const layerKey = layer.key;
     const getContent = set => {
       const c = (set.contents || []).find(c => contentTypeToLayer(c.type) === layerKey);
-      return c ? { text: c.text, dir: c.text_direction || null } : null;
+      return c ? { text: c.text, dir: c.text_direction || null, contentType: c.type } : null;
     };
 
     if (grouping === 'layer-entry-author') {
@@ -1204,6 +1222,7 @@ function LayerFirstView({ grouping, sets, sources, sourceIds, colorMap, editProp
                       sourceLabel={sourceLabel}
                       color={color}
                       rawText={e.text}
+                      contentType={e.contentType}
                       editProps={editProps}
                       className={`v2-layer-text v2-text-${layerKey}`}
                       dir={e.dir || undefined}
@@ -1251,7 +1270,7 @@ function AuthorLayerView({ sets, sources, sourceIds, colorMap, contributions, on
           {contentLayers.map(l => {
             const entries = authorSets.flatMap(s => {
               const c = (s.contents || []).find(c => contentTypeToLayer(c.type) === l.key);
-              return c ? [{ seq: s.seq, type: s.type, text: c.text, dir: c.text_direction || null }] : [];
+              return c ? [{ seq: s.seq, type: s.type, text: c.text, dir: c.text_direction || null, contentType: c.type }] : [];
             });
             if (!entries.length) return null;
             return (
@@ -1269,6 +1288,7 @@ function AuthorLayerView({ sets, sources, sourceIds, colorMap, contributions, on
                         sourceLabel={author}
                         color={color}
                         rawText={e.text}
+                        contentType={e.contentType}
                         editProps={editProps}
                         className={`v2-layer-text v2-text-${l.key}`}
                         dir={e.dir || undefined}
@@ -1307,7 +1327,7 @@ function AuthorLayerView({ sets, sources, sourceIds, colorMap, contributions, on
           const contentByLayer = {};
           (set.contents || []).forEach(c => {
             const lk = contentTypeToLayer(c.type);
-            if (lk && !contentByLayer[lk]) contentByLayer[lk] = { text: c.text, dir: c.text_direction || null };
+            if (lk && !contentByLayer[lk]) contentByLayer[lk] = { text: c.text, dir: c.text_direction || null, contentType: c.type };
           });
           const morphs = isMorphAuthor ? (set.morphs || []) : [];
           const hasAny = contentLayers.some(l => contentByLayer[l.key]) || morphs.length > 0;
@@ -1330,6 +1350,7 @@ function AuthorLayerView({ sets, sources, sourceIds, colorMap, contributions, on
                       sourceLabel={author}
                       color={color}
                       rawText={entry.text}
+                      contentType={entry.contentType}
                       editProps={editProps}
                       className={`v2-layer-text v2-text-${l.key}`}
                       dir={entry.dir || undefined}
@@ -1437,6 +1458,30 @@ function LayerFilterRow({ hiddenLayers, onToggle }) {
         >
           Morph.
         </button>
+      </div>
+    </div>
+  );
+}
+
+function LanguageFilterRow({ allLanguages, hiddenLanguages, onToggle }) {
+  if (!allLanguages || allLanguages.length <= 1) return null;
+  return (
+    <div className="stk-filter-group">
+      <span className="stk-filter-label">Language</span>
+      <div className="stk-pills">
+        {allLanguages.map(code => {
+          const visible = !hiddenLanguages.has(code);
+          return (
+            <button
+              key={code}
+              className={`stk-pill${visible ? ' active' : ''}`}
+              onClick={() => onToggle(code)}
+              aria-pressed={visible}
+            >
+              {LANG_LABELS[code] || code}
+            </button>
+          );
+        })}
       </div>
     </div>
   );
@@ -1746,7 +1791,7 @@ function DetailsPanel({ artifact, sources, sourceIds, colorMap, editLog, lineOve
 }
 
 
-function MinimalToolbar({ sourceIds, sources, hiddenAuthors, onToggleAuthor, hiddenLayers, onToggleLayer, grouping, onGroupingChange, colorMap, sourcesWithImages }) {
+function MinimalToolbar({ sourceIds, sources, hiddenAuthors, onToggleAuthor, hiddenLayers, onToggleLayer, grouping, onGroupingChange, colorMap, sourcesWithImages, allLanguages, hiddenLanguages, onToggleLang }) {
   const [openPopover, setOpenPopover] = useState(null);
   const ref = useRef(null);
 
@@ -1813,6 +1858,7 @@ function MinimalToolbar({ sourceIds, sources, hiddenAuthors, onToggleAuthor, hid
               </span>
             );
           })}
+          {hiddenAuthors.size > 0 && (
           <div className="mtb-add-wrap">
             <button
               className={`mtb-add-btn${openPopover === 'authors' ? ' mtb-open' : ''}`}
@@ -1844,10 +1890,50 @@ function MinimalToolbar({ sourceIds, sources, hiddenAuthors, onToggleAuthor, hid
               </div>
             )}
           </div>
+          )}
         </div>
       </div>
 
-      {/* Row 2 — Layers */}
+      {/* Row 2 — Language */}
+      {allLanguages && allLanguages.length > 1 && (
+        <div className="mtb-row">
+          <span className="mtb-row-label">Language</span>
+          <div className="mtb-row-pills">
+            {allLanguages.filter(c => !hiddenLanguages.has(c)).map(code => (
+              <span key={code} className="mtb-pill">
+                {LANG_LABELS[code] || code}
+                <button className="mtb-pill-x" onClick={() => onToggleLang(code)}>✕</button>
+              </span>
+            ))}
+            {hiddenLanguages.size > 0 && (
+            <div className="mtb-add-wrap">
+              <button
+                className={`mtb-add-btn${openPopover === 'languages' ? ' mtb-open' : ''}`}
+                onClick={() => setOpenPopover(p => p === 'languages' ? null : 'languages')}
+              >
+                +
+              </button>
+              {openPopover === 'languages' && (
+                <div className="mtb-popover">
+                  {allLanguages.map(code => {
+                    const selected = !hiddenLanguages.has(code);
+                    return (
+                      <div key={code} className={`mtb-pop-row${selected ? ' mtb-selected' : ''}`}
+                        onClick={() => onToggleLang(code)}>
+                        <span className="mtb-pop-label">{LANG_LABELS[code] || code}</span>
+                        {selected && <i className="fas fa-check mtb-check" />}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Row 3 — Layers */}
       <div className="mtb-row">
         <span className="mtb-row-label">Layers</span>
         <div className="mtb-row-pills">
@@ -1857,6 +1943,7 @@ function MinimalToolbar({ sourceIds, sources, hiddenAuthors, onToggleAuthor, hid
               <button className="mtb-pill-x" onClick={() => toggleLayer(l.key)}>✕</button>
             </span>
           ))}
+          {activeLayerItems.length < layerItems.length && (
           <div className="mtb-add-wrap">
             <button
               className={`mtb-add-btn${openPopover === 'layers' ? ' mtb-open' : ''}`}
@@ -1882,6 +1969,7 @@ function MinimalToolbar({ sourceIds, sources, hiddenAuthors, onToggleAuthor, hid
               </div>
             )}
           </div>
+          )}
         </div>
       </div>
 
@@ -1955,6 +2043,19 @@ export default function ArtifactDisplay() {
   const colorMap = {};
   sourceIds.forEach((id, i) => { colorMap[id] = COLOR_SLOTS[i % COLOR_SLOTS.length]; });
 
+  const sourceLanguageMap = {};
+  sourceIds.forEach(srcId => {
+    const langs = new Set();
+    sets.filter(s => String(s.source_id) === srcId).forEach(s => {
+      (s.contents || []).forEach(c => {
+        const lang = extractLangCode(c.type);
+        if (lang) langs.add(lang);
+      });
+    });
+    sourceLanguageMap[srcId] = langs;
+  });
+  const allLanguages = [...new Set(sourceIds.flatMap(id => [...(sourceLanguageMap[id] || [])]))];
+
   const [hiddenAuthors, setHiddenAuthors] = useState(() => {
     const p = searchParams.get('hidden_authors');
     return p ? new Set(p.split(',')) : new Set();
@@ -1963,15 +2064,20 @@ export default function ArtifactDisplay() {
     const p = searchParams.get('hidden_layers');
     return p ? new Set(p.split(',')) : new Set();
   });
+  const [hiddenLanguages, setHiddenLanguages] = useState(() => {
+    const p = searchParams.get('hidden_languages');
+    return p ? new Set(p.split(',')) : new Set();
+  });
   const [grouping, setGrouping] = useState(() => searchParams.get('grouping') || 'entry-layer-author');
 
   useEffect(() => {
     const p = {};
-    if (hiddenAuthors.size) p.hidden_authors = [...hiddenAuthors].join(',');
-    if (hiddenLayers.size)  p.hidden_layers  = [...hiddenLayers].join(',');
+    if (hiddenAuthors.size)   p.hidden_authors   = [...hiddenAuthors].join(',');
+    if (hiddenLayers.size)    p.hidden_layers    = [...hiddenLayers].join(',');
+    if (hiddenLanguages.size) p.hidden_languages = [...hiddenLanguages].join(',');
     if (grouping !== 'entry-layer-author') p.grouping = grouping;
     setSearchParams(p, { replace: true });
-  }, [hiddenAuthors, hiddenLayers, grouping]);
+  }, [hiddenAuthors, hiddenLayers, hiddenLanguages, grouping]);
 
   const [contributions, setContributions]   = useState({});
   const [lineOverrides, setLineOverrides]   = useState({});
@@ -2079,15 +2185,26 @@ export default function ArtifactDisplay() {
     setHiddenLayers(prev => { const n = new Set(prev); n.has(key) ? n.delete(key) : n.add(key); return n; });
   }, []);
 
+  const toggleLanguage = useCallback(code => {
+    setHiddenLanguages(prev => { const n = new Set(prev); n.has(code) ? n.delete(code) : n.add(code); return n; });
+  }, []);
+
   const addContribution = useCallback((omenSeq, data) => {
     setContributions(prev => ({ ...prev, [omenSeq]: [...(prev[omenSeq] || []), data] }));
   }, []);
 
   if (!artifact) return <div className="loading-wrap">Loading…</div>;
 
-  const activeSourceIds = sourceIds.filter(id => !hiddenAuthors.has(id));
+  const activeSourceIds = sourceIds.filter(id => {
+    if (hiddenAuthors.has(id)) return false;
+    if (!hiddenLanguages.size) return true;
+    const srcLangs = sourceLanguageMap[id] || new Set();
+    if (!srcLangs.size) return true;
+    return [...srcLangs].some(lang => !hiddenLanguages.has(lang));
+  });
   const isSingleAuthor = activeSourceIds.length === 1;
-  const activeSets = sets.filter(s => !hiddenAuthors.has(String(s.source_id)));
+  const activeSourceSet = new Set(activeSourceIds);
+  const activeSets = sets.filter(s => activeSourceSet.has(String(s.source_id)));
   const omenSeqs = [...new Set(activeSets.map(s => s.seq))].sort((a, b) => a - b);
 
   const hideClasses = [
@@ -2112,6 +2229,9 @@ export default function ArtifactDisplay() {
           onGroupingChange={setGrouping}
           colorMap={colorMap}
           sourcesWithImages={sourcesWithImages}
+          allLanguages={allLanguages}
+          hiddenLanguages={hiddenLanguages}
+          onToggleLang={toggleLanguage}
         />
 
         <div className={`v2-text-display ${hideClasses}`}>
@@ -2131,17 +2251,6 @@ export default function ArtifactDisplay() {
               const seqSets = activeSets
                 .filter(s => s.seq === seq)
                 .sort((a, b) => sourceIds.indexOf(String(a.source_id)) - sourceIds.indexOf(String(b.source_id)));
-              const seqSetsBySource = sets
-                .filter(s => s.seq === seq)
-                .sort((a, b) => sourceIds.indexOf(String(a.source_id)) - sourceIds.indexOf(String(b.source_id)));
-              // Every source that has image selections for this line should
-              // show its crop, not just the first one found.
-              const lineContentIds = seqSetsBySource
-                .map(s => s.contents?.[0]?.id)
-                .filter(cid => cid && lineRegionsByContentId[cid]);
-              const canonicalFirstContentId = lineContentIds[0]
-                ?? seqSetsBySource[0]?.contents?.[0]?.id
-                ?? null;
               return (
                 <OmenBlock
                   key={seq} omenSeq={seq} omenType={seqSets[0]?.type || 'omen'}
@@ -2149,8 +2258,6 @@ export default function ArtifactDisplay() {
                   contributions={contributions} onAddContribution={addContribution}
                   grouping={grouping} editProps={editProps}
                   lineRegionsByContentId={lineRegionsByContentId}
-                  lineContentIds={lineContentIds}
-                  canonicalFirstContentId={canonicalFirstContentId}
                 />
               );
             })
