@@ -21,8 +21,7 @@ function ArtifactCard({ artifact }) {
     artifact.material?.split(',')[0]?.trim(),
   ].filter(Boolean);
 
-  const meta = [artifact.origin_date, artifact.discovery_date ? `discovered ${artifact.discovery_date}` : null]
-    .filter(Boolean).join(' · ');
+  const meta = [artifact.origin_date, artifact.location?.name].filter(Boolean).join(' · ');
 
   return (
     <a href={`/artifact/${artifact.shortname}`} className="hp-artifact-card">
@@ -75,11 +74,9 @@ function MainPage() {
       <section className="hp-hero">
         <RunicGrid />
         <div className="hp-hero-content">
-          <div className="hp-eyebrow">Digital Research Platform</div>
           <h1 className="hp-title">Digital Palaeography</h1>
           <p className="hp-desc">
-            Browse, read, and analyse ancient inscriptions and manuscripts.
-            Multi-source scholarly commentary, morphological annotation, and geographic context.
+            Browse, read, and analyse ancient inscriptions and manuscripts with multi-source scholarly commentary and morphological annotation.
           </p>
           <div className="hp-hero-btns">
             <a href="/directory" className="hp-btn-primary">Browse corpus</a>
@@ -102,8 +99,11 @@ function MainPage() {
       {/* ── Artifacts ── */}
       <section className="hp-section">
         <div className="hp-section-header">
-          <span className="hp-section-label">Artifacts in this corpus</span>
-          <span className="hp-section-count">{artifacts.length}</span>
+          <span className="hp-section-label">
+            Artifacts in this corpus
+            <span className="hp-section-count" style={{ marginLeft: 8 }}>{artifacts.length}</span>
+          </span>
+          <a href="/directory" className="hp-section-view-all">View all →</a>
         </div>
         <div className="hp-artifact-grid">
           {artifacts.map(a => <ArtifactCard key={a.id} artifact={a} />)}
@@ -113,17 +113,22 @@ function MainPage() {
       {/* ── Features strip ── */}
       <div className="hp-features">
         {[
-          { icon: 'ti ti-align-left',  title: 'Multi-source analysis',    desc: 'Compare translations, transliterations, and transcriptions from multiple scholars side by side with flexible layer and author grouping.' },
-          { icon: 'ti ti-search',      title: 'Concordance search',        desc: 'Search across all annotated texts by word form, transliteration, or translation with instant cross-corpus results.' },
-          { icon: 'ti ti-edit',        title: 'Community contribution',    desc: 'Add your own analysis, translations, or morphological annotations alongside established scholarly editions.' },
+          { title: 'Multi-source analysis',    desc: 'Compare translations, transliterations, and transcriptions from multiple scholars side by side with flexible layer and author grouping.' },
+          { title: 'Concordance search',        desc: 'Search across all annotated texts by word form, transliteration, or translation with instant cross-corpus results.' },
+          { title: 'Community contribution',    desc: 'Add your own analysis, translations, or morphological annotations alongside established scholarly editions.' },
         ].map(f => (
           <div key={f.title} className="hp-feature">
-            <i className={`${f.icon} hp-feature-icon`} />
             <div className="hp-feature-title">{f.title}</div>
             <div className="hp-feature-desc">{f.desc}</div>
           </div>
         ))}
       </div>
+
+      {/* footer */}
+      <footer className="hp-footer">
+        <span>Digital Palaeography</span>
+        <span>Open source</span>
+      </footer>
 
     </div>
   );

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { Group, Panel, Separator } from 'react-resizable-panels';
 import { CButton } from '@coreui/react';
 import { useParams, useSearchParams } from 'react-router-dom';
 
@@ -722,7 +723,7 @@ function CompareDiffPanel({ rows, sources, onClose }) {
   );
 }
 
-function OmenLayerGroup({ l, activeRows, extraContribs, omenSeq, sources, editProps }) {
+function OmenLayerGroup({ l, activeRows, omenSeq, sources, editProps }) {
   const [pinnedKey, setPinnedKey] = useState(null);
   const hasMultiple = activeRows.length > 1;
 
@@ -758,13 +759,6 @@ function OmenLayerGroup({ l, activeRows, extraContribs, omenSeq, sources, editPr
               editProps={editProps}
               pinProps={pinProps}
             />
-          ))}
-          {extraContribs.map((c, i) => (
-            <div key={`c-${i}`} className="author-line author-community"
-              style={{ borderLeft: `2px solid ${COMMUNITY_COLOR.border}`, background: COMMUNITY_COLOR.row }}>
-              <span className="author-dot" style={{ color: COMMUNITY_COLOR.border }}>●</span>
-              <span className={`v2-layer-text v2-text-${l.key}`}>{c.text}</span>
-            </div>
           ))}
         </div>
       </div>
@@ -925,11 +919,10 @@ function ResizableCrop({ src, sel, color, label }) {
 }
 
 // Unified omen block supports entry-layer-author and entry-author-layer grouping modes.
-function OmenBlock({ omenSeq, omenType, sets, sources, colorMap, contributions, onAddContribution, grouping, editProps, lineRegionsByContentId }) {
+function OmenBlock({ omenSeq, omenType, sets, sources, colorMap, grouping, editProps, lineRegionsByContentId }) {
   const label = omenType === 'omen' ? `Omen ${omenSeq}` : `Line ${omenSeq}`;
   const firstSet = sets[0];
   const morphs = firstSet?.morphs || [];
-  const contribs = contributions[omenSeq] || [];
   const contentLayers = LAYERS.filter(l => !l.isMorph);
 
   // Build both structures up front
@@ -948,13 +941,6 @@ function OmenBlock({ omenSeq, omenType, sets, sources, colorMap, contributions, 
       byLayer[l.key].push({ sourceId: String(set.source_id), color, text: entry?.text || null, dir: entry?.dir || null, contentType: entry?.contentType || null });
     });
     bySrc[String(set.source_id)] = { color, contentByLayer };
-  });
-
-  const contribsByLayer = {};
-  contribs.forEach(c => {
-    const lk = c.layer === 'transliteration' ? 'translit' : c.layer;
-    if (!contribsByLayer[lk]) contribsByLayer[lk] = [];
-    contribsByLayer[lk].push(c);
   });
 
   // detect RTL from the script layer of the first set
@@ -996,11 +982,10 @@ function OmenBlock({ omenSeq, omenType, sets, sources, colorMap, contributions, 
         <>
           {contentLayers.map(l => {
             const activeRows = byLayer[l.key].filter(r => r.text);
-            const extraContribs = contribsByLayer[l.key] || [];
-            if (activeRows.length === 0 && extraContribs.length === 0) return null;
+            if (activeRows.length === 0) return null;
             return (
               <OmenLayerGroup key={l.key}
-                l={l} activeRows={activeRows} extraContribs={extraContribs}
+                l={l} activeRows={activeRows}
                 omenSeq={omenSeq} sources={sources} editProps={editProps}
               />
             );
@@ -1241,7 +1226,7 @@ function LayerFirstView({ grouping, sets, sources, sourceIds, colorMap, editProp
 // Author -> Layer view: one section per author
 // grouping='author-layer'      -> Author -> Layer (all entries shown flat under each layer)
 // grouping='author-entry-layer' -> Author -> Entry -> Layer (per-entry sub-sections)
-function AuthorLayerView({ sets, sources, sourceIds, colorMap, contributions, onAddContribution, grouping, editProps }) {
+function AuthorLayerView({ sets, sources, sourceIds, colorMap, grouping, editProps }) {
   const contentLayers = LAYERS.filter(l => !l.isMorph);
   const morphAuthorId = sourceIds[0];
 
@@ -1999,6 +1984,110 @@ function MinimalToolbar({ sourceIds, sources, hiddenAuthors, onToggleAuthor, hid
   );
 }
 
+function ArtifactBreadcrumb({ artifactLabel }) {
+  return (
+    <div className="art-breadcrumb">
+      <a href="/directory" className="art-breadcrumb-back">
+        <i className="ti ti-arrow-left" /> Back to browse
+      </a>
+      <div className="art-breadcrumb-sep" />
+      <nav className="art-breadcrumb-nav" aria-label="breadcrumb">
+        <a href="/" className="art-breadcrumb-link">Home</a>
+        <span className="art-breadcrumb-arrow">›</span>
+        <a href="/directory" className="art-breadcrumb-link">Browse</a>
+        <span className="art-breadcrumb-arrow">›</span>
+        <span className="art-breadcrumb-current">{artifactLabel}</span>
+      </nav>
+    </div>
+  );
+}
+
+function ArtifactHeader({ artifact, allArtifacts, sourceIds, entryCount, headerRef }) {
+  const [showScrollHint, setShowScrollHint] = useState(true);
+
+  useEffect(() => {
+    const onScroll = () => {
+      if (headerRef?.current) {
+        setShowScrollHint(headerRef.current.getBoundingClientRect().bottom > 120);
+      }
+    };
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, [headerRef]);
+
+  const coverUri = artifact.cover_image?.uri
+    ? `/api/images/${artifact.cover_image.uri}`
+    : null;
+
+  const currentIdx = Array.isArray(allArtifacts)
+    ? allArtifacts.findIndex(a => a.id === artifact.id)
+    : -1;
+  const total = allArtifacts?.length ?? 0;
+  const prevArtifact = currentIdx > 0 ? allArtifacts[currentIdx - 1] : null;
+  const nextArtifact = currentIdx >= 0 && currentIdx < total - 1 ? allArtifacts[currentIdx + 1] : null;
+
+  const metaParts = [
+    artifact.origin_date,
+    artifact.location?.name,
+    artifact.script,
+  ].filter(Boolean);
+
+  return (
+    <div className="art-header" ref={headerRef}>
+      <div className="art-header-left">
+        <h1 className="art-header-title">{artifact.label}</h1>
+        {metaParts.length > 0 && (
+          <div className="art-header-meta">{metaParts.join(' · ')}</div>
+        )}
+        {(entryCount > 0 || sourceIds.length > 0) && (
+          <div className="art-header-counts">
+            {entryCount > 0 && `${entryCount} entr${entryCount === 1 ? 'y' : 'ies'}`}
+            {entryCount > 0 && sourceIds.length > 0 && ' · '}
+            {sourceIds.length > 0 && `${sourceIds.length} source${sourceIds.length === 1 ? '' : 's'}`}
+          </div>
+        )}
+        {showScrollHint && (
+          <div className="art-scroll-hint">
+            Scroll to explore the analysis ↓
+          </div>
+        )}
+        {(prevArtifact || nextArtifact) && (
+          <div className="art-header-nav">
+            {prevArtifact ? (
+              <a href={`/artifact/${prevArtifact.shortname}`} className="art-header-nav-btn">
+                {prevArtifact.cover_image?.uri && (
+                  <img src={`/api/images/${prevArtifact.cover_image.uri}`} alt=""
+                    className="art-nav-thumb"
+                    onError={e => { e.target.style.display = 'none'; }} />
+                )}
+                ← Prev
+              </a>
+            ) : <span className="art-header-nav-btn" style={{ opacity: 0.3, pointerEvents: 'none' }}>← Prev</span>}
+            <span className="art-header-nav-pos">{currentIdx + 1} of {total}</span>
+            {nextArtifact ? (
+              <a href={`/artifact/${nextArtifact.shortname}`} className="art-header-nav-btn">
+                {nextArtifact.cover_image?.uri && (
+                  <img src={`/api/images/${nextArtifact.cover_image.uri}`} alt=""
+                    className="art-nav-thumb"
+                    onError={e => { e.target.style.display = 'none'; }} />
+                )}
+                Next →
+              </a>
+            ) : <span className="art-header-nav-btn" style={{ opacity: 0.3, pointerEvents: 'none' }}>Next →</span>}
+          </div>
+        )}
+      </div>
+      <div className="art-header-right">
+        {coverUri
+          ? <img src={coverUri} alt={artifact.label} className="art-header-img"
+              onError={e => { e.target.style.display = 'none'; }} />
+          : <div className="art-header-placeholder"><i className="ti ti-photo" /></div>
+        }
+      </div>
+    </div>
+  );
+}
+
 export default function ArtifactDisplay() {
   const { shortName } = useParams();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -2079,7 +2168,6 @@ export default function ArtifactDisplay() {
     setSearchParams(p, { replace: true });
   }, [hiddenAuthors, hiddenLayers, hiddenLanguages, grouping]);
 
-  const [contributions, setContributions]   = useState({});
   const [lineOverrides, setLineOverrides]   = useState({});
   const [editLog, setEditLog]               = useState([]);
   const [activeEditor, setActiveEditor]     = useState(null);
@@ -2160,22 +2248,24 @@ export default function ArtifactDisplay() {
 
   const editProps = { lineOverrides, activeEditor, highlightedLine, openEditor, closeEditor, submitEdit, openHistory };
 
-  const [leftW,  setLeftW]  = useState(240);
-  const [rightW, setRightW] = useState(280);
+  const headerRef     = useRef(null);
+  const leftPanelRef  = useRef(null);
+  const rightPanelRef = useRef(null);
+  const [leftCollapsed,  setLeftCollapsed]  = useState(false);
+  const [rightCollapsed, setRightCollapsed] = useState(false);
 
-  const startDrag = useCallback((side, e) => {
-    e.preventDefault();
-    const startX = e.clientX;
-    const startW = side === 'left' ? leftW : rightW;
-    const setter  = side === 'left' ? setLeftW : setRightW;
-    const min = side === 'left' ? 120 : 200;
-    const max = side === 'left' ? 520 : 520;
-    const sign = side === 'left' ? 1 : -1;
-    const onMove = ev => setter(Math.max(min, Math.min(max, startW + sign * (ev.clientX - startX))));
-    const onUp   = () => { document.removeEventListener('mousemove', onMove); document.removeEventListener('mouseup', onUp); };
-    document.addEventListener('mousemove', onMove);
-    document.addEventListener('mouseup', onUp);
-  }, [leftW, rightW]);
+  useEffect(() => {
+    const onKey = e => {
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+      if (e.key === '[') {
+        leftCollapsed ? leftPanelRef.current?.expand() : leftPanelRef.current?.collapse();
+      } else if (e.key === ']') {
+        rightCollapsed ? rightPanelRef.current?.expand() : rightPanelRef.current?.collapse();
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [leftCollapsed, rightCollapsed]);
 
   const toggleAuthor = useCallback(id => {
     setHiddenAuthors(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
@@ -2189,9 +2279,6 @@ export default function ArtifactDisplay() {
     setHiddenLanguages(prev => { const n = new Set(prev); n.has(code) ? n.delete(code) : n.add(code); return n; });
   }, []);
 
-  const addContribution = useCallback((omenSeq, data) => {
-    setContributions(prev => ({ ...prev, [omenSeq]: [...(prev[omenSeq] || []), data] }));
-  }, []);
 
   if (!artifact) return <div className="loading-wrap">Loading…</div>;
 
@@ -2213,81 +2300,131 @@ export default function ArtifactDisplay() {
   ].filter(Boolean).join(' ');
 
   return (
-    <div className="v2-viewer-layout" style={{ gridTemplateColumns: `${leftW}px 4px 1fr 4px ${rightW}px` }}>
-      <ManuscriptPanel artifact={artifact} groups={imageGroups} hiddenAuthors={hiddenAuthors} activeSourceIds={activeSourceIds} sources={sources} />
-      <div className="v2-resize-handle" onMouseDown={e => startDrag('left', e)} />
-
-      <div className="v2-center-panel">
-        <MinimalToolbar
-          sourceIds={sourceIds}
-          sources={sources}
-          hiddenAuthors={hiddenAuthors}
-          onToggleAuthor={toggleAuthor}
-          hiddenLayers={hiddenLayers}
-          onToggleLayer={toggleLayer}
-          grouping={grouping}
-          onGroupingChange={setGrouping}
-          colorMap={colorMap}
-          sourcesWithImages={sourcesWithImages}
-          allLanguages={allLanguages}
-          hiddenLanguages={hiddenLanguages}
-          onToggleLang={toggleLanguage}
-        />
-
-        <div className={`v2-text-display ${hideClasses}`}>
-          {(grouping === 'author-layer' || grouping === 'author-entry-layer') ? (
-            <AuthorLayerView
-              sets={activeSets} sources={sources} sourceIds={activeSourceIds}
-              colorMap={colorMap} contributions={contributions} onAddContribution={addContribution}
-              grouping={grouping} editProps={editProps}
-            />
-          ) : (grouping === 'layer-entry-author' || grouping === 'layer-author-entry') ? (
-            <LayerFirstView
-              grouping={grouping} sets={activeSets} sources={sources}
-              sourceIds={activeSourceIds} colorMap={colorMap} editProps={editProps}
-            />
-          ) : (
-            omenSeqs.map(seq => {
-              const seqSets = activeSets
-                .filter(s => s.seq === seq)
-                .sort((a, b) => sourceIds.indexOf(String(a.source_id)) - sourceIds.indexOf(String(b.source_id)));
-              return (
-                <OmenBlock
-                  key={seq} omenSeq={seq} omenType={seqSets[0]?.type || 'omen'}
-                  sets={seqSets} sources={sources} colorMap={colorMap}
-                  contributions={contributions} onAddContribution={addContribution}
-                  grouping={grouping} editProps={editProps}
-                  lineRegionsByContentId={lineRegionsByContentId}
-                />
-              );
-            })
-          )}
-
-          {sourceIds.length > 0 && (
-            <div className="v2-references">
-              <div className="v2-references-title">References</div>
-              {sourceIds.map(id => {
-                const src = sources[id];
-                if (!src) return null;
-                return (
-                  <div key={id} className="v2-reference-entry">
-                    <span className="v2-ref-author">{src.author}</span>
-                    {src.date_published && <span className="v2-ref-date"> ({src.date_published}). </span>}
-                    {src.title && <span className="v2-ref-title">{src.title}.</span>}
-                  </div>
-                );
-              })}
+    <div className="art-viewer-wrap">
+      <ArtifactBreadcrumb artifactLabel={artifact.label} />
+      <ArtifactHeader
+        artifact={artifact}
+        allArtifacts={allArtifacts}
+        sourceIds={sourceIds}
+        entryCount={omenSeqs.length}
+        headerRef={headerRef}
+      />
+      <div className="art-panel-wrap">
+      <Group orientation="horizontal">
+        <Panel
+          panelRef={leftPanelRef}
+          defaultSize="18%"
+          minSize="8%"
+          collapsible
+          collapsedSize="2.5%"
+          onResize={size => setLeftCollapsed(size.asPercentage <= 3)}
+        >
+          {leftCollapsed ? (
+            <div className="v2-panel-rail" onClick={() => leftPanelRef.current?.expand()} title="Expand manuscript panel ([ )">
+              <button className="v2-rail-toggle" aria-label="Expand manuscript panel">
+                <i className="fas fa-chevron-right" />
+              </button>
+              <span className="v2-rail-label">Manuscript</span>
             </div>
+          ) : (
+            <ManuscriptPanel artifact={artifact} groups={imageGroups} hiddenAuthors={hiddenAuthors} activeSourceIds={activeSourceIds} sources={sources} />
           )}
-        </div>
-      </div>
+        </Panel>
 
-      <div className="v2-resize-handle" onMouseDown={e => startDrag('right', e)} />
-      <DetailsPanel artifact={artifact} sources={sources} sourceIds={sourceIds} colorMap={colorMap}
-        editLog={editLog} lineOverrides={lineOverrides}
-        onUndoEdit={undoEdit} onFlagEdit={flagEdit} onViewInText={viewInText} onRestore={restoreVersion}
-        activeTab={rightTab} onTabChange={setRightTab}
-        historyFilter={historyFilter} onClearHistoryFilter={() => setHistoryFilter(null)} />
+        <Separator className="v2-resize-handle" />
+
+        <Panel minSize="20%">
+          <div className="v2-center-panel">
+            <MinimalToolbar
+              sourceIds={sourceIds}
+              sources={sources}
+              hiddenAuthors={hiddenAuthors}
+              onToggleAuthor={toggleAuthor}
+              hiddenLayers={hiddenLayers}
+              onToggleLayer={toggleLayer}
+              grouping={grouping}
+              onGroupingChange={setGrouping}
+              colorMap={colorMap}
+              sourcesWithImages={sourcesWithImages}
+              allLanguages={allLanguages}
+              hiddenLanguages={hiddenLanguages}
+              onToggleLang={toggleLanguage}
+            />
+
+            <div className={`v2-text-display ${hideClasses}`}>
+              {(grouping === 'author-layer' || grouping === 'author-entry-layer') ? (
+                <AuthorLayerView
+                  sets={activeSets} sources={sources} sourceIds={activeSourceIds}
+                  colorMap={colorMap} grouping={grouping} editProps={editProps}
+                />
+              ) : (grouping === 'layer-entry-author' || grouping === 'layer-author-entry') ? (
+                <LayerFirstView
+                  grouping={grouping} sets={activeSets} sources={sources}
+                  sourceIds={activeSourceIds} colorMap={colorMap} editProps={editProps}
+                />
+              ) : (
+                omenSeqs.map(seq => {
+                  const seqSets = activeSets
+                    .filter(s => s.seq === seq)
+                    .sort((a, b) => sourceIds.indexOf(String(a.source_id)) - sourceIds.indexOf(String(b.source_id)));
+                  return (
+                    <OmenBlock
+                      key={seq} omenSeq={seq} omenType={seqSets[0]?.type || 'omen'}
+                      sets={seqSets} sources={sources} colorMap={colorMap}
+                      grouping={grouping} editProps={editProps}
+                      lineRegionsByContentId={lineRegionsByContentId}
+                    />
+                  );
+                })
+              )}
+
+              {sourceIds.length > 0 && (
+                <div className="v2-references">
+                  <div className="v2-references-title">References</div>
+                  {sourceIds.map(id => {
+                    const src = sources[id];
+                    if (!src) return null;
+                    return (
+                      <div key={id} className="v2-reference-entry">
+                        <span className="v2-ref-author">{src.author}</span>
+                        {src.date_published && <span className="v2-ref-date"> ({src.date_published}). </span>}
+                        {src.title && <span className="v2-ref-title">{src.title}.</span>}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+        </Panel>
+
+        <Separator className="v2-resize-handle" />
+
+        <Panel
+          panelRef={rightPanelRef}
+          defaultSize="22%"
+          minSize="8%"
+          collapsible
+          collapsedSize="2.5%"
+          onResize={size => setRightCollapsed(size.asPercentage <= 3)}
+        >
+          {rightCollapsed ? (
+            <div className="v2-panel-rail v2-panel-rail-right" onClick={() => rightPanelRef.current?.expand()} title="Expand details panel (] )">
+              <button className="v2-rail-toggle" aria-label="Expand details panel">
+                <i className="fas fa-chevron-left" />
+              </button>
+              <span className="v2-rail-label">Details</span>
+            </div>
+          ) : (
+            <DetailsPanel artifact={artifact} sources={sources} sourceIds={sourceIds} colorMap={colorMap}
+              editLog={editLog} lineOverrides={lineOverrides}
+              onUndoEdit={undoEdit} onFlagEdit={flagEdit} onViewInText={viewInText} onRestore={restoreVersion}
+              activeTab={rightTab} onTabChange={setRightTab}
+              historyFilter={historyFilter} onClearHistoryFilter={() => setHistoryFilter(null)} />
+          )}
+        </Panel>
+      </Group>
+      </div>
     </div>
   );
 }
