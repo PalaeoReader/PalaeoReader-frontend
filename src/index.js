@@ -28,7 +28,7 @@ function App() {
   return (
     <div>
       <Router>
-        <header>
+        <header className="site-header">
           <NavBar />
         </header>
         <Routes>

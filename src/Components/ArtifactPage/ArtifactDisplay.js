@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Group, Panel, Separator } from 'react-resizable-panels';
 import { CButton } from '@coreui/react';
 import { useParams, useSearchParams } from 'react-router-dom';
 
@@ -1712,65 +1711,26 @@ function ManuscriptPanel({ artifact, groups, hiddenAuthors, activeSourceIds, sou
   );
 }
 
-function DetailsPanel({ artifact, sources, sourceIds, colorMap, editLog, lineOverrides, onUndoEdit, onFlagEdit, onViewInText, onRestore, activeTab, onTabChange, historyFilter, onClearHistoryFilter }) {
-  const tab = activeTab;
-  const setTab = onTabChange;
+function DetailsPanel({ colorMap, editLog, lineOverrides, onUndoEdit, onFlagEdit, onViewInText, onRestore, sources, sourceIds, historyFilter, onClearHistoryFilter }) {
   return (
     <div className="v2-details-panel">
-      <div className="detail-tab-bar">
-        <button className={`detail-tab${tab === 'details' ? ' active' : ''}`} onClick={() => setTab('details')}>Details</button>
-        <button className={`detail-tab${tab === 'history' ? ' active' : ''}`} onClick={() => setTab('history')}>
-          History {editLog?.length > 0 && <span className="edit-log-count">{editLog.length}</span>}
-        </button>
+      <div className="detail-panel-header">
+        <span className="detail-panel-title">History</span>
+        {editLog?.length > 0 && <span className="edit-log-count">{editLog.length}</span>}
       </div>
-      {tab === 'details' ? (
-        <div style={{ flex:1, overflowY:'auto', padding:'1rem 1.1rem' }}>
-          <div className="v2-meta-section">
-            <div className="v2-meta-header">Artifact Details</div>
-            {[
-              ['Script',     artifact.script],
-              ['Language',   artifact.language],
-              ['Date',       artifact.origin_date],
-              ['Material',   artifact.material],
-              ['Dimensions', artifact.dimensions],
-              ['Discovered', artifact.discovery_date],
-            ].filter(([, v]) => v).map(([k, v]) => (
-              <div key={k} className="v2-meta-row">
-                <span className="v2-meta-key">{k}</span>
-                <span className="v2-meta-val">{v}</span>
-              </div>
-            ))}
-          </div>
-          <div className="v2-meta-divider" />
-          <div className="v2-meta-section">
-            <div className="v2-meta-header">Sources</div>
-            {sourceIds.map(id => {
-              const src = sources[id];
-              if (!src) return null;
-              return (
-                <div key={id} className="v2-source-item">
-                  <div className="v2-source-item-author">{src.author}{src.date_published ? `, ${src.date_published}` : ''}</div>
-                  {src.title && <div className="v2-source-item-title">{src.title}</div>}
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      ) : (
-        <EditHistoryPanel
-          editLog={editLog || []}
-          lineOverrides={lineOverrides || {}}
-          onUndo={onUndoEdit}
-          onFlag={onFlagEdit}
-          onViewInText={onViewInText}
-          onRestore={onRestore}
-          colorMap={colorMap}
-          sources={sources}
-          sourceIds={sourceIds}
-          historyFilter={historyFilter}
-          onClearHistoryFilter={onClearHistoryFilter}
-        />
-      )}
+      <EditHistoryPanel
+        editLog={editLog || []}
+        lineOverrides={lineOverrides || {}}
+        onUndo={onUndoEdit}
+        onFlag={onFlagEdit}
+        onViewInText={onViewInText}
+        onRestore={onRestore}
+        colorMap={colorMap}
+        sources={sources}
+        sourceIds={sourceIds}
+        historyFilter={historyFilter}
+        onClearHistoryFilter={onClearHistoryFilter}
+      />
     </div>
   );
 }
@@ -2002,7 +1962,7 @@ function ArtifactBreadcrumb({ artifactLabel }) {
   );
 }
 
-function ArtifactHeader({ artifact, allArtifacts, sourceIds, entryCount, headerRef }) {
+function ArtifactHeader({ artifact, allArtifacts, sourceIds, sources, entryCount, headerRef }) {
   const [showScrollHint, setShowScrollHint] = useState(true);
 
   useEffect(() => {
@@ -2026,31 +1986,46 @@ function ArtifactHeader({ artifact, allArtifacts, sourceIds, entryCount, headerR
   const prevArtifact = currentIdx > 0 ? allArtifacts[currentIdx - 1] : null;
   const nextArtifact = currentIdx >= 0 && currentIdx < total - 1 ? allArtifacts[currentIdx + 1] : null;
 
-  const metaParts = [
-    artifact.origin_date,
-    artifact.location?.name,
-    artifact.script,
-  ].filter(Boolean);
+  const summaryParts = [artifact.origin_date, artifact.script, artifact.language].filter(Boolean);
+
+  const fullMeta = [
+    ['Script',      artifact.script],
+    ['Language',    artifact.language],
+    ['Date',        artifact.origin_date],
+    ['Material',    artifact.material],
+    ['Dimensions',  artifact.dimensions],
+    ['Discovered',  artifact.discovery_date],
+  ].filter(([, v]) => v);
 
   return (
     <div className="art-header" ref={headerRef}>
       <div className="art-header-left">
-        <h1 className="art-header-title">{artifact.label}</h1>
-        {metaParts.length > 0 && (
-          <div className="art-header-meta">{metaParts.join(' · ')}</div>
-        )}
-        {(entryCount > 0 || sourceIds.length > 0) && (
-          <div className="art-header-counts">
-            {entryCount > 0 && `${entryCount} entr${entryCount === 1 ? 'y' : 'ies'}`}
-            {entryCount > 0 && sourceIds.length > 0 && ' · '}
-            {sourceIds.length > 0 && `${sourceIds.length} source${sourceIds.length === 1 ? '' : 's'}`}
+        <div className="art-header-top">
+          <h1 className="art-header-title">{artifact.label}</h1>
+          <div className="art-header-meta">
+            {summaryParts.length > 0 && <span>{summaryParts.join(' · ')}</span>}
           </div>
-        )}
-        {showScrollHint && (
-          <div className="art-scroll-hint">
-            Scroll to explore the analysis ↓
+          <div className="art-meta-details">
+            {fullMeta.map(([k, v]) => (
+              <div key={k} className="art-meta-row">
+                <span className="art-meta-key">{k}</span>
+                <span className="art-meta-val">{v}</span>
+              </div>
+            ))}
+            {sourceIds.length > 0 && (
+              <div className="art-meta-row">
+                <span className="art-meta-key">Sources</span>
+                <span className="art-meta-val">
+                  {sourceIds.map(id => sources[id]?.shortname || `Source ${id}`).join(', ')}
+                </span>
+              </div>
+            )}
           </div>
-        )}
+        </div>
+        <div className={`art-scroll-hint${showScrollHint ? '' : ' art-scroll-hint-hidden'}`}>
+          <span>Scroll to explore the analysis</span>
+          <i className="fas fa-chevron-down scroll-cue-icon" />
+        </div>
         {(prevArtifact || nextArtifact) && (
           <div className="art-header-nav">
             {prevArtifact ? (
@@ -2172,7 +2147,6 @@ export default function ArtifactDisplay() {
   const [editLog, setEditLog]               = useState([]);
   const [activeEditor, setActiveEditor]     = useState(null);
   const [highlightedLine, setHighlightedLine] = useState(null);
-  const [rightTab, setRightTab]             = useState('details');
   const [historyFilter, setHistoryFilter]   = useState(null);
 
   // Non-stale refs for use inside callbacks
@@ -2229,8 +2203,12 @@ export default function ArtifactDisplay() {
     setTimeout(() => setHighlightedLine(null), 2000);
   }, []);
 
+  const headerRef      = useRef(null);
+  const [leftExpanded,  setLeftExpanded]  = useState(false);
+  const [rightExpanded, setRightExpanded] = useState(false);
+
   const openHistory = useCallback((lineKey, meta) => {
-    setRightTab('history');
+    setRightExpanded(true);
     if (!lineKey) { setHistoryFilter(null); return; }
     const entryLabel = `Entry ${parseInt(lineKey.split('-')[0])}`;
     setHistoryFilter(prev => prev?.lineKey === lineKey ? null : { lineKey, entryLabel, ...meta });
@@ -2248,24 +2226,15 @@ export default function ArtifactDisplay() {
 
   const editProps = { lineOverrides, activeEditor, highlightedLine, openEditor, closeEditor, submitEdit, openHistory };
 
-  const headerRef     = useRef(null);
-  const leftPanelRef  = useRef(null);
-  const rightPanelRef = useRef(null);
-  const [leftCollapsed,  setLeftCollapsed]  = useState(false);
-  const [rightCollapsed, setRightCollapsed] = useState(false);
-
   useEffect(() => {
     const onKey = e => {
       if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
-      if (e.key === '[') {
-        leftCollapsed ? leftPanelRef.current?.expand() : leftPanelRef.current?.collapse();
-      } else if (e.key === ']') {
-        rightCollapsed ? rightPanelRef.current?.expand() : rightPanelRef.current?.collapse();
-      }
+      if (e.key === '[') setLeftExpanded(v => !v);
+      else if (e.key === ']') setRightExpanded(v => !v);
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [leftCollapsed, rightCollapsed]);
+  }, []);
 
   const toggleAuthor = useCallback(id => {
     setHiddenAuthors(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
@@ -2306,124 +2275,96 @@ export default function ArtifactDisplay() {
         artifact={artifact}
         allArtifacts={allArtifacts}
         sourceIds={sourceIds}
+        sources={sources}
         entryCount={omenSeqs.length}
         headerRef={headerRef}
       />
       <div className="art-panel-wrap">
-      <Group orientation="horizontal">
-        <Panel
-          panelRef={leftPanelRef}
-          defaultSize="18%"
-          minSize="8%"
-          collapsible
-          collapsedSize="2.5%"
-          onResize={size => setLeftCollapsed(size.asPercentage <= 3)}
-        >
-          {leftCollapsed ? (
-            <div className="v2-panel-rail" onClick={() => leftPanelRef.current?.expand()} title="Expand manuscript panel ([ )">
-              <button className="v2-rail-toggle" aria-label="Expand manuscript panel">
-                <i className="fas fa-chevron-right" />
-              </button>
-              <span className="v2-rail-label">Manuscript</span>
-            </div>
-          ) : (
-            <ManuscriptPanel artifact={artifact} groups={imageGroups} hiddenAuthors={hiddenAuthors} activeSourceIds={activeSourceIds} sources={sources} />
-          )}
-        </Panel>
-
-        <Separator className="v2-resize-handle" />
-
-        <Panel minSize="20%">
-          <div className="v2-center-panel">
-            <MinimalToolbar
-              sourceIds={sourceIds}
-              sources={sources}
-              hiddenAuthors={hiddenAuthors}
-              onToggleAuthor={toggleAuthor}
-              hiddenLayers={hiddenLayers}
-              onToggleLayer={toggleLayer}
-              grouping={grouping}
-              onGroupingChange={setGrouping}
-              colorMap={colorMap}
-              sourcesWithImages={sourcesWithImages}
-              allLanguages={allLanguages}
-              hiddenLanguages={hiddenLanguages}
-              onToggleLang={toggleLanguage}
-            />
-
-            <div className={`v2-text-display ${hideClasses}`}>
-              {(grouping === 'author-layer' || grouping === 'author-entry-layer') ? (
-                <AuthorLayerView
-                  sets={activeSets} sources={sources} sourceIds={activeSourceIds}
-                  colorMap={colorMap} grouping={grouping} editProps={editProps}
-                />
-              ) : (grouping === 'layer-entry-author' || grouping === 'layer-author-entry') ? (
-                <LayerFirstView
-                  grouping={grouping} sets={activeSets} sources={sources}
-                  sourceIds={activeSourceIds} colorMap={colorMap} editProps={editProps}
-                />
-              ) : (
-                omenSeqs.map(seq => {
-                  const seqSets = activeSets
-                    .filter(s => s.seq === seq)
-                    .sort((a, b) => sourceIds.indexOf(String(a.source_id)) - sourceIds.indexOf(String(b.source_id)));
-                  return (
-                    <OmenBlock
-                      key={seq} omenSeq={seq} omenType={seqSets[0]?.type || 'omen'}
-                      sets={seqSets} sources={sources} colorMap={colorMap}
-                      grouping={grouping} editProps={editProps}
-                      lineRegionsByContentId={lineRegionsByContentId}
-                    />
-                  );
-                })
-              )}
-
-              {sourceIds.length > 0 && (
-                <div className="v2-references">
-                  <div className="v2-references-title">References</div>
-                  {sourceIds.map(id => {
-                    const src = sources[id];
-                    if (!src) return null;
-                    return (
-                      <div key={id} className="v2-reference-entry">
-                        <span className="v2-ref-author">{src.author}</span>
-                        {src.date_published && <span className="v2-ref-date"> ({src.date_published}). </span>}
-                        {src.title && <span className="v2-ref-title">{src.title}.</span>}
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
+        <div className={`v2-side-panel v2-side-panel-left${leftExpanded ? ' expanded' : ''}`}>
+          <div className="v2-panel-rail" onClick={() => setLeftExpanded(v => !v)} title="Toggle manuscript panel ([ )">
+            <i className="ti ti-photo" style={{ fontSize: 15 }} />
+            <span className="v2-rail-label">Manuscript</span>
           </div>
-        </Panel>
+          <div className="v2-side-panel-content">
+            <ManuscriptPanel artifact={artifact} groups={imageGroups} hiddenAuthors={hiddenAuthors} activeSourceIds={activeSourceIds} sources={sources} />
+          </div>
+        </div>
 
-        <Separator className="v2-resize-handle" />
+        <div className="v2-center-panel">
+          <MinimalToolbar
+            sourceIds={sourceIds}
+            sources={sources}
+            hiddenAuthors={hiddenAuthors}
+            onToggleAuthor={toggleAuthor}
+            hiddenLayers={hiddenLayers}
+            onToggleLayer={toggleLayer}
+            grouping={grouping}
+            onGroupingChange={setGrouping}
+            colorMap={colorMap}
+            sourcesWithImages={sourcesWithImages}
+            allLanguages={allLanguages}
+            hiddenLanguages={hiddenLanguages}
+            onToggleLang={toggleLanguage}
+          />
 
-        <Panel
-          panelRef={rightPanelRef}
-          defaultSize="22%"
-          minSize="8%"
-          collapsible
-          collapsedSize="2.5%"
-          onResize={size => setRightCollapsed(size.asPercentage <= 3)}
-        >
-          {rightCollapsed ? (
-            <div className="v2-panel-rail v2-panel-rail-right" onClick={() => rightPanelRef.current?.expand()} title="Expand details panel (] )">
-              <button className="v2-rail-toggle" aria-label="Expand details panel">
-                <i className="fas fa-chevron-left" />
-              </button>
-              <span className="v2-rail-label">Details</span>
-            </div>
-          ) : (
-            <DetailsPanel artifact={artifact} sources={sources} sourceIds={sourceIds} colorMap={colorMap}
+          <div className={`v2-text-display ${hideClasses}`}>
+            {(grouping === 'author-layer' || grouping === 'author-entry-layer') ? (
+              <AuthorLayerView
+                sets={activeSets} sources={sources} sourceIds={activeSourceIds}
+                colorMap={colorMap} grouping={grouping} editProps={editProps}
+              />
+            ) : (grouping === 'layer-entry-author' || grouping === 'layer-author-entry') ? (
+              <LayerFirstView
+                grouping={grouping} sets={activeSets} sources={sources}
+                sourceIds={activeSourceIds} colorMap={colorMap} editProps={editProps}
+              />
+            ) : (
+              omenSeqs.map(seq => {
+                const seqSets = activeSets
+                  .filter(s => s.seq === seq)
+                  .sort((a, b) => sourceIds.indexOf(String(a.source_id)) - sourceIds.indexOf(String(b.source_id)));
+                return (
+                  <OmenBlock
+                    key={seq} omenSeq={seq} omenType={seqSets[0]?.type || 'omen'}
+                    sets={seqSets} sources={sources} colorMap={colorMap}
+                    grouping={grouping} editProps={editProps}
+                    lineRegionsByContentId={lineRegionsByContentId}
+                  />
+                );
+              })
+            )}
+
+            {sourceIds.length > 0 && (
+              <div className="v2-references">
+                <div className="v2-references-title">References</div>
+                {sourceIds.map(id => {
+                  const src = sources[id];
+                  if (!src) return null;
+                  return (
+                    <div key={id} className="v2-reference-entry">
+                      <span className="v2-ref-author">{src.author}</span>
+                      {src.date_published && <span className="v2-ref-date"> ({src.date_published}). </span>}
+                      {src.title && <span className="v2-ref-title">{src.title}.</span>}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className={`v2-side-panel v2-side-panel-right${rightExpanded ? ' expanded' : ''}`}>
+          <div className="v2-side-panel-content">
+            <DetailsPanel sources={sources} sourceIds={sourceIds} colorMap={colorMap}
               editLog={editLog} lineOverrides={lineOverrides}
               onUndoEdit={undoEdit} onFlagEdit={flagEdit} onViewInText={viewInText} onRestore={restoreVersion}
-              activeTab={rightTab} onTabChange={setRightTab}
               historyFilter={historyFilter} onClearHistoryFilter={() => setHistoryFilter(null)} />
-          )}
-        </Panel>
-      </Group>
+          </div>
+          <div className="v2-panel-rail v2-panel-rail-right" onClick={() => setRightExpanded(v => !v)} title="Toggle history panel (] )">
+            <i className="ti ti-history" style={{ fontSize: 15 }} />
+            <span className="v2-rail-label">History</span>
+          </div>
+        </div>
       </div>
     </div>
   );

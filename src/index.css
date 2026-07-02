@@ -65,6 +65,12 @@ a:hover { text-decoration: underline; }
 li { list-style: none; }
 button { cursor: pointer; font-family: 'Inter', sans-serif; }
 
+.site-header {
+  position: sticky;
+  top: 0;
+  z-index: 200;
+}
+
 /* navigation bar */
 .NavbarItems {
   display: flex;
@@ -72,9 +78,6 @@ button { cursor: pointer; font-family: 'Inter', sans-serif; }
   background: #1A1917;
   height: 48px;
   padding: 0 1.5rem;
-  position: sticky;
-  top: 0;
-  z-index: 200;
   border-bottom: 0.5px solid rgba(255,255,255,0.08);
 }
 
@@ -1409,7 +1412,8 @@ button { cursor: pointer; font-family: 'Inter', sans-serif; }
 .v2-center-panel {
   display: flex;
   flex-direction: column;
-  overflow: hidden;
+  flex: 1;
+  min-width: 0;
   border-right: 1px solid var(--v2-bd);
   background: #FFFFFF;
 }
@@ -1664,30 +1668,22 @@ button { cursor: pointer; font-family: 'Inter', sans-serif; }
 }
 
 /* Details / History tab bar */
-.detail-tab-bar {
-  display: flex;
-  border-bottom: 1px solid var(--v2-bd);
-  flex-shrink: 0;
-}
-.detail-tab {
-  flex: 1;
-  background: none;
-  border: none;
-  padding: 0.55rem 0.5rem;
-  font-size: 0.72rem;
-  font-family: 'Inter', sans-serif;
-  font-weight: 500;
-  color: var(--v2-text-3);
-  cursor: pointer;
-  border-bottom: 2px solid transparent;
-  transition: color 0.12s, border-color 0.12s;
+.detail-panel-header {
   display: flex;
   align-items: center;
-  justify-content: center;
-  gap: 0.35rem;
+  gap: 8px;
+  padding: 0.6rem 1rem;
+  border-bottom: 0.5px solid var(--v2-bd);
+  flex-shrink: 0;
 }
-.detail-tab:hover { color: var(--v2-text-2); }
-.detail-tab.active { color: var(--v2-text); border-bottom-color: var(--v2-gold); }
+.detail-panel-title {
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--text-muted);
+  font-family: 'Inter', sans-serif;
+  font-weight: 500;
+}
 
 .edit-log-count {
   background: var(--v2-bg-3);
@@ -3867,15 +3863,10 @@ button { cursor: pointer; font-family: 'Inter', sans-serif; }
 
 /* ── Panel wrapper — fixed height so PanelGroup can fill it ── */
 .art-panel-wrap {
-  height: calc(100vh - 88px); /* 48px navbar + 40px breadcrumb */
-  min-height: 360px;
-}
-
-/* Panel children fill their allocated panel height */
-.art-panel-wrap .v2-manuscript-panel,
-.art-panel-wrap .v2-center-panel,
-.art-panel-wrap .v2-details-panel {
-  height: 100%;
+  display: flex;
+  flex-direction: row;
+  align-items: stretch;
+  min-height: calc(100vh - 48px);
 }
 
 /* ── Collapsible panel rail ── */
@@ -3923,18 +3914,56 @@ button { cursor: pointer; font-family: 'Inter', sans-serif; }
   white-space: nowrap;
 }
 
+/* ── Side panel containers (click-to-expand strips) ── */
+.v2-side-panel {
+  display: flex;
+  flex-direction: row;
+  flex-shrink: 0;
+  overflow: hidden;
+  transition: width 0.2s ease;
+}
+
+.v2-side-panel-left {
+  width: 40px;
+}
+.v2-side-panel-left.expanded {
+  width: 320px;
+}
+
+.v2-side-panel-right {
+  width: 40px;
+}
+.v2-side-panel-right.expanded {
+  width: 340px;
+}
+
+.v2-side-panel-content {
+  flex: 1;
+  min-width: 0;
+  overflow-y: auto;
+}
+
+/* Rail needs fixed width inside the flex side panel */
+.v2-side-panel .v2-panel-rail {
+  width: 40px;
+  flex-shrink: 0;
+  height: auto;
+}
+
 /* ── Artifact page header — full-viewport landing ── */
 .art-header {
   display: grid;
-  grid-template-columns: 1fr 380px;
-  min-height: calc(100vh - 88px); /* 48px navbar + 40px breadcrumb */
+  grid-template-columns: 1fr 1fr;
+  min-height: 100vh;
+  overflow: visible;
   background: var(--surface-0);
 }
 
 .art-header-left {
   display: flex;
   flex-direction: column;
-  padding: 48px 40px 24px;
+  justify-content: center;
+  padding: 48px 56px;
 }
 
 .art-header-title {
@@ -3944,7 +3973,6 @@ button { cursor: pointer; font-family: 'Inter', sans-serif; }
   line-height: 1.1;
   color: var(--text-primary);
   margin: 0 0 14px 0;
-  margin-top: auto; /* equal space above and below title+meta block */
 }
 
 .art-header-meta {
@@ -3962,34 +3990,77 @@ button { cursor: pointer; font-family: 'Inter', sans-serif; }
   opacity: 0.7;
 }
 
-.art-scroll-hint {
-  font-size: 11px;
+
+.art-meta-details {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding-top: 12px;
+}
+.art-meta-row {
+  display: flex;
+  gap: 12px;
+  font-size: 13px;
+  font-family: 'Inter', sans-serif;
+  line-height: 1.4;
+}
+.art-meta-key {
   color: var(--text-muted);
+  min-width: 76px;
+  flex-shrink: 0;
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  padding-top: 2px;
+}
+.art-meta-val { color: var(--text-secondary); font-size: 13px; }
+.art-meta-sources { margin-top: 8px; }
+.art-meta-source-item { font-size: 11px; color: var(--text-muted); line-height: 1.4; }
+
+/* scroll invite stacked vertically and centered, pinned to bottom */
+.art-scroll-hint {
+  font-size: 14px;
+  color: var(--text-secondary);
   font-family: 'Inter', sans-serif;
   display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: 5px;
-  margin-top: auto; /* pushes hint + nav to bottom zone */
-  margin-bottom: 14px;
-  animation: art-hint-bob 2s ease-in-out infinite;
+  gap: 0;
+  align-self: center;
+  margin-top: auto;
+  padding-bottom: 40px;
   user-select: none;
 }
 
-@keyframes art-hint-bob {
-  0%, 100% { transform: translateY(0); opacity: 0.55; }
-  50%       { transform: translateY(4px); opacity: 0.9; }
+.art-scroll-hint-hidden {
+  visibility: hidden;
+}
+
+.scroll-cue-icon {
+  display: inline-block;
+  margin-top: 4px;
+  animation: bounce 1.4s ease-in-out infinite;
+  will-change: transform;
+}
+
+@keyframes bounce {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(6px); }
 }
 
 .art-header-right {
-  position: relative;
-  background: var(--surface-1);
+  position: sticky;
+  top: 0;
+  height: 100vh;
   overflow: hidden;
+  align-self: start;
 }
 
 .art-header-img {
   width: 100%;
   height: 100%;
   object-fit: cover;
+  object-position: center;
   display: block;
 }
 
@@ -4003,7 +4074,7 @@ button { cursor: pointer; font-family: 'Inter', sans-serif; }
   font-size: 32px;
 }
 
-/* ── Prev / Next nav — inline at bottom of left column ── */
+/* nav sits at bottom via space-between */
 .art-header-nav {
   display: flex;
   align-items: center;
@@ -4061,8 +4132,7 @@ button { cursor: pointer; font-family: 'Inter', sans-serif; }
     grid-template-rows: 50vh auto;
     min-height: auto;
   }
-  .art-header-right { order: -1; min-height: 50vh; }
+  .art-header-right { order: -1; position: relative; height: 50vh; align-self: auto; }
   .art-header-left { padding: 32px 24px 20px; }
-  .art-header-title { margin-top: 0; font-size: 28px; }
-  .art-scroll-hint { margin-top: 20px; }
+  .art-header-title { font-size: 28px; }
 }
