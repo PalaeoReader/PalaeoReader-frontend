@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { CButton } from '@coreui/react';
 import { useParams, useSearchParams } from 'react-router-dom';
+import IconButton from '../common/IconButton';
 
 
 function useFetch(url) {
@@ -19,12 +20,12 @@ function useFetch(url) {
 }
 
 const LAYERS = [
-  { key: 'script',        label: 'Script',       cls: 'layer-script',        isMorph: false },
-  { key: 'translit',      label: 'Translit.',    cls: 'layer-translit',      isMorph: false },
-  { key: 'transcription', label: 'Transcr.',     cls: 'layer-transcription', isMorph: false },
-  { key: 'translation',   label: 'Transl.',      cls: 'layer-translation',   isMorph: false },
-  { key: 'morph-transcr', label: 'Morph. form',  cls: 'layer-morph-transcr', isMorph: true  },
-  { key: 'morph-gloss',   label: 'Morph. gloss', cls: 'layer-morph-gloss',   isMorph: true  },
+  { key: 'script',        label: 'Script',       long: 'Script',          cls: 'layer-script',        isMorph: false },
+  { key: 'translit',      label: 'Translit.',    long: 'Transliteration', cls: 'layer-translit',      isMorph: false },
+  { key: 'transcription', label: 'Transcr.',     long: 'Transcription',   cls: 'layer-transcription', isMorph: false },
+  { key: 'translation',   label: 'Transl.',      long: 'Translation',     cls: 'layer-translation',   isMorph: false },
+  { key: 'morph-transcr', label: 'Morph. form',  long: 'Morph. form',     cls: 'layer-morph-transcr', isMorph: true  },
+  { key: 'morph-gloss',   label: 'Morph. gloss', long: 'Morph. gloss',    cls: 'layer-morph-gloss',   isMorph: true  },
 ];
 
 const COLOR_SLOTS = [
@@ -159,13 +160,10 @@ function EditableMorphLine({ lineKey, sourceId, color, morphs, sourceLabel, edit
       }
       {editProps && (
         <div className="line-btn-group">
-          <button className="clock-btn" onClick={e => { e.stopPropagation(); editProps.openHistory(lineKey, { sourceLabel, layerLabel: 'Morph. analysis' }); }}>
-            <i className="fas fa-clock" />
-          </button>
-          <button className="pencil-btn"
-            onClick={e => { e.stopPropagation(); editProps.openEditor(lineKey, { sourceId, layerKey: 'morph', layerLabel: 'Morph. analysis', sourceLabel }); }}>
-            <i className="fas fa-pen" />
-          </button>
+          <IconButton className="clock-btn" icon="fa-clock"
+            onClick={() => editProps.openHistory(lineKey, { sourceLabel, layerLabel: 'Morph. analysis' })} />
+          <IconButton className="pencil-btn" icon="fa-pen"
+            onClick={() => editProps.openEditor(lineKey, { sourceId, layerKey: 'morph', layerLabel: 'Morph. analysis', sourceLabel })} />
         </div>
       )}
     </div>
@@ -212,13 +210,10 @@ function EditableText({ lineKey, sourceId, layerKey, layerLabel, sourceLabel, co
       <span className={className} dir={effectiveDir}>{displayText}</span>
       {editProps && (
         <div className="line-btn-group">
-          <button className="clock-btn" onClick={e => { e.stopPropagation(); editProps.openHistory(lineKey, { sourceLabel, layerLabel }); }}>
-            <i className="fas fa-clock" />
-          </button>
-          <button className="pencil-btn"
-            onClick={e => { e.stopPropagation(); editProps.openEditor(lineKey, { sourceId, layerKey, layerLabel, sourceLabel }); }}>
-            <i className="fas fa-pen" />
-          </button>
+          <IconButton className="clock-btn" icon="fa-clock"
+            onClick={() => editProps.openHistory(lineKey, { sourceLabel, layerLabel })} />
+          <IconButton className="pencil-btn" icon="fa-pen"
+            onClick={() => editProps.openEditor(lineKey, { sourceId, layerKey, layerLabel, sourceLabel })} />
         </div>
       )}
     </div>
@@ -454,22 +449,16 @@ function EditableLine({ lineKey, sourceId, color, layerKey, text, isEdited, sour
       {(pinProps || editProps) && (
         <div className="line-btn-group">
           {pinProps && (
-            <button
-              className={`pin-btn${isPinned ? ' pin-btn-active' : ''}`}
-              onClick={e => { e.stopPropagation(); pinProps.onPin(lineKey); }}>
-              <i className="fas fa-thumbtack" />
-            </button>
+            <IconButton className={`pin-btn${isPinned ? ' pin-btn-active' : ''}`} icon="fa-thumbtack"
+              onClick={() => pinProps.onPin(lineKey)} />
           )}
           {editProps && (
-            <button className="clock-btn" onClick={e => { e.stopPropagation(); editProps.openHistory(lineKey, { sourceLabel, layerLabel }); }}>
-              <i className="fas fa-clock" />
-            </button>
+            <IconButton className="clock-btn" icon="fa-clock"
+              onClick={() => editProps.openHistory(lineKey, { sourceLabel, layerLabel })} />
           )}
           {editProps && (
-            <button className="pencil-btn"
-              onClick={e => { e.stopPropagation(); editProps.openEditor(lineKey, { sourceId, layerKey, layerLabel, sourceLabel }); }}>
-              <i className="fas fa-pen" />
-            </button>
+            <IconButton className="pencil-btn" icon="fa-pen"
+              onClick={() => editProps.openEditor(lineKey, { sourceId, layerKey, layerLabel, sourceLabel })} />
           )}
         </div>
       )}
@@ -1071,8 +1060,40 @@ function OmenBlock({ omenSeq, omenType, sets, sources, colorMap, grouping, editP
   );
 }
 
-// All supported grouping modes
-const GROUPING_MODES = {
+const GROUPING_LABELS = { author: 'Author', entry: 'Entry', layer: 'Layer' };
+
+// The "Group by ... then ..." setting. There are 3 dimensions (author, entry,
+// layer); picking the first two always determines the third automatically.
+class GroupingModel {
+  constructor(mode) {
+    this.mode = GroupingModel.MODES[mode] ? mode : 'entry-layer-author';
+  }
+
+  get first()      { return GroupingModel.MODES[this.mode][0];}
+  get second()     { return GroupingModel.MODES[this.mode][1];}
+  get third()      { return GroupingModel.MODES[this.mode][2]; }
+  get secondOpts() { return GroupingModel.SECOND_OPTS[this.first]; }
+
+  withFirst(v){
+    const opts = GroupingModel.SECOND_OPTS[v];
+    const second = opts.includes(this.second) ? this.second : opts[0];
+    return new GroupingModel(GroupingModel.resolve(v, second));
+  }
+
+  withSecond(v){
+    return new GroupingModel(GroupingModel.resolve(this.first, v));
+  }
+
+  static resolve(first, second){
+    const twoKey = `${first}-${second}`;
+    if (GroupingModel.MODES[twoKey]) return twoKey;
+    const third = ['author', 'entry', 'layer'].find(x => x !== first && x !== second);
+    const key = `${first}-${second}-${third}`;
+    return GroupingModel.MODES[key] ? key : 'entry-layer-author';
+  }
+}
+
+GroupingModel.MODES = {
   'author-layer':       ['author', 'layer',  null],
   'author-entry-layer': ['author', 'entry',  'layer'],
   'entry-layer-author': ['entry',  'layer',  'author'],
@@ -1080,65 +1101,7 @@ const GROUPING_MODES = {
   'layer-entry-author': ['layer',  'entry',  'author'],
   'layer-author-entry': ['layer',  'author', 'entry'],
 };
-const GROUPING_LABELS = { author: 'Author', entry: 'Entry', layer: 'Layer' };
-const SECOND_OPTS = { author: ['layer','entry'], entry: ['layer','author'], layer: ['entry','author'] };
-
-function resolveMode(first, second) {
-  const twoKey = `${first}-${second}`;
-  if (GROUPING_MODES[twoKey]) return twoKey;
-  const third = ['author','entry','layer'].find(x => x !== first && x !== second);
-  const key = `${first}-${second}-${third}`;
-  return GROUPING_MODES[key] ? key : 'entry-layer-author';
-}
-
-// Two-level hierarchical grouping control
-function GroupingControl({ grouping, onChange }) {
-  const [first, second] = GROUPING_MODES[grouping] || ['entry','layer','author'];
-  const secondOpts = SECOND_OPTS[first];
-
-  const setFirst = v => {
-    const newOpts = SECOND_OPTS[v];
-    const newSecond = newOpts.includes(second) ? second : newOpts[0];
-    onChange(resolveMode(v, newSecond));
-  };
-  const setSecond = v => onChange(resolveMode(first, v));
-
-  const badge = {
-    'author-layer':       'Author → Layer',
-    'author-entry-layer': 'Author → Entry → Layer',
-    'entry-layer-author': 'Entry → Layer → Author',
-    'entry-author-layer': 'Entry → Author → Layer',
-    'layer-entry-author': 'Layer → Entry → Author',
-    'layer-author-entry': 'Layer → Author → Entry',
-  }[grouping];
-
-  const third = GROUPING_MODES[grouping]?.[2];
-
-  return (
-    <div className="grouping-ctrl-wrap">
-      <div className="grouping-ctrl-row">
-        <span className="grouping-ctrl-label">Group by</span>
-        <div className="seg-ctrl">
-          {['author','entry','layer'].map(v => (
-            <button key={v} className={`seg-btn${first === v ? ' active' : ''}`} onClick={() => setFirst(v)}>
-              {GROUPING_LABELS[v]}
-            </button>
-          ))}
-        </div>
-        <span className="grouping-then">→ then</span>
-        <div className="seg-ctrl">
-          {secondOpts.map(v => (
-            <button key={v} className={`seg-btn${second === v ? ' active' : ''}`} onClick={() => setSecond(v)}>
-              {GROUPING_LABELS[v]}
-            </button>
-          ))}
-        </div>
-        {third && <span className="grouping-static">→ {GROUPING_LABELS[third]}</span>}
-        {badge && <span className="grouping-badge">{badge}</span>}
-      </div>
-    </div>
-  );
-}
+GroupingModel.SECOND_OPTS = { author: ['layer', 'entry'], entry: ['layer', 'author'], layer: ['entry', 'author'] };
 
 // Layer -> Entry -> Author  or  Layer -> Author -> Entry
 function LayerFirstView({ grouping, sets, sources, sourceIds, colorMap, editProps }) {
@@ -1363,112 +1326,6 @@ function AuthorLayerView({ sets, sources, sourceIds, colorMap, grouping, editPro
       </div>
     );
   });
-}
-
-// Legend bar maps color dot to author name, shown only when >1 author active
-function LegendBar({ sourceIds, sources, hiddenAuthors, colorMap }) {
-  const active = sourceIds.filter(id => !hiddenAuthors.has(id));
-  if (active.length <= 1) return null;
-  return (
-    <div className="legend-bar">
-      {active.map(id => {
-        const color = colorMap[id] || COLOR_SLOTS[0];
-        return (
-          <span key={id} className="legend-entry" style={{ borderLeft: `2px solid ${color.border}` }}>
-            <span className="legend-dot" style={{ color: color.border }}>●</span>
-            {srcLabel(sources[id], id)}
-          </span>
-        );
-      })}
-    </div>
-  );
-}
-
-// Author filter pills
-function AuthorFilterRow({ sourceIds, sources, hiddenAuthors, onToggle, colorMap }) {
-  return (
-    <div className="stk-filter-group">
-      <span className="stk-filter-label">Authors</span>
-      <div className="stk-pills">
-        {sourceIds.map(id => {
-          const color = colorMap[id] || COLOR_SLOTS[0];
-          const visible = !hiddenAuthors.has(id);
-          return (
-            <button
-              key={id}
-              className={`stk-pill${visible ? ' active' : ''}`}
-              style={visible ? { borderColor: color.border, background: color.bg, color: color.text } : {}}
-              onClick={() => onToggle(id)}
-              aria-pressed={visible}
-            >
-              {visible && <span className="pill-dot" style={{ color: color.border }}>●</span>}
-              {srcLabel(sources[id], id)}
-            </button>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
-// Layer filter pills
-function LayerFilterRow({ hiddenLayers, onToggle }) {
-  const morphVisible = !hiddenLayers.has('morph-transcr') && !hiddenLayers.has('morph-gloss');
-  const toggleMorph = () => {
-    onToggle('morph-transcr');
-    onToggle('morph-gloss');
-  };
-  return (
-    <div className="stk-filter-group">
-      <span className="stk-filter-label">Layers</span>
-      <div className="stk-pills">
-        {LAYERS.filter(l => !l.isMorph).map(l => {
-          const visible = !hiddenLayers.has(l.key);
-          return (
-            <button
-              key={l.key}
-              className={`stk-pill${visible ? ' active' : ''}`}
-              onClick={() => onToggle(l.key)}
-              aria-pressed={visible}
-            >
-              {l.label}
-            </button>
-          );
-        })}
-        <button
-          className={`stk-pill${morphVisible ? ' active' : ''}`}
-          onClick={toggleMorph}
-          aria-pressed={morphVisible}
-        >
-          Morph.
-        </button>
-      </div>
-    </div>
-  );
-}
-
-function LanguageFilterRow({ allLanguages, hiddenLanguages, onToggle }) {
-  if (!allLanguages || allLanguages.length <= 1) return null;
-  return (
-    <div className="stk-filter-group">
-      <span className="stk-filter-label">Language</span>
-      <div className="stk-pills">
-        {allLanguages.map(code => {
-          const visible = !hiddenLanguages.has(code);
-          return (
-            <button
-              key={code}
-              className={`stk-pill${visible ? ' active' : ''}`}
-              onClick={() => onToggle(code)}
-              aria-pressed={visible}
-            >
-              {LANG_LABELS[code] || code}
-            </button>
-          );
-        })}
-      </div>
-    </div>
-  );
 }
 
 const THUMB_VISIBLE = 3;
@@ -1749,12 +1606,9 @@ function MinimalToolbar({ sourceIds, sources, hiddenAuthors, onToggleAuthor, hid
   }, []);
 
   const layerItems = [
-    { key: 'script',        label: 'Script',          short: 'Script' },
-    { key: 'translit',      label: 'Transliteration', short: 'Translit.' },
-    { key: 'transcription', label: 'Transcription',   short: 'Transcr.' },
-    { key: 'translation',   label: 'Translation',     short: 'Transl.' },
-    { key: 'morph',         label: 'Morphology',      short: 'Morph.' },
-    { key: 'image',         label: 'Image',            short: 'Image' },
+    ...LAYERS.filter(l => !l.isMorph).map(l => ({ key: l.key, label: l.long, short: l.label })),
+    { key: 'morph', label: 'Morphology', short: 'Morph.' },
+    { key: 'image', label: 'Image',      short: 'Image' },
   ];
 
   const isLayerOn = key => key === 'morph'
@@ -1766,16 +1620,11 @@ function MinimalToolbar({ sourceIds, sources, hiddenAuthors, onToggleAuthor, hid
     else onToggleLayer(key);
   };
 
-  const [first, second] = GROUPING_MODES[grouping] || ['entry', 'layer', 'author'];
-  const secondOpts = SECOND_OPTS[first];
-  const third = GROUPING_MODES[grouping]?.[2];
+  const groupingModel = new GroupingModel(grouping);
+  const { first, second, third, secondOpts } = groupingModel;
 
-  const setFirst = v => {
-    const newOpts = SECOND_OPTS[v];
-    const newSecond = newOpts.includes(second) ? second : newOpts[0];
-    onGroupingChange(resolveMode(v, newSecond));
-  };
-  const setSecond = v => onGroupingChange(resolveMode(first, v));
+  const setFirst  = v => onGroupingChange(groupingModel.withFirst(v).mode);
+  const setSecond = v => onGroupingChange(groupingModel.withSecond(v).mode);
 
   const activeAuthorIds = sourceIds.filter(id => !hiddenAuthors.has(id));
   const activeLayerItems = layerItems.filter(l => isLayerOn(l.key));
@@ -1788,10 +1637,7 @@ function MinimalToolbar({ sourceIds, sources, hiddenAuthors, onToggleAuthor, hid
         <div className="mtb-row-pills">
           {activeAuthorIds.map(id => {
             const color = colorMap[id] || COLOR_SLOTS[0];
-            const src = sources[id];
-            const shortName = src
-              ? (src.date_published ? `${src.author.split(' ').pop()} ${src.date_published}` : src.author.split(' ').pop())
-              : `Source ${id}`;
+            const shortName = srcLabel(sources[id], id);
             return (
               <span key={id} className="mtb-pill" style={{ borderColor: color.border }}>
                 <span className="mtb-dot" style={{ color: color.border }}>●</span>
@@ -1815,11 +1661,8 @@ function MinimalToolbar({ sourceIds, sources, hiddenAuthors, onToggleAuthor, hid
               <div className="mtb-popover">
                 {sourceIds.map(id => {
                   const color = colorMap[id] || COLOR_SLOTS[0];
-                  const src = sources[id];
                   const selected = !hiddenAuthors.has(id);
-                  const label = src
-                    ? (src.date_published ? `${src.author.split(' ').pop()} ${src.date_published}` : src.author.split(' ').pop())
-                    : `Source ${id}`;
+                  const label = srcLabel(sources[id], id);
                   return (
                     <div
                       key={id}
