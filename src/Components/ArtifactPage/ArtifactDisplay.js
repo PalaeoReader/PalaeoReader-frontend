@@ -2,6 +2,8 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { CButton } from '@coreui/react';
 import { useParams, useSearchParams } from 'react-router-dom';
 import IconButton from '../common/IconButton';
+import Pill from '../common/Pill';
+import AddPopover from '../common/AddPopover';
 
 
 function useFetch(url) {
@@ -1066,7 +1068,7 @@ const GROUPING_LABELS = { author: 'Author', entry: 'Entry', layer: 'Layer' };
 // layer); picking the first two always determines the third automatically.
 class GroupingModel {
   constructor(mode) {
-    this.mode = GroupingModel.MODES[mode] ? mode : 'entry-layer-author';
+    this.mode = GroupingModel.MODES[mode] ? mode : 'author-entry-layer';
   }
 
   get first()      { return GroupingModel.MODES[this.mode][0];}
@@ -1089,7 +1091,7 @@ class GroupingModel {
     if (GroupingModel.MODES[twoKey]) return twoKey;
     const third = ['author', 'entry', 'layer'].find(x => x !== first && x !== second);
     const key = `${first}-${second}-${third}`;
-    return GroupingModel.MODES[key] ? key : 'entry-layer-author';
+    return GroupingModel.MODES[key] ? key : 'author-entry-layer';
   }
 }
 
@@ -1595,6 +1597,7 @@ function DetailsPanel({ colorMap, editLog, lineOverrides, onUndoEdit, onFlagEdit
 
 function MinimalToolbar({ sourceIds, sources, hiddenAuthors, onToggleAuthor, hiddenLayers, onToggleLayer, grouping, onGroupingChange, colorMap, sourcesWithImages, allLanguages, hiddenLanguages, onToggleLang }) {
   const [openPopover, setOpenPopover] = useState(null);
+  const togglePopover = id => setOpenPopover(p => p === id ? null : id);
   const ref = useRef(null);
 
   useEffect(() => {
@@ -1639,45 +1642,25 @@ function MinimalToolbar({ sourceIds, sources, hiddenAuthors, onToggleAuthor, hid
             const color = colorMap[id] || COLOR_SLOTS[0];
             const shortName = srcLabel(sources[id], id);
             return (
-              <span key={id} className="mtb-pill" style={{ borderColor: color.border }}>
-                <span className="mtb-dot" style={{ color: color.border }}>●</span>
+              <Pill key={id} dotColor={color.border} onRemove={() => onToggleAuthor(id)}>
                 {shortName}
                 {sourcesWithImages?.has(id) && (
                   <i className="fas fa-camera" style={{ fontSize: 10, color: 'var(--text-tertiary, #999)', marginLeft: 3 }} />
                 )}
-                <button className="mtb-pill-x" onClick={() => onToggleAuthor(id)}>✕</button>
-              </span>
+              </Pill>
             );
           })}
           {hiddenAuthors.size > 0 && (
-          <div className="mtb-add-wrap">
-            <button
-              className={`mtb-add-btn${openPopover === 'authors' ? ' mtb-open' : ''}`}
-              onClick={() => setOpenPopover(p => p === 'authors' ? null : 'authors')}
-            >
-              +
-            </button>
-            {openPopover === 'authors' && (
-              <div className="mtb-popover">
-                {sourceIds.map(id => {
-                  const color = colorMap[id] || COLOR_SLOTS[0];
-                  const selected = !hiddenAuthors.has(id);
-                  const label = srcLabel(sources[id], id);
-                  return (
-                    <div
-                      key={id}
-                      className={`mtb-pop-row${selected ? ' mtb-selected' : ''}`}
-                      onClick={() => onToggleAuthor(id)}
-                    >
-                      <span className="mtb-dot" style={{ color: color.border }}>●</span>
-                      <span className="mtb-pop-label">{label}</span>
-                      {selected && <i className="fas fa-check mtb-check" />}
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
+            <AddPopover
+              id="authors" openId={openPopover} onToggle={togglePopover}
+              items={sourceIds.map(id => ({
+                key: id,
+                selected: !hiddenAuthors.has(id),
+                onClick: () => onToggleAuthor(id),
+                dotColor: (colorMap[id] || COLOR_SLOTS[0]).border,
+                label: srcLabel(sources[id], id),
+              }))}
+            />
           )}
         </div>
       </div>
@@ -1688,34 +1671,20 @@ function MinimalToolbar({ sourceIds, sources, hiddenAuthors, onToggleAuthor, hid
           <span className="mtb-row-label">Language</span>
           <div className="mtb-row-pills">
             {allLanguages.filter(c => !hiddenLanguages.has(c)).map(code => (
-              <span key={code} className="mtb-pill">
+              <Pill key={code} onRemove={() => onToggleLang(code)}>
                 {LANG_LABELS[code] || code}
-                <button className="mtb-pill-x" onClick={() => onToggleLang(code)}>✕</button>
-              </span>
+              </Pill>
             ))}
             {hiddenLanguages.size > 0 && (
-            <div className="mtb-add-wrap">
-              <button
-                className={`mtb-add-btn${openPopover === 'languages' ? ' mtb-open' : ''}`}
-                onClick={() => setOpenPopover(p => p === 'languages' ? null : 'languages')}
-              >
-                +
-              </button>
-              {openPopover === 'languages' && (
-                <div className="mtb-popover">
-                  {allLanguages.map(code => {
-                    const selected = !hiddenLanguages.has(code);
-                    return (
-                      <div key={code} className={`mtb-pop-row${selected ? ' mtb-selected' : ''}`}
-                        onClick={() => onToggleLang(code)}>
-                        <span className="mtb-pop-label">{LANG_LABELS[code] || code}</span>
-                        {selected && <i className="fas fa-check mtb-check" />}
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
+              <AddPopover
+                id="languages" openId={openPopover} onToggle={togglePopover}
+                items={allLanguages.map(code => ({
+                  key: code,
+                  selected: !hiddenLanguages.has(code),
+                  onClick: () => onToggleLang(code),
+                  label: LANG_LABELS[code] || code,
+                }))}
+              />
             )}
           </div>
         </div>
@@ -1726,37 +1695,20 @@ function MinimalToolbar({ sourceIds, sources, hiddenAuthors, onToggleAuthor, hid
         <span className="mtb-row-label">Layers</span>
         <div className="mtb-row-pills">
           {activeLayerItems.map(l => (
-            <span key={l.key} className="mtb-pill">
+            <Pill key={l.key} onRemove={() => toggleLayer(l.key)}>
               {l.short}
-              <button className="mtb-pill-x" onClick={() => toggleLayer(l.key)}>✕</button>
-            </span>
+            </Pill>
           ))}
           {activeLayerItems.length < layerItems.length && (
-          <div className="mtb-add-wrap">
-            <button
-              className={`mtb-add-btn${openPopover === 'layers' ? ' mtb-open' : ''}`}
-              onClick={() => setOpenPopover(p => p === 'layers' ? null : 'layers')}
-            >
-              +
-            </button>
-            {openPopover === 'layers' && (
-              <div className="mtb-popover">
-                {layerItems.map(l => {
-                  const selected = isLayerOn(l.key);
-                  return (
-                    <div
-                      key={l.key}
-                      className={`mtb-pop-row${selected ? ' mtb-selected' : ''}`}
-                      onClick={() => toggleLayer(l.key)}
-                    >
-                      <span className="mtb-pop-label">{l.label}</span>
-                      {selected && <i className="fas fa-check mtb-check" />}
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
+            <AddPopover
+              id="layers" openId={openPopover} onToggle={togglePopover}
+              items={layerItems.map(l => ({
+                key: l.key,
+                selected: isLayerOn(l.key),
+                onClick: () => toggleLayer(l.key),
+                label: l.label,
+              }))}
+            />
           )}
         </div>
       </div>
@@ -1975,7 +1927,7 @@ export default function ArtifactDisplay() {
     const p = searchParams.get('hidden_languages');
     return p ? new Set(p.split(',')) : new Set();
   });
-  const [grouping, setGrouping] = useState(() => searchParams.get('grouping') || 'entry-layer-author');
+  const [grouping, setGrouping] = useState(() => searchParams.get('grouping') || 'author-entry-layer');
 
   useEffect(() => {
     const p = {};
