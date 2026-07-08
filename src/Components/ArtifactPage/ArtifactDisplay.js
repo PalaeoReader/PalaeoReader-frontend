@@ -121,7 +121,7 @@ function morphsToText(morphs) {
   }).join(' ');
 }
 
-function EditableMorphLine({ lineKey, sourceId, color, morphs, sourceLabel, editProps }) {
+function EditableMorphLine({ lineKey, sourceId, color, morphs, sourceLabel, editProps, bare, plain }) {
   const [hovered, setHovered] = useState(false);
   const isActive  = editProps?.activeEditor?.lineKey === lineKey;
   const isEdited  = lineKey in (editProps?.lineOverrides || {});
@@ -138,6 +138,44 @@ function EditableMorphLine({ lineKey, sourceId, color, morphs, sourceLabel, edit
         onSubmit={(newText, contributor) =>
           editProps.submitEdit(lineKey, newText, contributor, { sourceLabel, layerLabel: 'Morph. analysis', layerKey: 'morph', originalText: isEdited ? overrideText : morphsToText(morphs) })}
       />
+    );
+  }
+
+  // bare: rendered directly within an author-scoped row (label already identifies the
+  // author), so it mirrors EditableText's layout — no dot, no author-line indent.
+  if (bare) {
+    return (
+      <div
+        className="editable-text-wrap"
+        style={plain ? {
+          borderRadius: 2,
+          background: hovered ? 'var(--surface-1)' : undefined,
+          alignItems: 'flex-start',
+          position: 'relative',
+        } : {
+          outline: hovered && editProps ? `1px solid ${color.border}80` : 'none',
+          borderRadius: 2,
+          background: hovered && editProps ? color.bg : undefined,
+          alignItems: 'flex-start',
+          position: 'relative',
+        }}
+        onMouseEnter={() => setHovered(true)}
+        onMouseLeave={() => setHovered(false)}
+      >
+        {isEdited && <span className="line-edited-dot" />}
+        {isEdited
+          ? <span className="v2-layer-text">{overrideText}</span>
+          : <MorphInterlinear morphs={morphs} />
+        }
+        {editProps && (
+          <div className="line-btn-group">
+            <IconButton className="clock-btn" icon="fa-clock"
+              onClick={() => editProps.openHistory(lineKey, { sourceLabel, layerLabel: 'Morph. analysis' })} />
+            <IconButton className="pencil-btn" icon="fa-pen"
+              onClick={() => editProps.openEditor(lineKey, { sourceId, layerKey: 'morph', layerLabel: 'Morph. analysis', sourceLabel })} />
+          </div>
+        )}
+      </div>
     );
   }
 
@@ -172,7 +210,7 @@ function EditableMorphLine({ lineKey, sourceId, color, morphs, sourceLabel, edit
   );
 }
 
-function EditableText({ lineKey, sourceId, layerKey, layerLabel, sourceLabel, color, rawText, contentType, editProps, className, dir }) {
+function EditableText({ lineKey, sourceId, layerKey, layerLabel, sourceLabel, color, rawText, contentType, editProps, className, dir, plain }) {
   const [hovered, setHovered] = useState(false);
   const isActive  = editProps?.activeEditor?.lineKey === lineKey;
   const isEdited  = lineKey in (editProps?.lineOverrides || {});
@@ -199,7 +237,11 @@ function EditableText({ lineKey, sourceId, layerKey, layerLabel, sourceLabel, co
     <div
       className="editable-text-wrap"
       title={langTip ? `Language: ${langTip}` : undefined}
-      style={{
+      style={plain ? {
+        borderRadius: 2,
+        background: hovered ? 'var(--surface-1)' : undefined,
+        ...(isRtl ? { flexDirection: 'row-reverse' } : {}),
+      } : {
         outline: hovered && editProps ? `1px solid ${color.border}80` : 'none',
         borderRadius: 2,
         background: hovered && editProps ? color.bg : undefined,
@@ -908,6 +950,36 @@ function ResizableCrop({ src, sel, color, label }) {
   );
 }
 
+// Line-crop image selections for a single content set, keyed by its script content id.
+function getImgSels(set, lineRegionsByContentId) {
+  const cid = set.contents?.[0]?.id;
+  const regions = lineRegionsByContentId ? (lineRegionsByContentId[cid] || []) : [];
+  return regions.flatMap(r => (r.selections || []).filter(s => s.uri));
+}
+
+// Row of line-crop images for one source, always laid out right-to-left. By default it
+// carries its own colored left-border accent using the same convention (border-left +
+// padding-left + negative margin) as the text layer rows, so its border lines up with
+// the SCRIPT/TRANSLIT./etc. rows. Pass `bare` when the surrounding row container already
+// supplies that accent (e.g. an author-scoped row, mirroring how morph rows are rendered
+// there) so the border/offset isn't applied twice.
+function ImageCropRow({ color, sels, bare, style }) {
+  if (!sels || sels.length === 0) return null;
+  return (
+    <div style={{
+      display: 'flex', flexDirection: 'row', flexWrap: 'wrap', gap: 10,
+      direction: 'rtl',
+      alignItems: 'flex-start',
+      ...(bare ? {} : { borderLeft: `2px solid ${color.border}`, paddingLeft: 8, marginLeft: -8 }),
+      ...style,
+    }}>
+      {sels.map((sel, j) => (
+        <ResizableCrop key={j} src={`/api/images/${sel.uri}`} sel={sel} color={color} label={sel.label || ''} />
+      ))}
+    </div>
+  );
+}
+
 // Unified omen block supports entry-layer-author and entry-author-layer grouping modes.
 function OmenBlock({ omenSeq, omenType, sets, sources, colorMap, grouping, editProps, lineRegionsByContentId }) {
   const label = omenType === 'omen' ? `Omen ${omenSeq}` : `Line ${omenSeq}`;
@@ -933,16 +1005,11 @@ function OmenBlock({ omenSeq, omenType, sets, sources, colorMap, grouping, editP
     bySrc[String(set.source_id)] = { color, contentByLayer };
   });
 
-  // detect RTL from the script layer of the first set
-  const scriptText = sets[0]?.contents?.find(c => contentTypeToLayer(c.type) === 'script')?.text || '';
-  const isRtl = detectDir(scriptText) === 'rtl' || detectDir(scriptText) === 'auto';
-
-  const sourceImgRows = sets.map(set => {
-    const cid = set.contents?.[0]?.id;
-    const regions = lineRegionsByContentId ? (lineRegionsByContentId[cid] || []) : [];
-    const sels = regions.flatMap(r => (r.selections || []).filter(s => s.uri));
-    return { sourceId: String(set.source_id), color: colorMap[String(set.source_id)] || COLOR_SLOTS[0], sels };
-  }).filter(row => row.sels.length > 0);
+  const sourceImgRows = sets.map(set => ({
+    sourceId: String(set.source_id),
+    color: colorMap[String(set.source_id)] || COLOR_SLOTS[0],
+    sels: getImgSels(set, lineRegionsByContentId),
+  })).filter(row => row.sels.length > 0);
 
   return (
     <div className="v2-omen-block" id={`omen-${omenSeq}`}>
@@ -951,18 +1018,8 @@ function OmenBlock({ omenSeq, omenType, sets, sources, colorMap, grouping, editP
       {sourceImgRows.length > 0 && (
         <div className="layer-image" style={{ marginBottom: '0.75rem' }}>
           {sourceImgRows.map(({ sourceId, color, sels }, rowIdx) => (
-            <div key={sourceId} style={{
-              display: 'flex', flexDirection: 'row', flexWrap: 'wrap', gap: 10,
-              direction: isRtl ? 'rtl' : 'ltr',
-              alignItems: 'flex-start',
-              borderLeft: `3px solid ${color.border}`,
-              paddingLeft: 8,
-              marginBottom: rowIdx < sourceImgRows.length - 1 ? 8 : 0,
-            }}>
-              {sels.map((sel, j) => (
-                <ResizableCrop key={j} src={`/api/images/${sel.uri}`} sel={sel} color={color} label={sel.label || ''} />
-              ))}
-            </div>
+            <ImageCropRow key={sourceId} color={color} sels={sels}
+              style={{ marginBottom: rowIdx < sourceImgRows.length - 1 ? 8 : 0 }} />
           ))}
         </div>
       )}
@@ -1010,10 +1067,8 @@ function OmenBlock({ omenSeq, omenType, sets, sources, colorMap, grouping, editP
           const author = srcLabel(sources[srcId], srcId);
           const isMorphAuthor = srcId === String(firstSet?.source_id);
           return (
-            <div key={srcId} className={`author-block author-${srcId}`}
-              style={{ borderColor: `${color.border}40` }}>
-              <div className="author-block-header"
-                style={{ borderLeft: `3px solid ${color.border}`, background: color.bg }}>
+            <div key={srcId} className={`author-block author-${srcId}`}>
+              <div className="author-block-header" style={{ background: color.bg }}>
                 <span className="author-block-name" style={{ color: color.text }}>{author}</span>
               </div>
               {contentLayers.map(l => {
@@ -1023,6 +1078,7 @@ function OmenBlock({ omenSeq, omenType, sets, sources, colorMap, grouping, editP
                   <div key={l.key} className={`v2-layer-row-group author-block-row ${l.cls}`}>
                     <span className="v2-layer-row-label">{l.label}</span>
                     <EditableText
+                      plain
                       lineKey={`${omenSeq}-${srcId}-${l.key}`}
                       sourceId={srcId}
                       layerKey={l.key}
@@ -1041,16 +1097,16 @@ function OmenBlock({ omenSeq, omenType, sets, sources, colorMap, grouping, editP
               {isMorphAuthor && morphs.length > 0 && (
                 <div className="v2-layer-row-group author-block-row layer-morph-transcr layer-morph-gloss">
                   <span className="v2-layer-row-label">Morph.</span>
-                  <div className="v2-layer-authors">
-                    <EditableMorphLine
-                      lineKey={`${omenSeq}-morph-${firstSet?.source_id}`}
-                      sourceId={String(firstSet?.source_id)}
-                      color={colorMap[String(firstSet?.source_id)] || COLOR_SLOTS[0]}
-                      morphs={morphs}
-                      sourceLabel={srcLabel(sources[String(firstSet?.source_id)], String(firstSet?.source_id))}
-                      editProps={editProps}
-                    />
-                  </div>
+                  <EditableMorphLine
+                    bare
+                    plain
+                    lineKey={`${omenSeq}-morph-${firstSet?.source_id}`}
+                    sourceId={String(firstSet?.source_id)}
+                    color={colorMap[String(firstSet?.source_id)] || COLOR_SLOTS[0]}
+                    morphs={morphs}
+                    sourceLabel={srcLabel(sources[String(firstSet?.source_id)], String(firstSet?.source_id))}
+                    editProps={editProps}
+                  />
                 </div>
               )}
             </div>
@@ -1106,11 +1162,67 @@ GroupingModel.MODES = {
 GroupingModel.SECOND_OPTS = { author: ['layer', 'entry'], entry: ['layer', 'author'], layer: ['entry', 'author'] };
 
 // Layer -> Entry -> Author  or  Layer -> Author -> Entry
-function LayerFirstView({ grouping, sets, sources, sourceIds, colorMap, editProps }) {
+function LayerFirstView({ grouping, sets, sources, sourceIds, colorMap, editProps, lineRegionsByContentId }) {
   const contentLayers = LAYERS.filter(l => !l.isMorph);
   const omenSeqs = [...new Set(sets.map(s => s.seq))].sort((a, b) => a - b);
 
-  return contentLayers.map(layer => {
+  const imageSection = grouping === 'layer-entry-author' ? (() => {
+    const hasAny = omenSeqs.some(seq => sets.filter(s => s.seq === seq).some(s => getImgSels(s, lineRegionsByContentId).length > 0));
+    if (!hasAny) return null;
+    return (
+      <div key="image" className="layer-section layer-image">
+        <div className="layer-section-header">Image</div>
+        {omenSeqs.map(seq => {
+          const seqSets = sets.filter(s => s.seq === seq)
+            .sort((a, b) => sourceIds.indexOf(String(a.source_id)) - sourceIds.indexOf(String(b.source_id)));
+          const rows = seqSets.map(s => ({ sourceId: String(s.source_id), color: colorMap[String(s.source_id)] || COLOR_SLOTS[0], sels: getImgSels(s, lineRegionsByContentId) })).filter(r => r.sels.length > 0);
+          if (!rows.length) return null;
+          const entryLabel = seqSets[0]?.type === 'omen' ? `Omen ${seq}` : `Line ${seq}`;
+          return (
+            <div key={seq} className="layer-section-entry">
+              <div className="layer-section-entry-label-wrap">
+                <div className="layer-section-entry-label">{entryLabel}</div>
+              </div>
+              {rows.map(r => (
+                <ImageCropRow key={r.sourceId} color={r.color} sels={r.sels}
+                  style={{ marginLeft: 0, paddingLeft: '0.3rem' }} />
+              ))}
+            </div>
+          );
+        })}
+      </div>
+    );
+  })() : (() => {
+    const hasAny = sourceIds.some(srcId => sets.filter(s => String(s.source_id) === srcId).some(s => getImgSels(s, lineRegionsByContentId).length > 0));
+    if (!hasAny) return null;
+    return (
+      <div key="image" className="layer-section layer-image">
+        <div className="layer-section-header">Image</div>
+        {sourceIds.map(srcId => {
+          const color = colorMap[srcId] || COLOR_SLOTS[0];
+          const authorSets = sets.filter(s => String(s.source_id) === srcId).sort((a, b) => a.seq - b.seq);
+          const entries = authorSets.map(s => ({ seq: s.seq, type: s.type, sels: getImgSels(s, lineRegionsByContentId) })).filter(e => e.sels.length > 0);
+          if (!entries.length) return null;
+          const sourceLabel = srcLabel(sources[srcId], srcId);
+          return (
+            <div key={srcId} className={`author-block author-${srcId}`}>
+              <div className="author-block-header" style={{ background: color.bg }}>
+                <span className="author-block-name" style={{ color: color.text }}>{sourceLabel}</span>
+              </div>
+              {entries.map(e => (
+                <div key={e.seq} className="v2-layer-row-group author-block-row">
+                  <span className="v2-layer-row-label">{e.type === 'omen' ? `Omen ${e.seq}` : `Line ${e.seq}`}</span>
+                  <ImageCropRow bare color={color} sels={e.sels} />
+                </div>
+              ))}
+            </div>
+          );
+        })}
+      </div>
+    );
+  })();
+
+  return [imageSection, ...contentLayers.map(layer => {
     const layerKey = layer.key;
     const getContent = set => {
       const c = (set.contents || []).find(c => contentTypeToLayer(c.type) === layerKey);
@@ -1156,14 +1268,15 @@ function LayerFirstView({ grouping, sets, sources, sourceIds, colorMap, editProp
             if (!entries.length) return null;
             const sourceLabel = srcLabel(sources[srcId], srcId);
             return (
-              <div key={srcId} className={`author-block author-${srcId}`} style={{ borderColor: `${color.border}40` }}>
-                <div className="author-block-header" style={{ borderLeft: `3px solid ${color.border}`, background: color.bg }}>
+              <div key={srcId} className={`author-block author-${srcId}`}>
+                <div className="author-block-header" style={{ background: color.bg }}>
                   <span className="author-block-name" style={{ color: color.text }}>{sourceLabel}</span>
                 </div>
                 {entries.map(e => (
                   <div key={e.seq} className="v2-layer-row-group author-block-row">
                     <span className="v2-layer-row-label">{e.type === 'omen' ? `Omen ${e.seq}` : `Line ${e.seq}`}</span>
                     <EditableText
+                      plain
                       lineKey={`${e.seq}-${srcId}-${layerKey}`}
                       sourceId={srcId}
                       layerKey={layerKey}
@@ -1184,13 +1297,13 @@ function LayerFirstView({ grouping, sets, sources, sourceIds, colorMap, editProp
         </div>
       );
     }
-  });
+  })];
 }
 
 // Author -> Layer view: one section per author
 // grouping='author-layer'      -> Author -> Layer (all entries shown flat under each layer)
 // grouping='author-entry-layer' -> Author -> Entry -> Layer (per-entry sub-sections)
-function AuthorLayerView({ sets, sources, sourceIds, colorMap, grouping, editProps }) {
+function AuthorLayerView({ sets, sources, sourceIds, colorMap, grouping, editProps, lineRegionsByContentId }) {
   const contentLayers = LAYERS.filter(l => !l.isMorph);
   const morphAuthorId = sourceIds[0];
 
@@ -1209,13 +1322,29 @@ function AuthorLayerView({ sets, sources, sourceIds, colorMap, grouping, editPro
     if (grouping === 'author-layer') {
       // Author -> Layer: group all entries under each layer heading
       const morphs = isMorphAuthor ? authorSets.flatMap(s => s.morphs || []) : [];
+      const imageEntries = authorSets
+        .map(s => ({ seq: s.seq, sels: getImgSels(s, lineRegionsByContentId) }))
+        .filter(e => e.sels.length > 0);
       const layerHasAny = contentLayers.some(l =>
         authorSets.some(s => (s.contents || []).some(c => contentTypeToLayer(c.type) === l.key))
       );
-      if (!layerHasAny && morphs.length === 0) return null;
+      if (!layerHasAny && morphs.length === 0 && imageEntries.length === 0) return null;
       return (
         <div key={srcId} className={`author-section author-${srcId}`}>
           {header}
+          {imageEntries.length > 0 && (
+            <div className="v2-layer-row-group author-block-row layer-image">
+              <span className="v2-layer-row-label">Image</span>
+              <div className="v2-layer-authors">
+                {imageEntries.map(e => (
+                  <div key={e.seq} className="author-line-flat">
+                    <span className="entry-seq-tag">{e.seq}.</span>
+                    <ImageCropRow bare color={color} sels={e.sels} />
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
           {contentLayers.map(l => {
             const entries = authorSets.flatMap(s => {
               const c = (s.contents || []).find(c => contentTypeToLayer(c.type) === l.key);
@@ -1230,6 +1359,7 @@ function AuthorLayerView({ sets, sources, sourceIds, colorMap, grouping, editPro
                     <div key={e.seq} className="author-line-flat">
                       <span className="entry-seq-tag">{e.seq}.</span>
                       <EditableText
+                        plain
                         lineKey={`${e.seq}-${srcId}-${l.key}`}
                         sourceId={srcId}
                         layerKey={l.key}
@@ -1251,16 +1381,16 @@ function AuthorLayerView({ sets, sources, sourceIds, colorMap, grouping, editPro
           {morphs.length > 0 && (
             <div className="v2-layer-row-group author-block-row layer-morph-transcr layer-morph-gloss">
               <span className="v2-layer-row-label">Morph.</span>
-              <div className="v2-layer-authors">
-                <EditableMorphLine
-                  lineKey={`0-morph-${srcId}`}
-                  sourceId={srcId}
-                  color={color}
-                  morphs={morphs}
-                  sourceLabel={author}
-                  editProps={editProps}
-                />
-              </div>
+              <EditableMorphLine
+                bare
+                plain
+                lineKey={`0-morph-${srcId}`}
+                sourceId={srcId}
+                color={color}
+                morphs={morphs}
+                sourceLabel={author}
+                editProps={editProps}
+              />
             </div>
           )}
         </div>
@@ -1279,12 +1409,19 @@ function AuthorLayerView({ sets, sources, sourceIds, colorMap, grouping, editPro
             if (lk && !contentByLayer[lk]) contentByLayer[lk] = { text: c.text, dir: c.text_direction || null, contentType: c.type };
           });
           const morphs = isMorphAuthor ? (set.morphs || []) : [];
-          const hasAny = contentLayers.some(l => contentByLayer[l.key]) || morphs.length > 0;
+          const imgSels = getImgSels(set, lineRegionsByContentId);
+          const hasAny = contentLayers.some(l => contentByLayer[l.key]) || morphs.length > 0 || imgSels.length > 0;
           if (!hasAny) return null;
 
           return (
             <div key={set.id} className="author-section-entry">
               <div className="author-section-entry-label">{label}</div>
+              {imgSels.length > 0 && (
+                <div className="v2-layer-row-group author-block-row layer-image">
+                  <span className="v2-layer-row-label">Image</span>
+                  <ImageCropRow bare color={color} sels={imgSels} />
+                </div>
+              )}
               {contentLayers.map(l => {
                 const entry = contentByLayer[l.key];
                 if (!entry) return null;
@@ -1292,6 +1429,7 @@ function AuthorLayerView({ sets, sources, sourceIds, colorMap, grouping, editPro
                   <div key={l.key} className={`v2-layer-row-group author-block-row ${l.cls}`}>
                     <span className="v2-layer-row-label">{l.label}</span>
                     <EditableText
+                      plain
                       lineKey={`${set.seq}-${srcId}-${l.key}`}
                       sourceId={srcId}
                       layerKey={l.key}
@@ -1310,16 +1448,16 @@ function AuthorLayerView({ sets, sources, sourceIds, colorMap, grouping, editPro
               {morphs.length > 0 && (
                 <div className="v2-layer-row-group author-block-row layer-morph-transcr layer-morph-gloss">
                   <span className="v2-layer-row-label">Morph.</span>
-                  <div className="v2-layer-authors">
-                    <EditableMorphLine
-                      lineKey={`${set.seq}-morph-${srcId}`}
-                      sourceId={srcId}
-                      color={color}
-                      morphs={morphs}
-                      sourceLabel={author}
-                      editProps={editProps}
-                    />
-                  </div>
+                  <EditableMorphLine
+                    bare
+                    plain
+                    lineKey={`${set.seq}-morph-${srcId}`}
+                    sourceId={srcId}
+                    color={color}
+                    morphs={morphs}
+                    sourceLabel={author}
+                    editProps={editProps}
+                  />
                 </div>
               )}
             </div>
@@ -2107,11 +2245,13 @@ export default function ArtifactDisplay() {
               <AuthorLayerView
                 sets={activeSets} sources={sources} sourceIds={activeSourceIds}
                 colorMap={colorMap} grouping={grouping} editProps={editProps}
+                lineRegionsByContentId={lineRegionsByContentId}
               />
             ) : (grouping === 'layer-entry-author' || grouping === 'layer-author-entry') ? (
               <LayerFirstView
                 grouping={grouping} sets={activeSets} sources={sources}
                 sourceIds={activeSourceIds} colorMap={colorMap} editProps={editProps}
+                lineRegionsByContentId={lineRegionsByContentId}
               />
             ) : (
               omenSeqs.map(seq => {
