@@ -65,6 +65,12 @@ function srcLabel(src, id) {
   return src.date_published ? `${last} ${src.date_published}` : last;
 }
 
+// Strips a leading non-letter/non-digit prefix (e.g. the "(" in "(KazNPU) 2005")
+// so alphabetical sorting compares by the name itself, not incidental punctuation.
+function sortableName(label) {
+  return (label || '').replace(/^[^\p{L}\p{N}]+/u, '');
+}
+
 function MorphInterlinear({ morphs }) {
   if (!morphs || morphs.length === 0) return null;
 
@@ -957,20 +963,27 @@ function getImgSels(set, lineRegionsByContentId) {
   return regions.flatMap(r => (r.selections || []).filter(s => s.uri));
 }
 
-// Row of line-crop images for one source, always laid out right-to-left. By default it
-// carries its own colored left-border accent using the same convention (border-left +
-// padding-left + negative margin) as the text layer rows, so its border lines up with
-// the SCRIPT/TRANSLIT./etc. rows. Pass `bare` when the surrounding row container already
-// supplies that accent (e.g. an author-scoped row, mirroring how morph rows are rendered
-// there) so the border/offset isn't applied twice.
-function ImageCropRow({ color, sels, bare, style }) {
+// A set's reading direction, taken from its script (original) layer's text_direction.
+function getSetDir(set) {
+  const script = (set.contents || []).find(c => contentTypeToLayer(c.type) === 'script');
+  return script?.text_direction?.toLowerCase() === 'rtl' ? 'rtl' : 'ltr';
+}
+
+
+function ImageCropRow({ color, sels, dir, bare, style }) {
   if (!sels || sels.length === 0) return null;
+  const isRtl = dir === 'rtl';
   return (
     <div style={{
       display: 'flex', flexDirection: 'row', flexWrap: 'wrap', gap: 10,
-      direction: 'rtl',
+      direction: isRtl ? 'rtl' : 'ltr',
       alignItems: 'flex-start',
-      ...(bare ? {} : { borderLeft: `2px solid ${color.border}`, paddingLeft: 8, marginLeft: -8 }),
+      // In `bare` mode this row sits as a flex item next to a row-label sibling
+      // (e.g. the "IMAGE" label) rather than stretching to fill the row itself,
+      // so `direction: rtl` alone only reorders the crops relative to each other --
+      // it doesn't move the whole cluster to the row's right edge. Pull it there
+      // explicitly so RTL entries read right-to-left like their sibling text rows.
+      ...(bare ? { marginLeft: isRtl ? 'auto' : undefined } : { borderLeft: `2px solid ${color.border}`, paddingLeft: 8, marginLeft: -8 }),
       ...style,
     }}>
       {sels.map((sel, j) => (
@@ -1009,16 +1022,20 @@ function OmenBlock({ omenSeq, omenType, sets, sources, colorMap, grouping, editP
     sourceId: String(set.source_id),
     color: colorMap[String(set.source_id)] || COLOR_SLOTS[0],
     sels: getImgSels(set, lineRegionsByContentId),
+    dir: getSetDir(set),
   })).filter(row => row.sels.length > 0);
 
   return (
     <div className="v2-omen-block" id={`omen-${omenSeq}`}>
       <div className="v2-omen-label">{label}</div>
 
-      {sourceImgRows.length > 0 && (
+      {/* Grouped-by-author mode nests each source's image row inside its own
+          author block below, alongside that source's other layers, instead of
+          sharing this floating block above every block. */}
+      {grouping !== 'entry-author-layer' && sourceImgRows.length > 0 && (
         <div className="layer-image" style={{ marginBottom: '0.75rem' }}>
-          {sourceImgRows.map(({ sourceId, color, sels }, rowIdx) => (
-            <ImageCropRow key={sourceId} color={color} sels={sels}
+          {sourceImgRows.map(({ sourceId, color, sels, dir }, rowIdx) => (
+            <ImageCropRow key={sourceId} color={color} sels={sels} dir={dir}
               style={{ marginBottom: rowIdx < sourceImgRows.length - 1 ? 8 : 0 }} />
           ))}
         </div>
@@ -1066,11 +1083,18 @@ function OmenBlock({ omenSeq, omenType, sets, sources, colorMap, grouping, editP
           const { color, contentByLayer } = bySrc[srcId];
           const author = srcLabel(sources[srcId], srcId);
           const isMorphAuthor = srcId === String(firstSet?.source_id);
+          const imgSels = getImgSels(set, lineRegionsByContentId);
           return (
             <div key={srcId} className={`author-block author-${srcId}`}>
               <div className="author-block-header" style={{ background: color.bg }}>
                 <span className="author-block-name" style={{ color: color.text }}>{author}</span>
               </div>
+              {imgSels.length > 0 && (
+                <div className="v2-layer-row-group author-block-row layer-image">
+                  <span className="v2-layer-row-label">Image</span>
+                  <ImageCropRow bare color={color} sels={imgSels} dir={getSetDir(set)} />
+                </div>
+              )}
               {contentLayers.map(l => {
                 const entry = contentByLayer[l.key];
                 if (!entry) return null;
@@ -1162,9 +1186,10 @@ GroupingModel.MODES = {
 GroupingModel.SECOND_OPTS = { author: ['layer', 'entry'], entry: ['layer', 'author'], layer: ['entry', 'author'] };
 
 // Layer -> Entry -> Author  or  Layer -> Author -> Entry
-function LayerFirstView({ grouping, sets, sources, sourceIds, colorMap, editProps, lineRegionsByContentId }) {
+function LayerFirstView({ grouping, sets, sources, sourceIds, colorMap, editProps, lineRegionsByContentId, seqRank }) {
   const contentLayers = LAYERS.filter(l => !l.isMorph);
-  const omenSeqs = [...new Set(sets.map(s => s.seq))].sort((a, b) => a - b);
+  const bySeq = (seq) => seqRank?.get(seq) ?? seq;
+  const omenSeqs = [...new Set(sets.map(s => s.seq))].sort((a, b) => bySeq(a) - bySeq(b));
 
   const imageSection = grouping === 'layer-entry-author' ? (() => {
     const hasAny = omenSeqs.some(seq => sets.filter(s => s.seq === seq).some(s => getImgSels(s, lineRegionsByContentId).length > 0));
@@ -1175,7 +1200,7 @@ function LayerFirstView({ grouping, sets, sources, sourceIds, colorMap, editProp
         {omenSeqs.map(seq => {
           const seqSets = sets.filter(s => s.seq === seq)
             .sort((a, b) => sourceIds.indexOf(String(a.source_id)) - sourceIds.indexOf(String(b.source_id)));
-          const rows = seqSets.map(s => ({ sourceId: String(s.source_id), color: colorMap[String(s.source_id)] || COLOR_SLOTS[0], sels: getImgSels(s, lineRegionsByContentId) })).filter(r => r.sels.length > 0);
+          const rows = seqSets.map(s => ({ sourceId: String(s.source_id), color: colorMap[String(s.source_id)] || COLOR_SLOTS[0], sels: getImgSels(s, lineRegionsByContentId), dir: getSetDir(s) })).filter(r => r.sels.length > 0);
           if (!rows.length) return null;
           const entryLabel = seqSets[0]?.type === 'omen' ? `Omen ${seq}` : `Line ${seq}`;
           return (
@@ -1184,7 +1209,7 @@ function LayerFirstView({ grouping, sets, sources, sourceIds, colorMap, editProp
                 <div className="layer-section-entry-label">{entryLabel}</div>
               </div>
               {rows.map(r => (
-                <ImageCropRow key={r.sourceId} color={r.color} sels={r.sels}
+                <ImageCropRow key={r.sourceId} color={r.color} sels={r.sels} dir={r.dir}
                   style={{ marginLeft: 0, paddingLeft: '0.3rem' }} />
               ))}
             </div>
@@ -1200,8 +1225,8 @@ function LayerFirstView({ grouping, sets, sources, sourceIds, colorMap, editProp
         <div className="layer-section-header">Image</div>
         {sourceIds.map(srcId => {
           const color = colorMap[srcId] || COLOR_SLOTS[0];
-          const authorSets = sets.filter(s => String(s.source_id) === srcId).sort((a, b) => a.seq - b.seq);
-          const entries = authorSets.map(s => ({ seq: s.seq, type: s.type, sels: getImgSels(s, lineRegionsByContentId) })).filter(e => e.sels.length > 0);
+          const authorSets = sets.filter(s => String(s.source_id) === srcId).sort((a, b) => bySeq(a.seq) - bySeq(b.seq));
+          const entries = authorSets.map(s => ({ seq: s.seq, type: s.type, sels: getImgSels(s, lineRegionsByContentId), dir: getSetDir(s) })).filter(e => e.sels.length > 0);
           if (!entries.length) return null;
           const sourceLabel = srcLabel(sources[srcId], srcId);
           return (
@@ -1212,7 +1237,7 @@ function LayerFirstView({ grouping, sets, sources, sourceIds, colorMap, editProp
               {entries.map(e => (
                 <div key={e.seq} className="v2-layer-row-group author-block-row">
                   <span className="v2-layer-row-label">{e.type === 'omen' ? `Omen ${e.seq}` : `Line ${e.seq}`}</span>
-                  <ImageCropRow bare color={color} sels={e.sels} />
+                  <ImageCropRow bare color={color} sels={e.sels} dir={e.dir} />
                 </div>
               ))}
             </div>
@@ -1263,7 +1288,7 @@ function LayerFirstView({ grouping, sets, sources, sourceIds, colorMap, editProp
           <div className="layer-section-header">{layer.label}</div>
           {sourceIds.map(srcId => {
             const color = colorMap[srcId] || COLOR_SLOTS[0];
-            const authorSets = sets.filter(s => String(s.source_id) === srcId).sort((a, b) => a.seq - b.seq);
+            const authorSets = sets.filter(s => String(s.source_id) === srcId).sort((a, b) => bySeq(a.seq) - bySeq(b.seq));
             const entries = authorSets.map(s => ({ seq: s.seq, type: s.type, ...getContent(s) })).filter(e => e.text);
             if (!entries.length) return null;
             const sourceLabel = srcLabel(sources[srcId], srcId);
@@ -1303,14 +1328,18 @@ function LayerFirstView({ grouping, sets, sources, sourceIds, colorMap, editProp
 // Author -> Layer view: one section per author
 // grouping='author-layer'      -> Author -> Layer (all entries shown flat under each layer)
 // grouping='author-entry-layer' -> Author -> Entry -> Layer (per-entry sub-sections)
-function AuthorLayerView({ sets, sources, sourceIds, colorMap, grouping, editProps, lineRegionsByContentId }) {
+function AuthorLayerView({ sets, sources, sourceIds, colorMap, grouping, editProps, lineRegionsByContentId, seqRank }) {
   const contentLayers = LAYERS.filter(l => !l.isMorph);
-  const morphAuthorId = sourceIds[0];
+  // Independent of `sourceIds`' display order (which "Author A-Z" may have
+  // resorted alphabetically) -- morph authorship is a stable data fact, not a
+  // reflection of whichever author currently sorts first.
+  const morphAuthorId = String(sets[0]?.source_id);
+  const bySeq = (seq) => seqRank?.get(seq) ?? seq;
 
   return sourceIds.map(srcId => {
     const color  = colorMap[srcId] || COLOR_SLOTS[0];
     const author = srcLabel(sources[srcId], srcId);
-    const authorSets = sets.filter(s => String(s.source_id) === srcId).sort((a, b) => a.seq - b.seq);
+    const authorSets = sets.filter(s => String(s.source_id) === srcId).sort((a, b) => bySeq(a.seq) - bySeq(b.seq));
     const isMorphAuthor = srcId === morphAuthorId;
 
     const header = (
@@ -1323,7 +1352,7 @@ function AuthorLayerView({ sets, sources, sourceIds, colorMap, grouping, editPro
       // Author -> Layer: group all entries under each layer heading
       const morphs = isMorphAuthor ? authorSets.flatMap(s => s.morphs || []) : [];
       const imageEntries = authorSets
-        .map(s => ({ seq: s.seq, sels: getImgSels(s, lineRegionsByContentId) }))
+        .map(s => ({ seq: s.seq, sels: getImgSels(s, lineRegionsByContentId), dir: getSetDir(s) }))
         .filter(e => e.sels.length > 0);
       const layerHasAny = contentLayers.some(l =>
         authorSets.some(s => (s.contents || []).some(c => contentTypeToLayer(c.type) === l.key))
@@ -1339,7 +1368,7 @@ function AuthorLayerView({ sets, sources, sourceIds, colorMap, grouping, editPro
                 {imageEntries.map(e => (
                   <div key={e.seq} className="author-line-flat">
                     <span className="entry-seq-tag">{e.seq}.</span>
-                    <ImageCropRow bare color={color} sels={e.sels} />
+                    <ImageCropRow bare color={color} sels={e.sels} dir={e.dir} />
                   </div>
                 ))}
               </div>
@@ -1419,7 +1448,7 @@ function AuthorLayerView({ sets, sources, sourceIds, colorMap, grouping, editPro
               {imgSels.length > 0 && (
                 <div className="v2-layer-row-group author-block-row layer-image">
                   <span className="v2-layer-row-label">Image</span>
-                  <ImageCropRow bare color={color} sels={imgSels} />
+                  <ImageCropRow bare color={color} sels={imgSels} dir={getSetDir(set)} />
                 </div>
               )}
               {contentLayers.map(l => {
@@ -1732,6 +1761,51 @@ function DetailsPanel({ colorMap, editLog, lineOverrides, onUndoEdit, onFlagEdit
   );
 }
 
+
+const ENTRY_SORT_OPTIONS = [
+  { key: 'entry-order', label: 'Entry order' },
+  { key: 'author-az',   label: 'Author A–Z' },
+  { key: 'most-edited', label: 'Most edited' },
+];
+
+function EntrySortBar({ entryCount, sortMode, onSortChange }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+
+  useEffect(() => {
+    const onDown = e => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+    document.addEventListener('mousedown', onDown);
+    return () => document.removeEventListener('mousedown', onDown);
+  }, []);
+
+  const current = ENTRY_SORT_OPTIONS.find(o => o.key === sortMode) || ENTRY_SORT_OPTIONS[0];
+
+  return (
+    <div className="entry-sort-bar" ref={ref}>
+      <span className="entry-sort-count">{entryCount} entr{entryCount === 1 ? 'y' : 'ies'}</span>
+      <div className="entry-sort-trigger-wrap">
+        <button type="button" className="entry-sort-trigger" onClick={() => setOpen(v => !v)}>
+          sorted by {current.label.toLowerCase()}
+          <i className="fas fa-sort" />
+        </button>
+        {open && (
+          <div className="mtb-popover entry-sort-popover">
+            {ENTRY_SORT_OPTIONS.map(opt => (
+              <div
+                key={opt.key}
+                className={`mtb-pop-row${opt.key === sortMode ? ' mtb-selected' : ''}`}
+                onClick={() => { onSortChange(opt.key); setOpen(false); }}
+              >
+                <span className="mtb-pop-label">{opt.label}</span>
+                {opt.key === sortMode && <i className="fas fa-check mtb-check" />}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
 
 function MinimalToolbar({ sourceIds, sources, hiddenAuthors, onToggleAuthor, hiddenLayers, onToggleLayer, grouping, onGroupingChange, colorMap, sourcesWithImages, allLanguages, hiddenLanguages, onToggleLang }) {
   const [openPopover, setOpenPopover] = useState(null);
@@ -2066,6 +2140,7 @@ export default function ArtifactDisplay() {
     return p ? new Set(p.split(',')) : new Set();
   });
   const [grouping, setGrouping] = useState(() => searchParams.get('grouping') || 'author-entry-layer');
+  const [sortMode, setSortMode] = useState('entry-order');
 
   useEffect(() => {
     const p = {};
@@ -2196,6 +2271,37 @@ export default function ArtifactDisplay() {
   const activeSets = sets.filter(s => activeSourceSet.has(String(s.source_id)));
   const omenSeqs = [...new Set(activeSets.map(s => s.seq))].sort((a, b) => a - b);
 
+  const firstAuthorLabelBySeq = {};
+  omenSeqs.forEach(seq => {
+    const seqSets = activeSets.filter(s => s.seq === seq);
+    const coveringLabels = activeSourceIds
+      .filter(id => seqSets.some(s => String(s.source_id) === id))
+      .map(id => srcLabel(sources[id], id));
+    firstAuthorLabelBySeq[seq] = coveringLabels
+      .slice()
+      .sort((a, b) => sortableName(a).localeCompare(sortableName(b)))[0] || '';
+  });
+  const editCountBySeq = {};
+  editLog.forEach(e => { editCountBySeq[e.omenSeq] = (editCountBySeq[e.omenSeq] || 0) + 1; });
+
+  const sortedOmenSeqs = [...omenSeqs].sort((a, b) => {
+    switch (sortMode) {
+      case 'author-az':   return sortableName(firstAuthorLabelBySeq[a]).localeCompare(sortableName(firstAuthorLabelBySeq[b])) || a - b;
+      case 'most-edited': return (editCountBySeq[b] || 0) - (editCountBySeq[a] || 0) || a - b;
+      default:            return a - b;
+    }
+  });
+  const seqRank = new Map(sortedOmenSeqs.map((seq, i) => [seq, i]));
+
+  // "Author A-Z" is meant for browsing by scholar, so in author-grouped views
+  // it should reorder the author BLOCKS themselves (Washington, Thomsen, ...)
+  // alphabetically -- not just the entries nested inside an already-fixed
+  // author section, which barely moves anything a viewer would notice.
+  const displaySourceIds = sortMode === 'author-az'
+    ? [...activeSourceIds].sort((a, b) =>
+        sortableName(srcLabel(sources[a], a)).localeCompare(sortableName(srcLabel(sources[b], b))))
+    : activeSourceIds;
+
   const hideClasses = [
     ...[...hiddenLayers].map(k => `hide-layer-${k}`),
     isSingleAuthor ? 'single-author' : '',
@@ -2240,21 +2346,23 @@ export default function ArtifactDisplay() {
             onToggleLang={toggleLanguage}
           />
 
+          <EntrySortBar entryCount={omenSeqs.length} sortMode={sortMode} onSortChange={setSortMode} />
+
           <div className={`v2-text-display ${hideClasses}`}>
             {(grouping === 'author-layer' || grouping === 'author-entry-layer') ? (
               <AuthorLayerView
-                sets={activeSets} sources={sources} sourceIds={activeSourceIds}
+                sets={activeSets} sources={sources} sourceIds={displaySourceIds}
                 colorMap={colorMap} grouping={grouping} editProps={editProps}
-                lineRegionsByContentId={lineRegionsByContentId}
+                lineRegionsByContentId={lineRegionsByContentId} seqRank={seqRank}
               />
             ) : (grouping === 'layer-entry-author' || grouping === 'layer-author-entry') ? (
               <LayerFirstView
                 grouping={grouping} sets={activeSets} sources={sources}
-                sourceIds={activeSourceIds} colorMap={colorMap} editProps={editProps}
-                lineRegionsByContentId={lineRegionsByContentId}
+                sourceIds={displaySourceIds} colorMap={colorMap} editProps={editProps}
+                lineRegionsByContentId={lineRegionsByContentId} seqRank={seqRank}
               />
             ) : (
-              omenSeqs.map(seq => {
+              sortedOmenSeqs.map(seq => {
                 const seqSets = activeSets
                   .filter(s => s.seq === seq)
                   .sort((a, b) => sourceIds.indexOf(String(a.source_id)) - sourceIds.indexOf(String(b.source_id)));

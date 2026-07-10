@@ -3796,6 +3796,39 @@ button { cursor: pointer; font-family: 'Inter', sans-serif; }
   flex-wrap: wrap;
 }
 
+.entry-sort-bar {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 6px 14px;
+  font-size: 12px;
+  font-family: 'Inter', sans-serif;
+  color: var(--v2-text-3);
+}
+
+.entry-sort-count { white-space: nowrap; }
+
+.entry-sort-trigger-wrap { position: relative; }
+
+.entry-sort-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: none;
+  border: none;
+  padding: 0;
+  margin: 0;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+
+.entry-sort-trigger:hover { color: var(--v2-text-2); }
+
+.entry-sort-trigger .fa-sort { font-size: 10px; }
+
+.entry-sort-popover { min-width: 210px; }
+
 .hide-layer-image .layer-image { display: none; }
 
 /* Artifact viewer page */
