@@ -50,6 +50,10 @@
   --shadow-sm:   0 1px 4px rgba(0,0,0,0.06);
   --shadow:      0 3px 14px rgba(0,0,0,0.08);
   --shadow-lg:   0 8px 32px rgba(0,0,0,0.10);
+
+  --text-danger:   #9B2335;
+  --bg-danger:     rgba(155,35,53,0.07);
+  --border-danger: rgba(155,35,53,0.35);
 }
 
 body {
@@ -154,6 +158,104 @@ button { cursor: pointer; font-family: 'Inter', sans-serif; }
 .nav-search-btn:hover { color: #fff; text-decoration: none; }
 
 .MenuIcon { display: none; color: rgba(255,255,255,0.7); font-size: 1.1rem; align-self: center; }
+
+/* nav auth controls */
+.nav-auth-btns { display: flex; align-items: center; gap: 8px; }
+
+.nav-btn {
+  font-family: 'Inter', sans-serif;
+  font-size: 11px;
+  padding: 4px 12px;
+  border-radius: var(--radius);
+  line-height: 1.5;
+  white-space: nowrap;
+}
+.nav-btn:hover { text-decoration: none; }
+
+.nav-btn-outline {
+  border: 0.5px solid rgba(255,255,255,0.3);
+  background: none;
+  color: rgba(255,255,255,0.75);
+}
+.nav-btn-outline:hover { border-color: rgba(255,255,255,0.55); color: #fff; }
+
+.nav-btn-filled {
+  border: 0.5px solid transparent;
+  background: var(--surface-2);
+  color: var(--text-primary);
+}
+.nav-btn-filled:hover { background: #fff; color: var(--text-primary); }
+
+.user-menu { position: relative; }
+
+.user-menu-trigger {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: none;
+  border: none;
+  padding: 2px;
+  color: rgba(255,255,255,0.75);
+  font-family: 'Inter', sans-serif;
+}
+.user-menu-trigger:hover { color: #fff; }
+
+.user-avatar {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: var(--surface-0);
+  border: 0.5px solid var(--border);
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.user-menu-name { font-size: 12px; color: rgba(255,255,255,0.7); }
+
+.user-menu-trigger .ti-chevron-down { font-size: 12px; color: rgba(255,255,255,0.45); transition: transform 0.12s; }
+.user-menu.open .ti-chevron-down { transform: rotate(180deg); }
+
+.user-menu-dropdown {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  min-width: 180px;
+  background: var(--surface-2);
+  border: 0.5px solid var(--border-strong);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 6px;
+  z-index: 250;
+}
+
+.user-menu-section-label {
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+  padding: 6px 8px 4px;
+}
+
+.user-menu-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  padding: 7px 8px;
+  font-size: 12px;
+  color: var(--text-primary);
+  border-radius: 2px;
+  font-family: 'Inter', sans-serif;
+}
+.user-menu-item:hover { background: var(--surface-1); text-decoration: none; color: var(--text-primary); }
+
+.user-menu-divider { height: 0.5px; background: var(--border); margin: 4px 2px; }
 
 /* home page */
 .hero {
@@ -1190,6 +1292,86 @@ button { cursor: pointer; font-family: 'Inter', sans-serif; }
 .login-field input:focus { border-color: var(--dark-2); }
 .login-btn { width: 100%; padding: 0.7rem; background: var(--dark); color: #fff; border: none; font-family: 'Inter', sans-serif; font-weight: 700; font-size: 0.82rem; letter-spacing: 0.06em; text-transform: uppercase; transition: background 0.15s; margin-top: 0.5rem; }
 .login-btn:hover { background: var(--dark-2); }
+
+/* auth pages (sign in / sign up / forgot password) */
+.auth-card {
+  max-width: 380px;
+  margin: 80px auto;
+  background: var(--surface-2);
+  border: 0.5px solid var(--border);
+  border-radius: 12px;
+  padding: 32px 28px;
+}
+
+.auth-card-logo {
+  font-family: var(--font-voice);
+  font-size: 15px;
+  color: var(--text-primary);
+  display: inline-block;
+  margin-bottom: 22px;
+}
+.auth-card-logo:hover { text-decoration: none; color: var(--text-primary); }
+
+.auth-card-heading { font-size: 18px; font-weight: 500; color: var(--text-primary); margin-bottom: 6px; }
+.auth-card-subtitle { font-size: 13px; color: var(--text-secondary); margin-bottom: 22px; line-height: 1.5; }
+
+.auth-error {
+  font-size: 12px;
+  color: var(--text-danger);
+  background: var(--bg-danger);
+  border: 0.5px solid var(--border-danger);
+  border-radius: var(--radius);
+  padding: 8px 10px;
+  margin-bottom: 16px;
+}
+
+.auth-confirm {
+  font-size: 12px;
+  color: var(--text-secondary);
+  background: var(--surface-1);
+  border: 0.5px solid var(--border);
+  border-radius: var(--radius);
+  padding: 8px 10px;
+  margin-bottom: 16px;
+}
+
+.auth-field { margin-bottom: 14px; }
+.auth-field-label-row { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 5px; }
+.auth-field label { font-size: 12px; font-weight: 500; color: var(--text-primary); }
+.auth-field-link { font-size: 11px; color: var(--text-muted); }
+.auth-field-error { font-size: 12px; color: var(--text-danger); margin-top: 5px; }
+
+.auth-field input {
+  width: 100%;
+  height: 34px;
+  border: 0.5px solid var(--border-strong);
+  border-radius: var(--radius);
+  padding: 0 10px;
+  font-size: 13px;
+  font-family: 'Inter', sans-serif;
+  color: var(--text-primary);
+  background: var(--surface-0);
+  outline: none;
+}
+.auth-field input:focus { border-color: var(--text-secondary); }
+.auth-field input::placeholder { color: var(--text-muted); }
+
+.auth-submit-btn {
+  width: 100%;
+  background: var(--text-primary);
+  color: var(--surface-2);
+  height: 36px;
+  border: none;
+  border-radius: var(--radius);
+  font-size: 13px;
+  font-weight: 500;
+  font-family: 'Inter', sans-serif;
+  margin-top: 4px;
+}
+.auth-submit-btn:hover { background: var(--dark-2); }
+.auth-submit-btn:disabled { opacity: 0.6; cursor: default; }
+
+.auth-switch { font-size: 12px; color: var(--text-secondary); text-align: center; margin-top: 16px; }
 
 /* responsive adjustments */
 @media (max-width: 1024px) {
@@ -3910,7 +4092,6 @@ button { cursor: pointer; font-family: 'Inter', sans-serif; }
   border-bottom: 0.5px solid var(--border);
 }
 
-/* the rows already get chrome (padding/border/bg) from .filters-banner, drop the double box */
 .filters-banner .mtb-toolbar {
   padding: 0;
   border-bottom: none;
@@ -4016,7 +4197,6 @@ button { cursor: pointer; font-family: 'Inter', sans-serif; }
   text-overflow: ellipsis;
 }
 
-/* ── Panel wrapper — fixed height so each column scrolls independently ── */
 .art-panel-wrap {
   display: flex;
   flex-direction: row;
