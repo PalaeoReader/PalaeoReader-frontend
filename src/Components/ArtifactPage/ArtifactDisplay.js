@@ -1768,40 +1768,97 @@ const ENTRY_SORT_OPTIONS = [
   { key: 'most-edited', label: 'Most edited' },
 ];
 
-function EntrySortBar({ entryCount, sortMode, onSortChange }) {
-  const [open, setOpen] = useState(false);
-  const ref = useRef(null);
+function FiltersBar({
+  entryCount, sortMode, onSortChange,
+  sourceIds, sources, hiddenAuthors, onToggleAuthor, hiddenLayers, onToggleLayer,
+  grouping, onGroupingChange, colorMap, sourcesWithImages, allLanguages, hiddenLanguages, onToggleLang,
+}) {
+  const [sortOpen, setSortOpen] = useState(false);
+  const sortRef = useRef(null);
+
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const filtersRef = useRef(null);
 
   useEffect(() => {
-    const onDown = e => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+    const onDown = e => { if (sortRef.current && !sortRef.current.contains(e.target)) setSortOpen(false); };
     document.addEventListener('mousedown', onDown);
     return () => document.removeEventListener('mousedown', onDown);
   }, []);
 
+  useEffect(() => {
+    if (!filtersOpen) return;
+    // delay so the click that opened the popover doesn't immediately close it
+    const onDown = e => { if (filtersRef.current && !filtersRef.current.contains(e.target)) setFiltersOpen(false); };
+    const timer = setTimeout(() => document.addEventListener('mousedown', onDown), 0);
+    return () => {
+      clearTimeout(timer);
+      document.removeEventListener('mousedown', onDown);
+    };
+  }, [filtersOpen]);
+
   const current = ENTRY_SORT_OPTIONS.find(o => o.key === sortMode) || ENTRY_SORT_OPTIONS[0];
 
+  const activeFilterCount =
+    (hiddenAuthors.size > 0 ? 1 : 0) +
+    (hiddenLanguages.size > 0 ? 1 : 0) +
+    (hiddenLayers.size > 0 ? 1 : 0) +
+    (grouping !== 'author-entry-layer' ? 1 : 0);
+
   return (
-    <div className="entry-sort-bar" ref={ref}>
-      <span className="entry-sort-count">{entryCount} entr{entryCount === 1 ? 'y' : 'ies'}</span>
-      <div className="entry-sort-trigger-wrap">
-        <button type="button" className="entry-sort-trigger" onClick={() => setOpen(v => !v)}>
-          sorted by {current.label.toLowerCase()}
-          <i className="fas fa-sort" />
-        </button>
-        {open && (
-          <div className="mtb-popover entry-sort-popover">
-            {ENTRY_SORT_OPTIONS.map(opt => (
-              <div
-                key={opt.key}
-                className={`mtb-pop-row${opt.key === sortMode ? ' mtb-selected' : ''}`}
-                onClick={() => { onSortChange(opt.key); setOpen(false); }}
-              >
-                <span className="mtb-pop-label">{opt.label}</span>
-                {opt.key === sortMode && <i className="fas fa-check mtb-check" />}
-              </div>
-            ))}
-          </div>
-        )}
+    <div className="analysis-toolbar" ref={filtersRef}>
+      <div className="entry-sort-bar">
+        <span className="entry-sort-count">{entryCount} entr{entryCount === 1 ? 'y' : 'ies'}</span>
+        <div className="entry-sort-trigger-wrap" ref={sortRef}>
+          <button type="button" className="entry-sort-trigger" onClick={() => setSortOpen(v => !v)}>
+            sorted by {current.label.toLowerCase()}
+            <i className="fas fa-sort" />
+          </button>
+          {sortOpen && (
+            <div className="mtb-popover entry-sort-popover">
+              {ENTRY_SORT_OPTIONS.map(opt => (
+                <div
+                  key={opt.key}
+                  className={`mtb-pop-row${opt.key === sortMode ? ' mtb-selected' : ''}`}
+                  onClick={() => { onSortChange(opt.key); setSortOpen(false); }}
+                >
+                  <span className="mtb-pop-label">{opt.label}</span>
+                  {opt.key === sortMode && <i className="fas fa-check mtb-check" />}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div className="filters-btn-wrap">
+          <button
+            type="button"
+            className={`filters-btn${filtersOpen ? ' filters-btn-open' : ''}`}
+            onClick={() => setFiltersOpen(v => !v)}
+          >
+            <i className="ti ti-adjustments-horizontal" />
+            Filters
+            {activeFilterCount > 0 && <span className="filters-badge">{activeFilterCount}</span>}
+            <i className="ti ti-chevron-down" />
+          </button>
+        </div>
+      </div>
+
+      <div className={`filters-banner${filtersOpen ? ' filters-banner-open' : ''}`}>
+        <MinimalToolbar
+          sourceIds={sourceIds}
+          sources={sources}
+          hiddenAuthors={hiddenAuthors}
+          onToggleAuthor={onToggleAuthor}
+          hiddenLayers={hiddenLayers}
+          onToggleLayer={onToggleLayer}
+          grouping={grouping}
+          onGroupingChange={onGroupingChange}
+          colorMap={colorMap}
+          sourcesWithImages={sourcesWithImages}
+          allLanguages={allLanguages}
+          hiddenLanguages={hiddenLanguages}
+          onToggleLang={onToggleLang}
+        />
       </div>
     </div>
   );
@@ -1845,9 +1902,9 @@ function MinimalToolbar({ sourceIds, sources, hiddenAuthors, onToggleAuthor, hid
   const activeLayerItems = layerItems.filter(l => isLayerOn(l.key));
 
   return (
-    <div className="mtb-toolbar" ref={ref}>
-      {/* Row 1 — Authors */}
-      <div className="mtb-row">
+    <div className="mtb-toolbar mtb-toolbar-inline" ref={ref}>
+      {/* Authors */}
+      <div className="mtb-inline-group">
         <span className="mtb-row-label">Authors</span>
         <div className="mtb-row-pills">
           {activeAuthorIds.map(id => {
@@ -1877,9 +1934,9 @@ function MinimalToolbar({ sourceIds, sources, hiddenAuthors, onToggleAuthor, hid
         </div>
       </div>
 
-      {/* Row 2 — Language */}
+      {/* Language */}
       {allLanguages && allLanguages.length > 1 && (
-        <div className="mtb-row">
+        <div className="mtb-inline-group">
           <span className="mtb-row-label">Language</span>
           <div className="mtb-row-pills">
             {allLanguages.filter(c => !hiddenLanguages.has(c)).map(code => (
@@ -1902,8 +1959,8 @@ function MinimalToolbar({ sourceIds, sources, hiddenAuthors, onToggleAuthor, hid
         </div>
       )}
 
-      {/* Row 3 — Layers */}
-      <div className="mtb-row">
+      {/* Layers */}
+      <div className="mtb-inline-group">
         <span className="mtb-row-label">Layers</span>
         <div className="mtb-row-pills">
           {activeLayerItems.map(l => (
@@ -1925,8 +1982,8 @@ function MinimalToolbar({ sourceIds, sources, hiddenAuthors, onToggleAuthor, hid
         </div>
       </div>
 
-      {/* Row 3 — Group by */}
-      <div className="mtb-row mtb-row-group">
+      {/* Group by */}
+      <div className="mtb-inline-group">
         <span className="mtb-row-label">Group</span>
         <div className="mtb-group-segs">
           <div className="seg-ctrl">
@@ -2330,7 +2387,10 @@ export default function ArtifactDisplay() {
         </div>
 
         <div className="v2-center-panel">
-          <MinimalToolbar
+          <FiltersBar
+            entryCount={omenSeqs.length}
+            sortMode={sortMode}
+            onSortChange={setSortMode}
             sourceIds={sourceIds}
             sources={sources}
             hiddenAuthors={hiddenAuthors}
@@ -2345,8 +2405,6 @@ export default function ArtifactDisplay() {
             hiddenLanguages={hiddenLanguages}
             onToggleLang={toggleLanguage}
           />
-
-          <EntrySortBar entryCount={omenSeqs.length} sortMode={sortMode} onSortChange={setSortMode} />
 
           <div className={`v2-text-display ${hideClasses}`}>
             {(grouping === 'author-layer' || grouping === 'author-entry-layer') ? (

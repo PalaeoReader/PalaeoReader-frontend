@@ -3796,6 +3796,15 @@ button { cursor: pointer; font-family: 'Inter', sans-serif; }
   flex-wrap: wrap;
 }
 
+.analysis-toolbar {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  flex-shrink: 0;
+  background: var(--surface-1);
+  border-bottom: 0.5px solid var(--border);
+}
+
 .entry-sort-bar {
   display: flex;
   align-items: center;
@@ -3828,6 +3837,118 @@ button { cursor: pointer; font-family: 'Inter', sans-serif; }
 .entry-sort-trigger .fa-sort { font-size: 10px; }
 
 .entry-sort-popover { min-width: 210px; }
+
+/* ── Filters button + popover ── */
+.filters-btn-wrap {
+  position: relative;
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+.filters-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 12px;
+  font-size: 11px;
+  font-family: 'Inter', sans-serif;
+  border-radius: 20px;
+  border: 0.5px solid var(--border-strong);
+  background: var(--surface-2);
+  color: var(--text-secondary);
+  cursor: pointer;
+  line-height: 1;
+  transition: color 0.1s, border-color 0.1s, background 0.1s;
+}
+
+.filters-btn i { font-size: 12px; }
+
+.filters-btn:hover {
+  color: var(--text-primary);
+  border-color: rgba(0, 0, 0, 0.24);
+}
+
+.filters-btn.filters-btn-open {
+  background: var(--text-primary);
+  color: var(--surface-2);
+  border-color: var(--text-primary);
+}
+
+.filters-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 14px;
+  height: 14px;
+  padding: 0 4px;
+  border-radius: 999px;
+  font-size: 9px;
+  line-height: 1;
+  background: var(--text-primary);
+  color: var(--surface-2);
+}
+
+.filters-btn.filters-btn-open .filters-badge {
+  background: var(--surface-2);
+  color: var(--text-primary);
+}
+
+/* full-width banner that unfolds below the Filters button */
+.filters-banner {
+  box-sizing: border-box;
+  width: 100%;
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.2s ease, padding 0.2s ease;
+  background: var(--surface-1);
+  padding: 0 16px;
+}
+
+.filters-banner.filters-banner-open {
+  max-height: 120px;
+  padding: 8px 16px;
+  border-bottom: 0.5px solid var(--border);
+}
+
+/* the rows already get chrome (padding/border/bg) from .filters-banner, drop the double box */
+.filters-banner .mtb-toolbar {
+  padding: 0;
+  border-bottom: none;
+  background: none;
+}
+
+.mtb-toolbar-inline {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.mtb-toolbar-inline .mtb-row-label { width: auto; }
+
+.mtb-inline-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.mtb-inline-group:not(:first-child) {
+  position: relative;
+  padding-left: 14px;
+}
+
+.mtb-inline-group:not(:first-child)::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 1px;
+  height: 16px;
+  background: var(--v2-bd-em);
+}
 
 .hide-layer-image .layer-image { display: none; }
 
@@ -3895,12 +4016,12 @@ button { cursor: pointer; font-family: 'Inter', sans-serif; }
   text-overflow: ellipsis;
 }
 
-/* ── Panel wrapper — fixed height so PanelGroup can fill it ── */
+/* ── Panel wrapper — fixed height so each column scrolls independently ── */
 .art-panel-wrap {
   display: flex;
   flex-direction: row;
   align-items: stretch;
-  min-height: calc(100vh - 48px);
+  height: calc(100vh - 48px);
 }
 
 /* ── Collapsible panel rail ── */
