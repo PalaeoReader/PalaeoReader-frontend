@@ -4,6 +4,7 @@ import { useParams, useSearchParams } from 'react-router-dom';
 import IconButton from '../common/IconButton';
 import Pill from '../common/Pill';
 import AddPopover from '../common/AddPopover';
+import { useAuth } from '../../Auth/AuthContext';
 
 
 function useFetch(url) {
@@ -140,6 +141,7 @@ function EditableMorphLine({ lineKey, sourceId, color, morphs, sourceLabel, edit
         color={color}
         sourceLabel={sourceLabel}
         layerLabel="Morph. analysis"
+        defaultContributor={editProps.defaultContributor}
         onCancel={editProps.closeEditor}
         onSubmit={(newText, contributor) =>
           editProps.submitEdit(lineKey, newText, contributor, { sourceLabel, layerLabel: 'Morph. analysis', layerKey: 'morph', originalText: isEdited ? overrideText : morphsToText(morphs) })}
@@ -177,8 +179,8 @@ function EditableMorphLine({ lineKey, sourceId, color, morphs, sourceLabel, edit
           <div className="line-btn-group">
             <IconButton className="clock-btn" icon="fa-clock"
               onClick={() => editProps.openHistory(lineKey, { sourceLabel, layerLabel: 'Morph. analysis' })} />
-            <IconButton className="pencil-btn" icon="fa-pen"
-              onClick={() => editProps.openEditor(lineKey, { sourceId, layerKey: 'morph', layerLabel: 'Morph. analysis', sourceLabel })} />
+            {editProps.canEdit && <IconButton className="pencil-btn" icon="fa-pen"
+              onClick={() => editProps.openEditor(lineKey, { sourceId, layerKey: 'morph', layerLabel: 'Morph. analysis', sourceLabel })} />}
           </div>
         )}
       </div>
@@ -231,6 +233,7 @@ function EditableText({ lineKey, sourceId, layerKey, layerLabel, sourceLabel, co
         color={color} dir={effectiveDir}
         sourceLabel={sourceLabel}
         layerLabel={layerLabel}
+        defaultContributor={editProps.defaultContributor}
         onCancel={editProps.closeEditor}
         onSubmit={(newText, contributor) =>
           editProps.submitEdit(lineKey, newText, contributor, { sourceLabel, layerLabel, layerKey, originalText: displayText })}
@@ -262,8 +265,8 @@ function EditableText({ lineKey, sourceId, layerKey, layerLabel, sourceLabel, co
         <div className="line-btn-group">
           <IconButton className="clock-btn" icon="fa-clock"
             onClick={() => editProps.openHistory(lineKey, { sourceLabel, layerLabel })} />
-          <IconButton className="pencil-btn" icon="fa-pen"
-            onClick={() => editProps.openEditor(lineKey, { sourceId, layerKey, layerLabel, sourceLabel })} />
+          {editProps.canEdit && <IconButton className="pencil-btn" icon="fa-pen"
+            onClick={() => editProps.openEditor(lineKey, { sourceId, layerKey, layerLabel, sourceLabel })} />}
         </div>
       )}
     </div>
@@ -395,9 +398,9 @@ function InlineDiff({ refText, otherText, layerKey, dir }) {
   );
 }
 
-function InlineEditor({ initialText, color, sourceLabel, layerLabel, dir, onCancel, onSubmit }) {
+function InlineEditor({ initialText, color, sourceLabel, layerLabel, dir, onCancel, onSubmit, defaultContributor }) {
   const [text, setText]            = useState(initialText);
-  const [contributor, setContrib]  = useState('');
+  const [contributor, setContrib]  = useState(defaultContributor || '');
   const ref                        = useRef(null);
 
   useEffect(() => {
@@ -463,6 +466,7 @@ function EditableLine({ lineKey, sourceId, color, layerKey, text, isEdited, sour
       <InlineEditor
         initialText={text} color={color} dir={dir}
         sourceLabel={sourceLabel} layerLabel={layerLabel}
+        defaultContributor={editProps.defaultContributor}
         onCancel={editProps.closeEditor}
         onSubmit={(newText, contributor) =>
           editProps.submitEdit(lineKey, newText, contributor, { sourceLabel, layerLabel, layerKey, originalText: text })}
@@ -506,7 +510,7 @@ function EditableLine({ lineKey, sourceId, color, layerKey, text, isEdited, sour
             <IconButton className="clock-btn" icon="fa-clock"
               onClick={() => editProps.openHistory(lineKey, { sourceLabel, layerLabel })} />
           )}
-          {editProps && (
+          {editProps && editProps.canEdit && (
             <IconButton className="pencil-btn" icon="fa-pen"
               onClick={() => editProps.openEditor(lineKey, { sourceId, layerKey, layerLabel, sourceLabel })} />
           )}
@@ -2130,6 +2134,7 @@ function ArtifactHeader({ artifact, allArtifacts, sourceIds, sources, entryCount
 export default function ArtifactDisplay() {
   const { shortName } = useParams();
   const [searchParams, setSearchParams] = useSearchParams();
+  const { user } = useAuth();
 
   const { data: allArtifacts } = useFetch('/api/artifacts/');
   const artifact = Array.isArray(allArtifacts) ? allArtifacts.find(a => a.shortname === shortName) || null : null;
@@ -2253,9 +2258,9 @@ export default function ArtifactDisplay() {
       isUndo: true,
       originalText: logEntry.newText,
       newText: logEntry.originalText,
-      contributor: 'you', flagged: false,
+      contributor: user ? (user.full_name || user.email) : 'you', flagged: false,
     }, ...prev]);
-  }, []);
+  }, [user]);
 
   const flagEdit = useCallback((id) => {
     setEditLog(prev => prev.map(e => e.id === id ? { ...e, flagged: !e.flagged } : e));
@@ -2289,7 +2294,11 @@ export default function ArtifactDisplay() {
     });
   }, [submitEdit]);
 
-  const editProps = { lineOverrides, activeEditor, highlightedLine, openEditor, closeEditor, submitEdit, openHistory };
+  const editProps = {
+    lineOverrides, activeEditor, highlightedLine, openEditor, closeEditor, submitEdit, openHistory,
+    canEdit: !!user,
+    defaultContributor: user ? (user.full_name || user.email) : '',
+  };
 
   useEffect(() => {
     const onKey = e => {

@@ -11,13 +11,17 @@ import MapPage from './Components/Map/MapPage';
 import DictionaryPage from './Components/Dictionary/DictionaryPage';
 import SourcesPage from './Components/Sources/SourcesPage';
 import ConcordancePage from './Components/Concordance/ConcordancePage';
-import Login from './Components/Login/Login';
-import './Components/Login/Login.css';
 import DivisionView from './Components/DivisionView/DivisionView';
+import SignIn from './Components/Auth/SignIn';
+import SignUp from './Components/Auth/SignUp';
+import ForgotPassword from './Components/Auth/ForgotPassword';
+import Settings from './Components/Auth/Settings';
+import { AuthProvider } from './Auth/AuthContext';
 import {
   BrowserRouter as Router,
   Routes,
   Route,
+  Navigate,
 } from 'react-router-dom';
 
 document.body.innerHTML = '<div id="root"></div>';
@@ -27,22 +31,28 @@ export const root = createRoot(domNode);
 function App() {
   return (
     <div>
-      <Router>
-        <header className="site-header">
-          <NavBar />
-        </header>
-        <Routes>
-          <Route path="/"                    element={<MainPage />}       />
-          <Route path="/directory"           element={<ArtifactList />}   />
-          <Route path="/artifact/:shortName" element={<ArtifactDisplay />}/>
-          <Route path="/map"                 element={<MapPage />}        />
-          <Route path="/dictionary"          element={<DictionaryPage />} />
-          <Route path="/sources"             element={<SourcesPage />}    />
-          <Route path="/concordance"         element={<ConcordancePage />}/>
-          <Route path="/login"               element={<Login />}          />
-          <Route path="/divisions/:id"       element={<DivisionView />}   />
-        </Routes>
-      </Router>
+      <AuthProvider>
+        <Router>
+          <header className="site-header">
+            <NavBar />
+          </header>
+          <Routes>
+            <Route path="/"                    element={<MainPage />}       />
+            <Route path="/directory"           element={<ArtifactList />}   />
+            <Route path="/artifact/:shortName" element={<ArtifactDisplay />}/>
+            <Route path="/map"                 element={<MapPage />}        />
+            <Route path="/dictionary"          element={<DictionaryPage />} />
+            <Route path="/sources"             element={<SourcesPage />}    />
+            <Route path="/concordance"         element={<ConcordancePage />}/>
+            <Route path="/signin"              element={<SignIn />}         />
+            <Route path="/signup"              element={<SignUp />}         />
+            <Route path="/forgot-password"     element={<ForgotPassword />} />
+            <Route path="/settings"            element={<Settings />}       />
+            <Route path="/login"               element={<Navigate to="/signin" replace />} />
+            <Route path="/divisions/:id"       element={<DivisionView />}   />
+          </Routes>
+        </Router>
+      </AuthProvider>
     </div>
   );
 }
