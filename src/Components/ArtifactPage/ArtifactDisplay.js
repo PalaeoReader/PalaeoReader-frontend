@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { CButton } from '@coreui/react';
-import { useParams, useSearchParams } from 'react-router-dom';
+import { useParams, useSearchParams, Link } from 'react-router-dom';
 import IconButton from '../common/IconButton';
 import Pill from '../common/Pill';
 import AddPopover from '../common/AddPopover';
@@ -179,8 +179,10 @@ function EditableMorphLine({ lineKey, sourceId, color, morphs, sourceLabel, edit
           <div className="line-btn-group">
             <IconButton className="clock-btn" icon="fa-clock"
               onClick={() => editProps.openHistory(lineKey, { sourceLabel, layerLabel: 'Morph. analysis' })} />
-            {editProps.canEdit && <IconButton className="pencil-btn" icon="fa-pen"
-              onClick={() => editProps.openEditor(lineKey, { sourceId, layerKey: 'morph', layerLabel: 'Morph. analysis', sourceLabel })} />}
+            <IconButton className="pencil-btn" icon="fa-pen"
+              onClick={() => editProps.canEdit
+                ? editProps.openEditor(lineKey, { sourceId, layerKey: 'morph', layerLabel: 'Morph. analysis', sourceLabel })
+                : editProps.promptAuth()} />
           </div>
         )}
       </div>
@@ -211,7 +213,9 @@ function EditableMorphLine({ lineKey, sourceId, color, morphs, sourceLabel, edit
           <IconButton className="clock-btn" icon="fa-clock"
             onClick={() => editProps.openHistory(lineKey, { sourceLabel, layerLabel: 'Morph. analysis' })} />
           <IconButton className="pencil-btn" icon="fa-pen"
-            onClick={() => editProps.openEditor(lineKey, { sourceId, layerKey: 'morph', layerLabel: 'Morph. analysis', sourceLabel })} />
+            onClick={() => editProps.canEdit
+              ? editProps.openEditor(lineKey, { sourceId, layerKey: 'morph', layerLabel: 'Morph. analysis', sourceLabel })
+              : editProps.promptAuth()} />
         </div>
       )}
     </div>
@@ -265,8 +269,10 @@ function EditableText({ lineKey, sourceId, layerKey, layerLabel, sourceLabel, co
         <div className="line-btn-group">
           <IconButton className="clock-btn" icon="fa-clock"
             onClick={() => editProps.openHistory(lineKey, { sourceLabel, layerLabel })} />
-          {editProps.canEdit && <IconButton className="pencil-btn" icon="fa-pen"
-            onClick={() => editProps.openEditor(lineKey, { sourceId, layerKey, layerLabel, sourceLabel })} />}
+          <IconButton className="pencil-btn" icon="fa-pen"
+            onClick={() => editProps.canEdit
+              ? editProps.openEditor(lineKey, { sourceId, layerKey, layerLabel, sourceLabel })
+              : editProps.promptAuth()} />
         </div>
       )}
     </div>
@@ -398,6 +404,31 @@ function InlineDiff({ refText, otherText, layerKey, dir }) {
   );
 }
 
+// shown when a logged-out visitor clicks the pencil on a line, everything else
+// about the page stays exactly the same for them
+  useEffect(() => {
+    const h = e => { if (e.key === 'Escape') onClose(); };
+    document.addEventListener('keydown', h);
+    return () => document.removeEventListener('keydown', h);
+  }, [onClose]);
+
+  return (
+    <div className="auth-prompt-overlay" onClick={onClose}>
+      <div className="auth-card auth-prompt-card" onClick={e => e.stopPropagation()}>
+        <button className="auth-prompt-close" onClick={onClose} aria-label="Close">
+          <i className="fas fa-times" />
+        </button>
+        <div className="auth-card-heading">Sign in to edit</div>
+        <div className="auth-card-subtitle">Create a free account to contribute analyses.</div>
+        <Link to="/signin" state={{ from: window.location.pathname }} className="auth-submit-btn" style={{ display: 'block', textAlign: 'center', textDecoration: 'none', boxSizing: 'border-box' }}>
+          Sign in
+        </Link>
+        <div className="auth-switch">No account? <Link to="/signup">Create one</Link></div>
+      </div>
+    </div>
+  );
+}
+
 function InlineEditor({ initialText, color, sourceLabel, layerLabel, dir, onCancel, onSubmit, defaultContributor }) {
   const [text, setText]            = useState(initialText);
   const [contributor, setContrib]  = useState(defaultContributor || '');
@@ -510,9 +541,11 @@ function EditableLine({ lineKey, sourceId, color, layerKey, text, isEdited, sour
             <IconButton className="clock-btn" icon="fa-clock"
               onClick={() => editProps.openHistory(lineKey, { sourceLabel, layerLabel })} />
           )}
-          {editProps && editProps.canEdit && (
+          {editProps && (
             <IconButton className="pencil-btn" icon="fa-pen"
-              onClick={() => editProps.openEditor(lineKey, { sourceId, layerKey, layerLabel, sourceLabel })} />
+              onClick={() => editProps.canEdit
+                ? editProps.openEditor(lineKey, { sourceId, layerKey, layerLabel, sourceLabel })
+                : editProps.promptAuth()} />
           )}
         </div>
       )}
@@ -2218,6 +2251,7 @@ export default function ArtifactDisplay() {
   const [activeEditor, setActiveEditor]     = useState(null);
   const [highlightedLine, setHighlightedLine] = useState(null);
   const [historyFilter, setHistoryFilter]   = useState(null);
+  const [showAuthPrompt, setShowAuthPrompt] = useState(false);
 
   // Non-stale refs for use inside callbacks
   const editLogRef      = useRef(editLog);
@@ -2298,6 +2332,7 @@ export default function ArtifactDisplay() {
     lineOverrides, activeEditor, highlightedLine, openEditor, closeEditor, submitEdit, openHistory,
     canEdit: !!user,
     defaultContributor: user ? (user.full_name || user.email) : '',
+    promptAuth: () => setShowAuthPrompt(true),
   };
 
   useEffect(() => {
@@ -2476,6 +2511,7 @@ export default function ArtifactDisplay() {
           </div>
         </div>
       </div>
+      {showAuthPrompt && <AuthPromptModal onClose={() => setShowAuthPrompt(false)} />}
     </div>
   );
 }
