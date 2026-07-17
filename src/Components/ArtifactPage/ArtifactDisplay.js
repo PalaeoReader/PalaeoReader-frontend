@@ -51,6 +51,11 @@ function contentLangLabel(type) {
   const code = extractLangCode(type);
   return code ? (LANG_LABELS[code] || code) : null;
 }
+// Badge text is the raw code exactly as it appears in the data (e.g. "eng",
+// "rus", "kaz") -- no remapping to invented short forms.
+function contentLangShort(type) {
+  return extractLangCode(type);
+}
 
 function contentTypeToLayer(type) {
   if (type === 'original') return 'script';
@@ -60,16 +65,37 @@ function contentTypeToLayer(type) {
   return null;
 }
 
-function srcLabel(src, id) {
-  if (!src) return `Source ${id}`;
-  const last = src.author.split(' ').pop();
-  return src.date_published ? `${last} ${src.date_published}` : last;
+
+function isLangHidden(type, hiddenLanguages) {
+  const lang = extractLangCode(type);
+  return !!lang && !!hiddenLanguages?.has(lang);
 }
 
-// Strips a leading non-letter/non-digit prefix (e.g. the "(" in "(KazNPU) 2005")
-// so alphabetical sorting compares by the name itself, not incidental punctuation.
-function sortableName(label) {
-  return (label || '').replace(/^[^\p{L}\p{N}]+/u, '');
+// Picks every visible content item for a layer. Translation is the only layer
+// where a single entry can legitimately carry more than one language variant
+// (e.g. eng/rus/kaz side by side) -- those should all render as sibling rows
+// under one shared layer label rather than picking just the "first" one, which
+// silently dropped the other languages. Every other layer keeps the old
+// pick-first behavior (unchanged).
+function pickContentsForLayer(contents, layerKey, hiddenLanguages) {
+  const matches = (contents || [])
+    .filter(c => contentTypeToLayer(c.type) === layerKey && !isLangHidden(c.type, hiddenLanguages))
+    .map(c => ({ text: c.text, dir: c.text_direction || null, contentType: c.type }));
+  return layerKey === 'translation' ? matches : matches.slice(0, 1);
+}
+
+// A source can now contribute more than one translation row to the same entry
+// (one per language), so the edit-tracking lineKey needs the language code to
+// stay unique per row -- otherwise two languages from the same source would
+// share one override slot and clobber each other's edits.
+function layerLineKey(seq, sourceId, layerKey, contentType) {
+  const langCode = layerKey === 'translation' ? extractLangCode(contentType) : null;
+  return `${seq}-${sourceId}-${layerKey}${langCode ? `-${langCode}` : ''}`;
+}
+
+function srcLabel(src, id) {
+  if (!src) return `Source ${id}`;
+  return src.shortname || src.author.split(' ').pop();
 }
 
 function MorphInterlinear({ morphs }) {
@@ -246,6 +272,7 @@ function EditableText({ lineKey, sourceId, layerKey, layerLabel, sourceLabel, co
   }
 
   const langTip = contentLangLabel(contentType);
+  const langCode = layerKey === 'translation' ? contentLangShort(contentType) : null;
   return (
     <div
       className="editable-text-wrap"
@@ -264,6 +291,7 @@ function EditableText({ lineKey, sourceId, layerKey, layerLabel, sourceLabel, co
       onMouseLeave={() => setHovered(false)}
     >
       {isEdited && <span className="line-edited-dot" />}
+      {langCode && <span className="v2-lang-badge">{langCode}</span>}
       <span className={className} dir={effectiveDir}>{displayText}</span>
       {editProps && (
         <div className="line-btn-group">
@@ -406,6 +434,7 @@ function InlineDiff({ refText, otherText, layerKey, dir }) {
 
 // shown when a logged-out visitor clicks the pencil on a line, everything else
 // about the page stays exactly the same for them
+function AuthPromptModal({ onClose }) {
   useEffect(() => {
     const h = e => { if (e.key === 'Escape') onClose(); };
     document.addEventListener('keydown', h);
@@ -485,6 +514,7 @@ function EditableLine({ lineKey, sourceId, color, layerKey, text, isEdited, sour
   const dir         = detectDir(text);
   const isRtl       = layerKey === 'script';
   const langTip     = contentLangLabel(contentType);
+  const langCode    = layerKey === 'translation' ? contentLangShort(contentType) : null;
 
   const isPinned = pinProps?.pinnedKey === lineKey;
   const pinnedLang = pinProps?.pinnedContentType ? extractLangCode(pinProps.pinnedContentType) : null;
@@ -521,6 +551,7 @@ function EditableLine({ lineKey, sourceId, color, layerKey, text, isEdited, sour
     >
       {isEdited && <span className="line-edited-dot" />}
       <span className="author-dot" data-tip={sourceLabel} style={{ color: color.border }}>●</span>
+      {langCode && <span className="v2-lang-badge">{langCode}</span>}
       {showDiff
         ? <InlineDiff refText={pinProps.pinnedText} otherText={text} layerKey={layerKey} dir={dir} />
         : <span className={`v2-layer-text v2-text-${layerKey}`} dir={dir}>{text}</span>
@@ -803,9 +834,9 @@ function OmenLayerGroup({ l, activeRows, omenSeq, sources, editProps }) {
   const hasMultiple = activeRows.length > 1;
 
   const rowsWithKey = activeRows.map(r => {
-    const lKey        = `${omenSeq}-${r.sourceId}-${l.key}`;
+    const lKey        = layerLineKey(omenSeq, r.sourceId, l.key, r.contentType);
     const currentText = editProps?.lineOverrides?.[lKey] ?? r.text;
-    const isEdited    = lKey in (editProps?.lineOverrides || {});
+    const isEdited     = lKey in (editProps?.lineOverrides || {});
     return { ...r, lKey, text: currentText, isEdited };
   });
 
@@ -824,7 +855,7 @@ function OmenLayerGroup({ l, activeRows, omenSeq, sources, editProps }) {
         </div>
         <div className="v2-layer-authors">
           {rowsWithKey.map(r => (
-            <EditableLine key={r.sourceId}
+            <EditableLine key={r.lKey}
               lineKey={r.lKey} sourceId={r.sourceId} color={r.color}
               layerKey={l.key} text={r.text}
               isEdited={r.isEdited}
@@ -846,9 +877,9 @@ function LayerEntryGroup({ seq, entryLabel, rows, sources, layerKey, layerLabel,
   const hasMultiple = rows.length > 1;
 
   const rowsWithKey = rows.map(r => {
-    const lKey        = `${seq}-${r.sourceId}-${layerKey}`;
+    const lKey        = layerLineKey(seq, r.sourceId, layerKey, r.contentType);
     const currentText = editProps?.lineOverrides?.[lKey] ?? r.text;
-    const isEdited    = lKey in (editProps?.lineOverrides || {});
+    const isEdited     = lKey in (editProps?.lineOverrides || {});
     return { ...r, lKey, text: currentText, isEdited };
   });
 
@@ -865,7 +896,7 @@ function LayerEntryGroup({ seq, entryLabel, rows, sources, layerKey, layerLabel,
         <div className="layer-section-entry-label">{entryLabel}</div>
       </div>
       {rowsWithKey.map(r => (
-        <EditableLine key={r.sourceId}
+        <EditableLine key={r.lKey}
           lineKey={r.lKey} sourceId={r.sourceId} color={r.color}
           layerKey={layerKey} text={r.text}
           isEdited={r.isEdited}
@@ -1031,7 +1062,7 @@ function ImageCropRow({ color, sels, dir, bare, style }) {
 }
 
 // Unified omen block supports entry-layer-author and entry-author-layer grouping modes.
-function OmenBlock({ omenSeq, omenType, sets, sources, colorMap, grouping, editProps, lineRegionsByContentId }) {
+function OmenBlock({ omenSeq, omenType, sets, sources, colorMap, grouping, editProps, lineRegionsByContentId, hiddenLanguages }) {
   const label = omenType === 'omen' ? `Omen ${omenSeq}` : `Line ${omenSeq}`;
   const firstSet = sets[0];
   const morphs = firstSet?.morphs || [];
@@ -1043,16 +1074,19 @@ function OmenBlock({ omenSeq, omenType, sets, sources, colorMap, grouping, editP
   const bySrc = {};
   sets.forEach(set => {
     const color = colorMap[String(set.source_id)] || COLOR_SLOTS[0];
-    const contentByLayer = {};
-    (set.contents || []).forEach(c => {
-      const lk = contentTypeToLayer(c.type);
-      if (lk && !contentByLayer[lk]) contentByLayer[lk] = { text: c.text, dir: c.text_direction || null, contentType: c.type };
-    });
+    const contentsByLayer = {};
     contentLayers.forEach(l => {
-      const entry = contentByLayer[l.key];
-      byLayer[l.key].push({ sourceId: String(set.source_id), color, text: entry?.text || null, dir: entry?.dir || null, contentType: entry?.contentType || null });
+      const entries = pickContentsForLayer(set.contents, l.key, hiddenLanguages);
+      contentsByLayer[l.key] = entries;
+      if (entries.length === 0) {
+        byLayer[l.key].push({ sourceId: String(set.source_id), color, text: null, dir: null, contentType: null });
+      } else {
+        entries.forEach(entry => {
+          byLayer[l.key].push({ sourceId: String(set.source_id), color, text: entry.text, dir: entry.dir, contentType: entry.contentType });
+        });
+      }
     });
-    bySrc[String(set.source_id)] = { color, contentByLayer };
+    bySrc[String(set.source_id)] = { color, contentsByLayer };
   });
 
   const sourceImgRows = sets.map(set => ({
@@ -1117,7 +1151,7 @@ function OmenBlock({ omenSeq, omenType, sets, sources, colorMap, grouping, editP
         /* Group by Author */
         sets.map(set => {
           const srcId = String(set.source_id);
-          const { color, contentByLayer } = bySrc[srcId];
+          const { color, contentsByLayer } = bySrc[srcId];
           const author = srcLabel(sources[srcId], srcId);
           const isMorphAuthor = srcId === String(firstSet?.source_id);
           const imgSels = getImgSels(set, lineRegionsByContentId);
@@ -1133,25 +1167,30 @@ function OmenBlock({ omenSeq, omenType, sets, sources, colorMap, grouping, editP
                 </div>
               )}
               {contentLayers.map(l => {
-                const entry = contentByLayer[l.key];
-                if (!entry) return null;
+                const entries = contentsByLayer[l.key];
+                if (!entries.length) return null;
                 return (
                   <div key={l.key} className={`v2-layer-row-group author-block-row ${l.cls}`}>
                     <span className="v2-layer-row-label">{l.label}</span>
-                    <EditableText
-                      plain
-                      lineKey={`${omenSeq}-${srcId}-${l.key}`}
-                      sourceId={srcId}
-                      layerKey={l.key}
-                      layerLabel={l.label}
-                      sourceLabel={author}
-                      color={color}
-                      rawText={entry.text}
-                      contentType={entry.contentType}
-                      editProps={editProps}
-                      className={`v2-layer-text v2-text-${l.key}`}
-                      dir={entry.dir || undefined}
-                    />
+                    <div className="v2-layer-authors">
+                      {entries.map((entry, i) => (
+                        <EditableText
+                          key={i}
+                          plain
+                          lineKey={layerLineKey(omenSeq, srcId, l.key, entry.contentType)}
+                          sourceId={srcId}
+                          layerKey={l.key}
+                          layerLabel={l.label}
+                          sourceLabel={author}
+                          color={color}
+                          rawText={entry.text}
+                          contentType={entry.contentType}
+                          editProps={editProps}
+                          className={`v2-layer-text v2-text-${l.key}`}
+                          dir={entry.dir || undefined}
+                        />
+                      ))}
+                    </div>
                   </div>
                 );
               })}
@@ -1223,7 +1262,7 @@ GroupingModel.MODES = {
 GroupingModel.SECOND_OPTS = { author: ['layer', 'entry'], entry: ['layer', 'author'], layer: ['entry', 'author'] };
 
 // Layer -> Entry -> Author  or  Layer -> Author -> Entry
-function LayerFirstView({ grouping, sets, sources, sourceIds, colorMap, editProps, lineRegionsByContentId, seqRank }) {
+function LayerFirstView({ grouping, sets, sources, sourceIds, colorMap, editProps, lineRegionsByContentId, seqRank, hiddenLanguages }) {
   const contentLayers = LAYERS.filter(l => !l.isMorph);
   const bySeq = (seq) => seqRank?.get(seq) ?? seq;
   const omenSeqs = [...new Set(sets.map(s => s.seq))].sort((a, b) => bySeq(a) - bySeq(b));
@@ -1286,15 +1325,12 @@ function LayerFirstView({ grouping, sets, sources, sourceIds, colorMap, editProp
 
   return [imageSection, ...contentLayers.map(layer => {
     const layerKey = layer.key;
-    const getContent = set => {
-      const c = (set.contents || []).find(c => contentTypeToLayer(c.type) === layerKey);
-      return c ? { text: c.text, dir: c.text_direction || null, contentType: c.type } : null;
-    };
+    const getContents = set => pickContentsForLayer(set.contents, layerKey, hiddenLanguages);
 
     if (grouping === 'layer-entry-author') {
       // Layer → Entry → Author: for each layer, entries in order, authors stacked within
       const hasAny = omenSeqs.some(seq =>
-        sets.filter(s => s.seq === seq).some(s => getContent(s))
+        sets.filter(s => s.seq === seq).some(s => getContents(s).length > 0)
       );
       if (!hasAny) return null;
       return (
@@ -1303,7 +1339,10 @@ function LayerFirstView({ grouping, sets, sources, sourceIds, colorMap, editProp
           {omenSeqs.map(seq => {
             const seqSets = sets.filter(s => s.seq === seq)
               .sort((a, b) => sourceIds.indexOf(String(a.source_id)) - sourceIds.indexOf(String(b.source_id)));
-            const rows = seqSets.map(s => ({ sourceId: String(s.source_id), color: colorMap[String(s.source_id)] || COLOR_SLOTS[0], ...getContent(s) })).filter(r => r.text);
+            const rows = seqSets.flatMap(s => {
+              const color = colorMap[String(s.source_id)] || COLOR_SLOTS[0];
+              return getContents(s).map(c => ({ sourceId: String(s.source_id), color, ...c }));
+            });
             if (!rows.length) return null;
             const entryLabel = seqSets[0]?.type === 'omen' ? `Omen ${seq}` : `Line ${seq}`;
             return (
@@ -1318,7 +1357,7 @@ function LayerFirstView({ grouping, sets, sources, sourceIds, colorMap, editProp
       );
     } else {
       // layer-author-entry: Layer -> Author -> Entry
-      const hasAny = sourceIds.some(srcId => sets.filter(s => String(s.source_id) === srcId).some(s => getContent(s)));
+      const hasAny = sourceIds.some(srcId => sets.filter(s => String(s.source_id) === srcId).some(s => getContents(s).length > 0));
       if (!hasAny) return null;
       return (
         <div key={layerKey} className={`layer-section ${layer.cls}`}>
@@ -1326,31 +1365,49 @@ function LayerFirstView({ grouping, sets, sources, sourceIds, colorMap, editProp
           {sourceIds.map(srcId => {
             const color = colorMap[srcId] || COLOR_SLOTS[0];
             const authorSets = sets.filter(s => String(s.source_id) === srcId).sort((a, b) => bySeq(a.seq) - bySeq(b.seq));
-            const entries = authorSets.map(s => ({ seq: s.seq, type: s.type, ...getContent(s) })).filter(e => e.text);
-            if (!entries.length) return null;
+            // One entry can now carry several rows (one per translation language);
+            // group them by seq so the entry label still appears once, with the
+            // language rows stacked underneath it.
+            const entryGroups = [];
+            const seqIndex = new Map();
+            authorSets.forEach(s => {
+              getContents(s).forEach(c => {
+                if (!seqIndex.has(s.seq)) {
+                  seqIndex.set(s.seq, entryGroups.length);
+                  entryGroups.push({ seq: s.seq, type: s.type, items: [] });
+                }
+                entryGroups[seqIndex.get(s.seq)].items.push(c);
+              });
+            });
+            if (!entryGroups.length) return null;
             const sourceLabel = srcLabel(sources[srcId], srcId);
             return (
               <div key={srcId} className={`author-block author-${srcId}`}>
                 <div className="author-block-header" style={{ background: color.bg }}>
                   <span className="author-block-name" style={{ color: color.text }}>{sourceLabel}</span>
                 </div>
-                {entries.map(e => (
-                  <div key={e.seq} className="v2-layer-row-group author-block-row">
-                    <span className="v2-layer-row-label">{e.type === 'omen' ? `Omen ${e.seq}` : `Line ${e.seq}`}</span>
-                    <EditableText
-                      plain
-                      lineKey={`${e.seq}-${srcId}-${layerKey}`}
-                      sourceId={srcId}
-                      layerKey={layerKey}
-                      layerLabel={layer.label}
-                      sourceLabel={sourceLabel}
-                      color={color}
-                      rawText={e.text}
-                      contentType={e.contentType}
-                      editProps={editProps}
-                      className={`v2-layer-text v2-text-${layerKey}`}
-                      dir={e.dir || undefined}
-                    />
+                {entryGroups.map(g => (
+                  <div key={g.seq} className="v2-layer-row-group author-block-row">
+                    <span className="v2-layer-row-label">{g.type === 'omen' ? `Omen ${g.seq}` : `Line ${g.seq}`}</span>
+                    <div className="v2-layer-authors">
+                      {g.items.map((item, i) => (
+                        <EditableText
+                          key={i}
+                          plain
+                          lineKey={layerLineKey(g.seq, srcId, layerKey, item.contentType)}
+                          sourceId={srcId}
+                          layerKey={layerKey}
+                          layerLabel={layer.label}
+                          sourceLabel={sourceLabel}
+                          color={color}
+                          rawText={item.text}
+                          contentType={item.contentType}
+                          editProps={editProps}
+                          className={`v2-layer-text v2-text-${layerKey}`}
+                          dir={item.dir || undefined}
+                        />
+                      ))}
+                    </div>
                   </div>
                 ))}
               </div>
@@ -1365,7 +1422,7 @@ function LayerFirstView({ grouping, sets, sources, sourceIds, colorMap, editProp
 // Author -> Layer view: one section per author
 // grouping='author-layer'      -> Author -> Layer (all entries shown flat under each layer)
 // grouping='author-entry-layer' -> Author -> Entry -> Layer (per-entry sub-sections)
-function AuthorLayerView({ sets, sources, sourceIds, colorMap, grouping, editProps, lineRegionsByContentId, seqRank }) {
+function AuthorLayerView({ sets, sources, sourceIds, colorMap, grouping, editProps, lineRegionsByContentId, seqRank, hiddenLanguages }) {
   const contentLayers = LAYERS.filter(l => !l.isMorph);
   // Independent of `sourceIds`' display order (which "Author A-Z" may have
   // resorted alphabetically) -- morph authorship is a stable data fact, not a
@@ -1412,21 +1469,20 @@ function AuthorLayerView({ sets, sources, sourceIds, colorMap, grouping, editPro
             </div>
           )}
           {contentLayers.map(l => {
-            const entries = authorSets.flatMap(s => {
-              const c = (s.contents || []).find(c => contentTypeToLayer(c.type) === l.key);
-              return c ? [{ seq: s.seq, type: s.type, text: c.text, dir: c.text_direction || null, contentType: c.type }] : [];
-            });
+            const entries = authorSets.flatMap(s =>
+              pickContentsForLayer(s.contents, l.key, hiddenLanguages)
+                .map(c => ({ seq: s.seq, type: s.type, ...c })));
             if (!entries.length) return null;
             return (
               <div key={l.key} className={`v2-layer-row-group author-block-row ${l.cls}`}>
                 <span className="v2-layer-row-label">{l.label}</span>
                 <div className="v2-layer-authors">
-                  {entries.map(e => (
-                    <div key={e.seq} className="author-line-flat">
+                  {entries.map((e, i) => (
+                    <div key={i} className="author-line-flat">
                       <span className="entry-seq-tag">{e.seq}.</span>
                       <EditableText
                         plain
-                        lineKey={`${e.seq}-${srcId}-${l.key}`}
+                        lineKey={layerLineKey(e.seq, srcId, l.key, e.contentType)}
                         sourceId={srcId}
                         layerKey={l.key}
                         layerLabel={l.label}
@@ -1469,14 +1525,13 @@ function AuthorLayerView({ sets, sources, sourceIds, colorMap, grouping, editPro
         {header}
         {authorSets.map(set => {
           const label = set.type === 'omen' ? `Omen ${set.seq}` : `Line ${set.seq}`;
-          const contentByLayer = {};
-          (set.contents || []).forEach(c => {
-            const lk = contentTypeToLayer(c.type);
-            if (lk && !contentByLayer[lk]) contentByLayer[lk] = { text: c.text, dir: c.text_direction || null, contentType: c.type };
+          const contentsByLayer = {};
+          contentLayers.forEach(l => {
+            contentsByLayer[l.key] = pickContentsForLayer(set.contents, l.key, hiddenLanguages);
           });
           const morphs = isMorphAuthor ? (set.morphs || []) : [];
           const imgSels = getImgSels(set, lineRegionsByContentId);
-          const hasAny = contentLayers.some(l => contentByLayer[l.key]) || morphs.length > 0 || imgSels.length > 0;
+          const hasAny = contentLayers.some(l => contentsByLayer[l.key].length > 0) || morphs.length > 0 || imgSels.length > 0;
           if (!hasAny) return null;
 
           return (
@@ -1489,25 +1544,30 @@ function AuthorLayerView({ sets, sources, sourceIds, colorMap, grouping, editPro
                 </div>
               )}
               {contentLayers.map(l => {
-                const entry = contentByLayer[l.key];
-                if (!entry) return null;
+                const entries = contentsByLayer[l.key];
+                if (!entries.length) return null;
                 return (
                   <div key={l.key} className={`v2-layer-row-group author-block-row ${l.cls}`}>
                     <span className="v2-layer-row-label">{l.label}</span>
-                    <EditableText
-                      plain
-                      lineKey={`${set.seq}-${srcId}-${l.key}`}
-                      sourceId={srcId}
-                      layerKey={l.key}
-                      layerLabel={l.label}
-                      sourceLabel={author}
-                      color={color}
-                      rawText={entry.text}
-                      contentType={entry.contentType}
-                      editProps={editProps}
-                      className={`v2-layer-text v2-text-${l.key}`}
-                      dir={entry.dir || undefined}
-                    />
+                    <div className="v2-layer-authors">
+                      {entries.map((entry, i) => (
+                        <EditableText
+                          key={i}
+                          plain
+                          lineKey={layerLineKey(set.seq, srcId, l.key, entry.contentType)}
+                          sourceId={srcId}
+                          layerKey={l.key}
+                          layerLabel={l.label}
+                          sourceLabel={author}
+                          color={color}
+                          rawText={entry.text}
+                          contentType={entry.contentType}
+                          editProps={editProps}
+                          className={`v2-layer-text v2-text-${l.key}`}
+                          dir={entry.dir || undefined}
+                        />
+                      ))}
+                    </div>
                   </div>
                 );
               })}
@@ -1805,7 +1865,7 @@ const ENTRY_SORT_OPTIONS = [
   { key: 'most-edited', label: 'Most edited' },
 ];
 
-function FiltersBar({
+function FiltersPanel({
   entryCount, sortMode, onSortChange,
   sourceIds, sources, hiddenAuthors, onToggleAuthor, hiddenLayers, onToggleLayer,
   grouping, onGroupingChange, colorMap, sourcesWithImages, allLanguages, hiddenLanguages, onToggleLang,
@@ -1824,7 +1884,7 @@ function FiltersBar({
 
   useEffect(() => {
     if (!filtersOpen) return;
-    // delay so the click that opened the popover doesn't immediately close it
+    // delay so the click that opened the banner doesn't immediately close it
     const onDown = e => { if (filtersRef.current && !filtersRef.current.contains(e.target)) setFiltersOpen(false); };
     const timer = setTimeout(() => document.addEventListener('mousedown', onDown), 0);
     return () => {
@@ -1971,8 +2031,8 @@ function MinimalToolbar({ sourceIds, sources, hiddenAuthors, onToggleAuthor, hid
         </div>
       </div>
 
-      {/* Language */}
-      {allLanguages && allLanguages.length > 1 && (
+      {/* Language — only relevant while the Translation layer is active */}
+      {isLayerOn('translation') && allLanguages && allLanguages.length > 1 && (
         <div className="mtb-inline-group">
           <span className="mtb-row-label">Language</span>
           <div className="mtb-row-pills">
@@ -2076,6 +2136,16 @@ function ArtifactHeader({ artifact, allArtifacts, sourceIds, sources, entryCount
     return () => window.removeEventListener('scroll', onScroll);
   }, [headerRef]);
 
+  const [currentLocation, setCurrentLocation] = useState(null);
+  useEffect(() => {
+    setCurrentLocation(null);
+    if (!artifact.current_location_id) return;
+    fetch(`/api/artifacts/location/${artifact.current_location_id}`)
+      .then(r => r.json())
+      .then(setCurrentLocation)
+      .catch(() => {});
+  }, [artifact.current_location_id]);
+
   const coverUri = artifact.cover_image?.uri
     ? `/api/images/${artifact.cover_image.uri}`
     : null;
@@ -2096,6 +2166,7 @@ function ArtifactHeader({ artifact, allArtifacts, sourceIds, sources, entryCount
     ['Material',    artifact.material],
     ['Dimensions',  artifact.dimensions],
     ['Discovered',  artifact.discovery_date],
+    ['Current location', currentLocation?.name],
   ].filter(([, v]) => v);
 
   return (
@@ -2214,6 +2285,7 @@ export default function ArtifactDisplay() {
     const langs = new Set();
     sets.filter(s => String(s.source_id) === srcId).forEach(s => {
       (s.contents || []).forEach(c => {
+        if (contentTypeToLayer(c.type) !== 'translation') return;
         const lang = extractLangCode(c.type);
         if (lang) langs.add(lang);
       });
@@ -2360,13 +2432,11 @@ export default function ArtifactDisplay() {
 
   if (!artifact) return <div className="loading-wrap">Loading…</div>;
 
-  const activeSourceIds = sourceIds.filter(id => {
-    if (hiddenAuthors.has(id)) return false;
-    if (!hiddenLanguages.size) return true;
-    const srcLangs = sourceLanguageMap[id] || new Set();
-    if (!srcLangs.size) return true;
-    return [...srcLangs].some(lang => !hiddenLanguages.has(lang));
-  });
+  // Language filtering only controls which translation is shown per entry
+  // (see contentTypeToLayer/extractLangCode use below) -- it must not drop a
+  // source's script/transliteration/transcription just because its translation
+  // happens to be in a hidden language.
+  const activeSourceIds = sourceIds.filter(id => !hiddenAuthors.has(id));
   const isSingleAuthor = activeSourceIds.length === 1;
   const activeSourceSet = new Set(activeSourceIds);
   const activeSets = sets.filter(s => activeSourceSet.has(String(s.source_id)));
@@ -2380,14 +2450,14 @@ export default function ArtifactDisplay() {
       .map(id => srcLabel(sources[id], id));
     firstAuthorLabelBySeq[seq] = coveringLabels
       .slice()
-      .sort((a, b) => sortableName(a).localeCompare(sortableName(b)))[0] || '';
+      .sort((a, b) => a.localeCompare(b))[0] || '';
   });
   const editCountBySeq = {};
   editLog.forEach(e => { editCountBySeq[e.omenSeq] = (editCountBySeq[e.omenSeq] || 0) + 1; });
 
   const sortedOmenSeqs = [...omenSeqs].sort((a, b) => {
     switch (sortMode) {
-      case 'author-az':   return sortableName(firstAuthorLabelBySeq[a]).localeCompare(sortableName(firstAuthorLabelBySeq[b])) || a - b;
+      case 'author-az':   return firstAuthorLabelBySeq[a].localeCompare(firstAuthorLabelBySeq[b]) || a - b;
       case 'most-edited': return (editCountBySeq[b] || 0) - (editCountBySeq[a] || 0) || a - b;
       default:            return a - b;
     }
@@ -2400,7 +2470,7 @@ export default function ArtifactDisplay() {
   // author section, which barely moves anything a viewer would notice.
   const displaySourceIds = sortMode === 'author-az'
     ? [...activeSourceIds].sort((a, b) =>
-        sortableName(srcLabel(sources[a], a)).localeCompare(sortableName(srcLabel(sources[b], b))))
+        srcLabel(sources[a], a).localeCompare(srcLabel(sources[b], b)))
     : activeSourceIds;
 
   const hideClasses = [
@@ -2431,7 +2501,7 @@ export default function ArtifactDisplay() {
         </div>
 
         <div className="v2-center-panel">
-          <FiltersBar
+          <FiltersPanel
             entryCount={omenSeqs.length}
             sortMode={sortMode}
             onSortChange={setSortMode}
@@ -2456,12 +2526,14 @@ export default function ArtifactDisplay() {
                 sets={activeSets} sources={sources} sourceIds={displaySourceIds}
                 colorMap={colorMap} grouping={grouping} editProps={editProps}
                 lineRegionsByContentId={lineRegionsByContentId} seqRank={seqRank}
+                hiddenLanguages={hiddenLanguages}
               />
             ) : (grouping === 'layer-entry-author' || grouping === 'layer-author-entry') ? (
               <LayerFirstView
                 grouping={grouping} sets={activeSets} sources={sources}
                 sourceIds={displaySourceIds} colorMap={colorMap} editProps={editProps}
                 lineRegionsByContentId={lineRegionsByContentId} seqRank={seqRank}
+                hiddenLanguages={hiddenLanguages}
               />
             ) : (
               sortedOmenSeqs.map(seq => {
@@ -2474,6 +2546,7 @@ export default function ArtifactDisplay() {
                     sets={seqSets} sources={sources} colorMap={colorMap}
                     grouping={grouping} editProps={editProps}
                     lineRegionsByContentId={lineRegionsByContentId}
+                    hiddenLanguages={hiddenLanguages}
                   />
                 );
               })

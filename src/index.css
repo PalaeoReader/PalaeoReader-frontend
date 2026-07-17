@@ -3824,6 +3824,23 @@ button { cursor: pointer; font-family: 'Inter', sans-serif; }
   transition: opacity 0.08s ease 0.5s;
 }
 
+
+.v2-lang-badge {
+  font-size: 0.62rem;
+  font-family: 'Inter', sans-serif;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--v2-text-3);
+  background: var(--v2-bg-2);
+  border: 0.5px solid var(--v2-bd);
+  border-radius: 3px;
+  padding: 0.05rem 0.3rem;
+  min-width: 1.6rem;
+  text-align: center;
+  flex-shrink: 0;
+  line-height: 1.4;
+}
+
 /* pill dot — colored dot inside author filter pill */
 .pill-dot {
   font-size: 6px;
@@ -4118,6 +4135,9 @@ button { cursor: pointer; font-family: 'Inter', sans-serif; }
   max-height: 120px;
   padding: 8px 16px;
   border-bottom: 0.5px solid var(--border);
+  /* let the +Layers/+Authors/+Language popovers (position: absolute descendants)
+     float above the banner's own bounds instead of being clipped by it */
+  overflow: visible;
 }
 
 .filters-banner .mtb-toolbar {

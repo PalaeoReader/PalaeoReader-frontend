@@ -100,7 +100,7 @@ export const ArtifactRow = () => {
   if (loading) return <div className="loading-wrap">Loading artifacts…</div>;
   if (error)   return (
     <div className="error-wrap">
-      Could not reach the server. Make sure the backend is running on port 8000.
+      Could not reach the server.
       <br /><small>{error}</small>
     </div>
   );
