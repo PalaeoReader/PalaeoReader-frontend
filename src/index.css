@@ -3916,6 +3916,57 @@ button { cursor: pointer; font-family: 'Inter', sans-serif; }
   gap: 4px;
 }
 
+.mtb-checkbox-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-family: 'Inter', sans-serif;
+  color: var(--v2-text-2);
+  cursor: pointer;
+  user-select: none;
+}
+
+.mtb-checkbox {
+  width: 13px;
+  height: 13px;
+  margin: 0;
+  accent-color: var(--v2-text);
+  cursor: pointer;
+}
+
+/* language sub-grouping within a Translation layer block */
+.v2-translation-lang-group:not(:last-child) {
+  margin-bottom: 0.35rem;
+}
+
+.v2-translation-lang-header {
+  display: block;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--v2-text-3);
+  font-family: 'Inter', sans-serif;
+  font-weight: 700;
+  margin-bottom: 0.15rem;
+}
+
+.v2-translation-lang-block {
+  margin-bottom: 0.75rem;
+}
+.v2-translation-lang-block:last-child { margin-bottom: 0; }
+
+.v2-translation-lang-block-header {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--v2-text-3);
+  font-family: 'Inter', sans-serif;
+  font-weight: 700;
+  padding: 0.15rem 0;
+  margin-bottom: 0.25rem;
+}
+
 /* anchors the popover */
 .mtb-add-wrap {
   position: relative;
@@ -4042,6 +4093,12 @@ button { cursor: pointer; font-family: 'Inter', sans-serif; }
   color: var(--v2-text-3);
 }
 
+/* when the filters panel is open, the sort control moves to its own row
+   below the filter sections instead of sharing the top row */
+.entry-sort-bar-bottom {
+  border-top: 0.5px solid var(--border);
+}
+
 .entry-sort-count { white-space: nowrap; }
 
 .entry-sort-trigger-wrap { position: relative; }
@@ -4147,6 +4204,13 @@ button { cursor: pointer; font-family: 'Inter', sans-serif; }
 }
 
 .mtb-toolbar-inline {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* one line within the panel (Authors+Layers, Language, or Group) */
+.mtb-toolbar-row {
   display: flex;
   flex-direction: row;
   flex-wrap: wrap;

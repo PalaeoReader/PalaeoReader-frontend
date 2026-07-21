@@ -43,18 +43,41 @@ const COLOR_SLOTS = [
 const COMMUNITY_COLOR = { border: '#D85A30', bg: '#FAECE7', text: '#993C1D', row: 'rgba(216,90,48,0.05)' };
 
 const LANG_LABELS = { eng: 'English', rus: 'Russian', tur: 'Turkish', kaz: 'Kazakh', hun: 'Hungarian' };
+const UNSPECIFIED_LANG = '__unspecified__';
+
 function extractLangCode(type) {
-  const m = (type || '').match(/\[([a-z]{2,3})\]/);
+  const m = (type || '').match(/\[([^\]]+)\]/);
   return m ? m[1] : null;
 }
 function contentLangLabel(type) {
   const code = extractLangCode(type);
   return code ? (LANG_LABELS[code] || code) : null;
 }
-// Badge text is the raw code exactly as it appears in the data (e.g. "eng",
-// "rus", "kaz") -- no remapping to invented short forms.
+
 function contentLangShort(type) {
   return extractLangCode(type);
+}
+
+function translationLangLabel(code) {
+  return code === UNSPECIFIED_LANG ? 'Unspecified language' : (LANG_LABELS[code] || code);
+}
+
+// Splits a flat list of translation rows (each carrying a `contentType`) into
+// language-first groups -- known languages sorted alphabetically by label,
+// entries with no language tag collected last under "Unspecified language".
+function groupRowsByLanguage(rows) {
+  const groups = new Map();
+  rows.forEach(r => {
+    const code = extractLangCode(r.contentType) || UNSPECIFIED_LANG;
+    if (!groups.has(code)) groups.set(code, []);
+    groups.get(code).push(r);
+  });
+  const codes = [...groups.keys()].sort((a, b) => {
+    if (a === UNSPECIFIED_LANG) return 1;
+    if (b === UNSPECIFIED_LANG) return -1;
+    return translationLangLabel(a).localeCompare(translationLangLabel(b));
+  });
+  return codes.map(code => ({ code, label: translationLangLabel(code), rows: groups.get(code) }));
 }
 
 function contentTypeToLayer(type) {
@@ -71,12 +94,7 @@ function isLangHidden(type, hiddenLanguages) {
   return !!lang && !!hiddenLanguages?.has(lang);
 }
 
-// Picks every visible content item for a layer. Translation is the only layer
-// where a single entry can legitimately carry more than one language variant
-// (e.g. eng/rus/kaz side by side) -- those should all render as sibling rows
-// under one shared layer label rather than picking just the "first" one, which
-// silently dropped the other languages. Every other layer keeps the old
-// pick-first behavior (unchanged).
+
 function pickContentsForLayer(contents, layerKey, hiddenLanguages) {
   const matches = (contents || [])
     .filter(c => contentTypeToLayer(c.type) === layerKey && !isLangHidden(c.type, hiddenLanguages))
@@ -84,10 +102,8 @@ function pickContentsForLayer(contents, layerKey, hiddenLanguages) {
   return layerKey === 'translation' ? matches : matches.slice(0, 1);
 }
 
-// A source can now contribute more than one translation row to the same entry
-// (one per language), so the edit-tracking lineKey needs the language code to
-// stay unique per row -- otherwise two languages from the same source would
-// share one override slot and clobber each other's edits.
+
+
 function layerLineKey(seq, sourceId, layerKey, contentType) {
   const langCode = layerKey === 'translation' ? extractLangCode(contentType) : null;
   return `${seq}-${sourceId}-${layerKey}${langCode ? `-${langCode}` : ''}`;
@@ -829,7 +845,7 @@ function CompareDiffPanel({ rows, sources, onClose }) {
   );
 }
 
-function OmenLayerGroup({ l, activeRows, omenSeq, sources, editProps }) {
+function OmenLayerGroup({ l, activeRows, omenSeq, sources, editProps, groupByLanguage }) {
   const [pinnedKey, setPinnedKey] = useState(null);
   const hasMultiple = activeRows.length > 1;
 
@@ -847,6 +863,19 @@ function OmenLayerGroup({ l, activeRows, omenSeq, sources, editProps }) {
     ? { pinnedKey, pinnedText, pinnedContentType, onPin: lk => setPinnedKey(k => k === lk ? null : lk) }
     : null;
 
+  const renderLine = r => (
+    <EditableLine key={r.lKey}
+      lineKey={r.lKey} sourceId={r.sourceId} color={r.color}
+      layerKey={l.key} text={r.text}
+      isEdited={r.isEdited}
+      contentType={r.contentType}
+      sourceLabel={srcLabel(sources[r.sourceId], r.sourceId)}
+      layerLabel={l.label}
+      editProps={editProps}
+      pinProps={pinProps}
+    />
+  );
+
   return (
     <div className={`v2-layer-group-wrap ${l.cls}`}>
       <div className="v2-layer-row-group v2-layer-row-group--inner">
@@ -854,18 +883,15 @@ function OmenLayerGroup({ l, activeRows, omenSeq, sources, editProps }) {
           <span className="v2-layer-row-label">{l.label}</span>
         </div>
         <div className="v2-layer-authors">
-          {rowsWithKey.map(r => (
-            <EditableLine key={r.lKey}
-              lineKey={r.lKey} sourceId={r.sourceId} color={r.color}
-              layerKey={l.key} text={r.text}
-              isEdited={r.isEdited}
-              contentType={r.contentType}
-              sourceLabel={srcLabel(sources[r.sourceId], r.sourceId)}
-              layerLabel={l.label}
-              editProps={editProps}
-              pinProps={pinProps}
-            />
-          ))}
+          {groupByLanguage
+            ? groupRowsByLanguage(rowsWithKey).map(g => (
+                <div key={g.code} className="v2-translation-lang-group">
+                  <span className="v2-translation-lang-header">{g.label}</span>
+                  {g.rows.map(renderLine)}
+                </div>
+              ))
+            : rowsWithKey.map(renderLine)
+          }
         </div>
       </div>
     </div>
@@ -1062,7 +1088,7 @@ function ImageCropRow({ color, sels, dir, bare, style }) {
 }
 
 // Unified omen block supports entry-layer-author and entry-author-layer grouping modes.
-function OmenBlock({ omenSeq, omenType, sets, sources, colorMap, grouping, editProps, lineRegionsByContentId, hiddenLanguages }) {
+function OmenBlock({ omenSeq, omenType, sets, sources, colorMap, grouping, editProps, lineRegionsByContentId, hiddenLanguages, groupTranslationsByLanguage }) {
   const label = omenType === 'omen' ? `Omen ${omenSeq}` : `Line ${omenSeq}`;
   const firstSet = sets[0];
   const morphs = firstSet?.morphs || [];
@@ -1122,6 +1148,7 @@ function OmenBlock({ omenSeq, omenType, sets, sources, colorMap, grouping, editP
               <OmenLayerGroup key={l.key}
                 l={l} activeRows={activeRows}
                 omenSeq={omenSeq} sources={sources} editProps={editProps}
+                groupByLanguage={l.key === 'translation' && groupTranslationsByLanguage}
               />
             );
           })}
@@ -1169,27 +1196,37 @@ function OmenBlock({ omenSeq, omenType, sets, sources, colorMap, grouping, editP
               {contentLayers.map(l => {
                 const entries = contentsByLayer[l.key];
                 if (!entries.length) return null;
+                const byLang = l.key === 'translation' && groupTranslationsByLanguage;
+                const renderEntry = (entry, i) => (
+                  <EditableText
+                    key={i}
+                    plain
+                    lineKey={layerLineKey(omenSeq, srcId, l.key, entry.contentType)}
+                    sourceId={srcId}
+                    layerKey={l.key}
+                    layerLabel={l.label}
+                    sourceLabel={author}
+                    color={color}
+                    rawText={entry.text}
+                    contentType={entry.contentType}
+                    editProps={editProps}
+                    className={`v2-layer-text v2-text-${l.key}`}
+                    dir={entry.dir || undefined}
+                  />
+                );
                 return (
                   <div key={l.key} className={`v2-layer-row-group author-block-row ${l.cls}`}>
                     <span className="v2-layer-row-label">{l.label}</span>
                     <div className="v2-layer-authors">
-                      {entries.map((entry, i) => (
-                        <EditableText
-                          key={i}
-                          plain
-                          lineKey={layerLineKey(omenSeq, srcId, l.key, entry.contentType)}
-                          sourceId={srcId}
-                          layerKey={l.key}
-                          layerLabel={l.label}
-                          sourceLabel={author}
-                          color={color}
-                          rawText={entry.text}
-                          contentType={entry.contentType}
-                          editProps={editProps}
-                          className={`v2-layer-text v2-text-${l.key}`}
-                          dir={entry.dir || undefined}
-                        />
-                      ))}
+                      {byLang
+                        ? groupRowsByLanguage(entries).map(g => (
+                            <div key={g.code} className="v2-translation-lang-group">
+                              <span className="v2-translation-lang-header">{g.label}</span>
+                              {g.rows.map(renderEntry)}
+                            </div>
+                          ))
+                        : entries.map(renderEntry)
+                      }
                     </div>
                   </div>
                 );
@@ -1262,8 +1299,14 @@ GroupingModel.MODES = {
 GroupingModel.SECOND_OPTS = { author: ['layer', 'entry'], entry: ['layer', 'author'], layer: ['entry', 'author'] };
 
 // Layer -> Entry -> Author  or  Layer -> Author -> Entry
-function LayerFirstView({ grouping, sets, sources, sourceIds, colorMap, editProps, lineRegionsByContentId, seqRank, hiddenLanguages }) {
-  const contentLayers = LAYERS.filter(l => !l.isMorph);
+function LayerFirstView({ grouping, sets, sources, sourceIds, colorMap, editProps, lineRegionsByContentId, seqRank, hiddenLanguages, groupTranslationsByLanguage }) {
+  const baseLayers = LAYERS.filter(l => !l.isMorph);
+  // Layer -> Entry -> Author leads with translation, since that's the layer
+  // readers care about first in this mode; other layer-first modes keep the
+  // default script/translit/transcription/translation ordering.
+  const contentLayers = grouping === 'layer-entry-author'
+    ? [baseLayers.find(l => l.key === 'translation'), ...baseLayers.filter(l => l.key !== 'translation')].filter(Boolean)
+    : baseLayers;
   const bySeq = (seq) => seqRank?.get(seq) ?? seq;
   const omenSeqs = [...new Set(sets.map(s => s.seq))].sort((a, b) => bySeq(a) - bySeq(b));
 
@@ -1326,6 +1369,93 @@ function LayerFirstView({ grouping, sets, sources, sourceIds, colorMap, editProp
   return [imageSection, ...contentLayers.map(layer => {
     const layerKey = layer.key;
     const getContents = set => pickContentsForLayer(set.contents, layerKey, hiddenLanguages);
+
+    if (layerKey === 'translation' && groupTranslationsByLanguage) {
+      // Translation is a special case: language is a translation-only
+      // subgroup, not one of the three main grouping dimensions, so it
+      // doesn't touch how other layers are laid out. Below the language
+      // split, it still follows the active layer-first sub-mode: entry
+      // then author for layer-entry-author, author then entry otherwise.
+      const allRows = [];
+      sets.forEach(s => {
+        const color = colorMap[String(s.source_id)] || COLOR_SLOTS[0];
+        getContents(s).forEach(c => allRows.push({ seq: s.seq, type: s.type, sourceId: String(s.source_id), color, ...c }));
+      });
+      if (!allRows.length) return null;
+
+      if (grouping === 'layer-entry-author') {
+        return (
+          <div key={layerKey} className={`layer-section ${layer.cls}`}>
+            <div className="layer-section-header">{layer.label}</div>
+            {groupRowsByLanguage(allRows).map(g => {
+              const langSeqs = [...new Set(g.rows.map(r => r.seq))].sort((a, b) => bySeq(a) - bySeq(b));
+              return (
+                <div key={g.code} className="v2-translation-lang-block">
+                  <div className="v2-translation-lang-block-header">{g.label}</div>
+                  {langSeqs.map(seq => {
+                    const seqRows = g.rows.filter(r => r.seq === seq)
+                      .sort((a, b) => sourceIds.indexOf(a.sourceId) - sourceIds.indexOf(b.sourceId));
+                    if (!seqRows.length) return null;
+                    const entryLabel = seqRows[0].type === 'omen' ? `Omen ${seq}` : `Line ${seq}`;
+                    return (
+                      <LayerEntryGroup key={seq}
+                        seq={seq} entryLabel={entryLabel} rows={seqRows}
+                        sources={sources} layerKey={layerKey} layerLabel={layer.label}
+                        editProps={editProps}
+                      />
+                    );
+                  })}
+                </div>
+              );
+            })}
+          </div>
+        );
+      }
+
+      return (
+        <div key={layerKey} className={`layer-section ${layer.cls}`}>
+          <div className="layer-section-header">{layer.label}</div>
+          {groupRowsByLanguage(allRows).map(g => (
+            <div key={g.code} className="v2-translation-lang-block">
+              <div className="v2-translation-lang-block-header">{g.label}</div>
+              {sourceIds.filter(srcId => g.rows.some(r => r.sourceId === srcId)).map(srcId => {
+                const color = colorMap[srcId] || COLOR_SLOTS[0];
+                const sourceLabel = srcLabel(sources[srcId], srcId);
+                const authorRows = g.rows.filter(r => r.sourceId === srcId).sort((a, b) => bySeq(a.seq) - bySeq(b.seq));
+                return (
+                  <div key={srcId} className={`author-block author-${srcId}`}>
+                    <div className="author-block-header" style={{ background: color.bg }}>
+                      <span className="author-block-name" style={{ color: color.text }}>{sourceLabel}</span>
+                    </div>
+                    {authorRows.map((r, i) => (
+                      <div key={i} className="v2-layer-row-group author-block-row">
+                        <span className="v2-layer-row-label">{r.type === 'omen' ? `Omen ${r.seq}` : `Line ${r.seq}`}</span>
+                        <div className="v2-layer-authors">
+                          <EditableText
+                            plain
+                            lineKey={layerLineKey(r.seq, srcId, layerKey, r.contentType)}
+                            sourceId={srcId}
+                            layerKey={layerKey}
+                            layerLabel={layer.label}
+                            sourceLabel={sourceLabel}
+                            color={color}
+                            rawText={r.text}
+                            contentType={r.contentType}
+                            editProps={editProps}
+                            className={`v2-layer-text v2-text-${layerKey}`}
+                            dir={r.dir || undefined}
+                          />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                );
+              })}
+            </div>
+          ))}
+        </div>
+      );
+    }
 
     if (grouping === 'layer-entry-author') {
       // Layer → Entry → Author: for each layer, entries in order, authors stacked within
@@ -1422,7 +1552,7 @@ function LayerFirstView({ grouping, sets, sources, sourceIds, colorMap, editProp
 // Author -> Layer view: one section per author
 // grouping='author-layer'      -> Author -> Layer (all entries shown flat under each layer)
 // grouping='author-entry-layer' -> Author -> Entry -> Layer (per-entry sub-sections)
-function AuthorLayerView({ sets, sources, sourceIds, colorMap, grouping, editProps, lineRegionsByContentId, seqRank, hiddenLanguages }) {
+function AuthorLayerView({ sets, sources, sourceIds, colorMap, grouping, editProps, lineRegionsByContentId, seqRank, hiddenLanguages, groupTranslationsByLanguage }) {
   const contentLayers = LAYERS.filter(l => !l.isMorph);
   // Independent of `sourceIds`' display order (which "Author A-Z" may have
   // resorted alphabetically) -- morph authorship is a stable data fact, not a
@@ -1473,29 +1603,39 @@ function AuthorLayerView({ sets, sources, sourceIds, colorMap, grouping, editPro
               pickContentsForLayer(s.contents, l.key, hiddenLanguages)
                 .map(c => ({ seq: s.seq, type: s.type, ...c })));
             if (!entries.length) return null;
+            const byLang = l.key === 'translation' && groupTranslationsByLanguage;
+            const renderEntry = (e, i) => (
+              <div key={i} className="author-line-flat">
+                <span className="entry-seq-tag">{e.seq}.</span>
+                <EditableText
+                  plain
+                  lineKey={layerLineKey(e.seq, srcId, l.key, e.contentType)}
+                  sourceId={srcId}
+                  layerKey={l.key}
+                  layerLabel={l.label}
+                  sourceLabel={author}
+                  color={color}
+                  rawText={e.text}
+                  contentType={e.contentType}
+                  editProps={editProps}
+                  className={`v2-layer-text v2-text-${l.key}`}
+                  dir={e.dir || undefined}
+                />
+              </div>
+            );
             return (
               <div key={l.key} className={`v2-layer-row-group author-block-row ${l.cls}`}>
                 <span className="v2-layer-row-label">{l.label}</span>
                 <div className="v2-layer-authors">
-                  {entries.map((e, i) => (
-                    <div key={i} className="author-line-flat">
-                      <span className="entry-seq-tag">{e.seq}.</span>
-                      <EditableText
-                        plain
-                        lineKey={layerLineKey(e.seq, srcId, l.key, e.contentType)}
-                        sourceId={srcId}
-                        layerKey={l.key}
-                        layerLabel={l.label}
-                        sourceLabel={author}
-                        color={color}
-                        rawText={e.text}
-                        contentType={e.contentType}
-                        editProps={editProps}
-                        className={`v2-layer-text v2-text-${l.key}`}
-                        dir={e.dir || undefined}
-                      />
-                    </div>
-                  ))}
+                  {byLang
+                    ? groupRowsByLanguage(entries).map(g => (
+                        <div key={g.code} className="v2-translation-lang-group">
+                          <span className="v2-translation-lang-header">{g.label}</span>
+                          {g.rows.map(renderEntry)}
+                        </div>
+                      ))
+                    : entries.map(renderEntry)
+                  }
                 </div>
               </div>
             );
@@ -1546,27 +1686,37 @@ function AuthorLayerView({ sets, sources, sourceIds, colorMap, grouping, editPro
               {contentLayers.map(l => {
                 const entries = contentsByLayer[l.key];
                 if (!entries.length) return null;
+                const byLang = l.key === 'translation' && groupTranslationsByLanguage;
+                const renderEntry = (entry, i) => (
+                  <EditableText
+                    key={i}
+                    plain
+                    lineKey={layerLineKey(set.seq, srcId, l.key, entry.contentType)}
+                    sourceId={srcId}
+                    layerKey={l.key}
+                    layerLabel={l.label}
+                    sourceLabel={author}
+                    color={color}
+                    rawText={entry.text}
+                    contentType={entry.contentType}
+                    editProps={editProps}
+                    className={`v2-layer-text v2-text-${l.key}`}
+                    dir={entry.dir || undefined}
+                  />
+                );
                 return (
                   <div key={l.key} className={`v2-layer-row-group author-block-row ${l.cls}`}>
                     <span className="v2-layer-row-label">{l.label}</span>
                     <div className="v2-layer-authors">
-                      {entries.map((entry, i) => (
-                        <EditableText
-                          key={i}
-                          plain
-                          lineKey={layerLineKey(set.seq, srcId, l.key, entry.contentType)}
-                          sourceId={srcId}
-                          layerKey={l.key}
-                          layerLabel={l.label}
-                          sourceLabel={author}
-                          color={color}
-                          rawText={entry.text}
-                          contentType={entry.contentType}
-                          editProps={editProps}
-                          className={`v2-layer-text v2-text-${l.key}`}
-                          dir={entry.dir || undefined}
-                        />
-                      ))}
+                      {byLang
+                        ? groupRowsByLanguage(entries).map(g => (
+                            <div key={g.code} className="v2-translation-lang-group">
+                              <span className="v2-translation-lang-header">{g.label}</span>
+                              {g.rows.map(renderEntry)}
+                            </div>
+                          ))
+                        : entries.map(renderEntry)
+                      }
                     </div>
                   </div>
                 );
@@ -1869,6 +2019,7 @@ function FiltersPanel({
   entryCount, sortMode, onSortChange,
   sourceIds, sources, hiddenAuthors, onToggleAuthor, hiddenLayers, onToggleLayer,
   grouping, onGroupingChange, colorMap, sourcesWithImages, allLanguages, hiddenLanguages, onToggleLang,
+  groupTranslationsByLanguage, onToggleGroupTranslationsByLanguage,
 }) {
   const [sortOpen, setSortOpen] = useState(false);
   const sortRef = useRef(null);
@@ -1899,32 +2050,39 @@ function FiltersPanel({
     (hiddenAuthors.size > 0 ? 1 : 0) +
     (hiddenLanguages.size > 0 ? 1 : 0) +
     (hiddenLayers.size > 0 ? 1 : 0) +
-    (grouping !== 'author-entry-layer' ? 1 : 0);
+    (grouping !== 'author-entry-layer' ? 1 : 0) +
+    (groupTranslationsByLanguage ? 1 : 0);
+
+  const sortControl = (
+    <>
+      <span className="entry-sort-count">{entryCount} entr{entryCount === 1 ? 'y' : 'ies'}</span>
+      <div className="entry-sort-trigger-wrap" ref={sortRef}>
+        <button type="button" className="entry-sort-trigger" onClick={() => setSortOpen(v => !v)}>
+          sorted by {current.label.toLowerCase()}
+          <i className="fas fa-sort" />
+        </button>
+        {sortOpen && (
+          <div className="mtb-popover entry-sort-popover">
+            {ENTRY_SORT_OPTIONS.map(opt => (
+              <div
+                key={opt.key}
+                className={`mtb-pop-row${opt.key === sortMode ? ' mtb-selected' : ''}`}
+                onClick={() => { onSortChange(opt.key); setSortOpen(false); }}
+              >
+                <span className="mtb-pop-label">{opt.label}</span>
+                {opt.key === sortMode && <i className="fas fa-check mtb-check" />}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </>
+  );
 
   return (
     <div className="analysis-toolbar" ref={filtersRef}>
       <div className="entry-sort-bar">
-        <span className="entry-sort-count">{entryCount} entr{entryCount === 1 ? 'y' : 'ies'}</span>
-        <div className="entry-sort-trigger-wrap" ref={sortRef}>
-          <button type="button" className="entry-sort-trigger" onClick={() => setSortOpen(v => !v)}>
-            sorted by {current.label.toLowerCase()}
-            <i className="fas fa-sort" />
-          </button>
-          {sortOpen && (
-            <div className="mtb-popover entry-sort-popover">
-              {ENTRY_SORT_OPTIONS.map(opt => (
-                <div
-                  key={opt.key}
-                  className={`mtb-pop-row${opt.key === sortMode ? ' mtb-selected' : ''}`}
-                  onClick={() => { onSortChange(opt.key); setSortOpen(false); }}
-                >
-                  <span className="mtb-pop-label">{opt.label}</span>
-                  {opt.key === sortMode && <i className="fas fa-check mtb-check" />}
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
+        {!filtersOpen && sortControl}
 
         <div className="filters-btn-wrap">
           <button
@@ -1955,13 +2113,21 @@ function FiltersPanel({
           allLanguages={allLanguages}
           hiddenLanguages={hiddenLanguages}
           onToggleLang={onToggleLang}
+          groupTranslationsByLanguage={groupTranslationsByLanguage}
+          onToggleGroupTranslationsByLanguage={onToggleGroupTranslationsByLanguage}
         />
       </div>
+
+      {filtersOpen && (
+        <div className="entry-sort-bar entry-sort-bar-bottom">
+          {sortControl}
+        </div>
+      )}
     </div>
   );
 }
 
-function MinimalToolbar({ sourceIds, sources, hiddenAuthors, onToggleAuthor, hiddenLayers, onToggleLayer, grouping, onGroupingChange, colorMap, sourcesWithImages, allLanguages, hiddenLanguages, onToggleLang }) {
+function MinimalToolbar({ sourceIds, sources, hiddenAuthors, onToggleAuthor, hiddenLayers, onToggleLayer, grouping, onGroupingChange, colorMap, sourcesWithImages, allLanguages, hiddenLanguages, onToggleLang, groupTranslationsByLanguage, onToggleGroupTranslationsByLanguage }) {
   const [openPopover, setOpenPopover] = useState(null);
   const togglePopover = id => setOpenPopover(p => p === id ? null : id);
   const ref = useRef(null);
@@ -2000,105 +2166,129 @@ function MinimalToolbar({ sourceIds, sources, hiddenAuthors, onToggleAuthor, hid
 
   return (
     <div className="mtb-toolbar mtb-toolbar-inline" ref={ref}>
-      {/* Authors */}
-      <div className="mtb-inline-group">
-        <span className="mtb-row-label">Authors</span>
-        <div className="mtb-row-pills">
-          {activeAuthorIds.map(id => {
-            const color = colorMap[id] || COLOR_SLOTS[0];
-            const shortName = srcLabel(sources[id], id);
-            return (
-              <Pill key={id} dotColor={color.border} onRemove={() => onToggleAuthor(id)}>
-                {shortName}
-                {sourcesWithImages?.has(id) && (
-                  <i className="fas fa-camera" style={{ fontSize: 10, color: 'var(--text-tertiary, #999)', marginLeft: 3 }} />
-                )}
-              </Pill>
-            );
-          })}
-          {hiddenAuthors.size > 0 && (
-            <AddPopover
-              id="authors" openId={openPopover} onToggle={togglePopover}
-              items={sourceIds.map(id => ({
-                key: id,
-                selected: !hiddenAuthors.has(id),
-                onClick: () => onToggleAuthor(id),
-                dotColor: (colorMap[id] || COLOR_SLOTS[0]).border,
-                label: srcLabel(sources[id], id),
-              }))}
-            />
-          )}
-        </div>
-      </div>
-
-      {/* Language — only relevant while the Translation layer is active */}
-      {isLayerOn('translation') && allLanguages && allLanguages.length > 1 && (
+      <div className="mtb-toolbar-row">
+        {/* Authors */}
         <div className="mtb-inline-group">
-          <span className="mtb-row-label">Language</span>
+          <span className="mtb-row-label">Authors</span>
           <div className="mtb-row-pills">
-            {allLanguages.filter(c => !hiddenLanguages.has(c)).map(code => (
-              <Pill key={code} onRemove={() => onToggleLang(code)}>
-                {LANG_LABELS[code] || code}
-              </Pill>
-            ))}
-            {hiddenLanguages.size > 0 && (
+            {activeAuthorIds.map(id => {
+              const color = colorMap[id] || COLOR_SLOTS[0];
+              const shortName = srcLabel(sources[id], id);
+              return (
+                <Pill key={id} dotColor={color.border} onRemove={() => onToggleAuthor(id)}>
+                  {shortName}
+                  {sourcesWithImages?.has(id) && (
+                    <i className="fas fa-camera" style={{ fontSize: 10, color: 'var(--text-tertiary, #999)', marginLeft: 3 }} />
+                  )}
+                </Pill>
+              );
+            })}
+            {hiddenAuthors.size > 0 && (
               <AddPopover
-                id="languages" openId={openPopover} onToggle={togglePopover}
-                items={allLanguages.map(code => ({
-                  key: code,
-                  selected: !hiddenLanguages.has(code),
-                  onClick: () => onToggleLang(code),
-                  label: LANG_LABELS[code] || code,
+                id="authors" openId={openPopover} onToggle={togglePopover}
+                items={sourceIds.map(id => ({
+                  key: id,
+                  selected: !hiddenAuthors.has(id),
+                  onClick: () => onToggleAuthor(id),
+                  dotColor: (colorMap[id] || COLOR_SLOTS[0]).border,
+                  label: srcLabel(sources[id], id),
                 }))}
               />
             )}
           </div>
         </div>
-      )}
 
-      {/* Layers */}
-      <div className="mtb-inline-group">
-        <span className="mtb-row-label">Layers</span>
-        <div className="mtb-row-pills">
-          {activeLayerItems.map(l => (
-            <Pill key={l.key} onRemove={() => toggleLayer(l.key)}>
-              {l.short}
-            </Pill>
-          ))}
-          {activeLayerItems.length < layerItems.length && (
-            <AddPopover
-              id="layers" openId={openPopover} onToggle={togglePopover}
-              items={layerItems.map(l => ({
-                key: l.key,
-                selected: isLayerOn(l.key),
-                onClick: () => toggleLayer(l.key),
-                label: l.label,
-              }))}
-            />
-          )}
+        {/* Layers */}
+        <div className="mtb-inline-group">
+          <span className="mtb-row-label">Layers</span>
+          <div className="mtb-row-pills">
+            {activeLayerItems.map(l => (
+              <Pill key={l.key} onRemove={() => toggleLayer(l.key)}>
+                {l.short}
+              </Pill>
+            ))}
+            {activeLayerItems.length < layerItems.length && (
+              <AddPopover
+                id="layers" openId={openPopover} onToggle={togglePopover}
+                items={layerItems.map(l => ({
+                  key: l.key,
+                  selected: isLayerOn(l.key),
+                  onClick: () => toggleLayer(l.key),
+                  label: l.label,
+                }))}
+              />
+            )}
+          </div>
         </div>
       </div>
 
-      {/* Group by */}
-      <div className="mtb-inline-group">
-        <span className="mtb-row-label">Group</span>
-        <div className="mtb-group-segs">
-          <div className="seg-ctrl">
-            {['author', 'entry', 'layer'].map(v => (
-              <button key={v} className={`seg-btn${first === v ? ' active' : ''}`} onClick={() => setFirst(v)}>
-                {GROUPING_LABELS[v]}
-              </button>
-            ))}
+      {/* Language row (only relevant while the Translation layer is active) */}
+      {isLayerOn('translation') && allLanguages && allLanguages.length > 1 && (
+        <div className="mtb-toolbar-row">
+          <div className="mtb-inline-group">
+            <span className="mtb-row-label">Language</span>
+            <div className="mtb-row-pills">
+              {allLanguages.filter(c => !hiddenLanguages.has(c)).map(code => (
+                <Pill key={code} onRemove={() => onToggleLang(code)}>
+                  {LANG_LABELS[code] || code}
+                </Pill>
+              ))}
+              {hiddenLanguages.size > 0 && (
+                <AddPopover
+                  id="languages" openId={openPopover} onToggle={togglePopover}
+                  items={allLanguages.map(code => ({
+                    key: code,
+                    selected: !hiddenLanguages.has(code),
+                    onClick: () => onToggleLang(code),
+                    label: LANG_LABELS[code] || code,
+                  }))}
+                />
+              )}
+            </div>
           </div>
-          <span className="grouping-then">→ then</span>
-          <div className="seg-ctrl">
-            {secondOpts.map(v => (
-              <button key={v} className={`seg-btn${second === v ? ' active' : ''}`} onClick={() => setSecond(v)}>
-                {GROUPING_LABELS[v]}
-              </button>
-            ))}
+        </div>
+      )}
+
+      {/* Translation options row (only relevant while the Translation layer is active) */}
+      {isLayerOn('translation') && (
+        <div className="mtb-toolbar-row">
+          <div className="mtb-inline-group">
+            <span className="mtb-row-label">Translation options</span>
+            <label className="mtb-checkbox-label">
+              <input
+                type="checkbox"
+                className="mtb-checkbox"
+                checked={!!groupTranslationsByLanguage}
+                onChange={onToggleGroupTranslationsByLanguage}
+              />
+              Group by language
+            </label>
           </div>
-          {third && <span className="grouping-static">→ {GROUPING_LABELS[third]}</span>}
+        </div>
+      )}
+
+      {/* Group by row */}
+      <div className="mtb-toolbar-row">
+        <div className="mtb-inline-group">
+          <span className="mtb-row-label">Group</span>
+          <div className="mtb-group-segs">
+            <div className="seg-ctrl">
+              {['author', 'entry', 'layer'].map(v => (
+                <button key={v} className={`seg-btn${first === v ? ' active' : ''}`} onClick={() => setFirst(v)}>
+                  {GROUPING_LABELS[v]}
+                </button>
+              ))}
+            </div>
+            <span className="grouping-then">→ then</span>
+            <div className="seg-ctrl">
+              {secondOpts.map(v => (
+                <button key={v} className={`seg-btn${second === v ? ' active' : ''}`} onClick={() => setSecond(v)}>
+                  {GROUPING_LABELS[v]}
+                </button>
+              ))}
+            </div>
+            {third && <span className="grouping-static">→ {GROUPING_LABELS[third]}</span>}
+          </div>
         </div>
       </div>
     </div>
@@ -2308,6 +2498,18 @@ export default function ArtifactDisplay() {
   });
   const [grouping, setGrouping] = useState(() => searchParams.get('grouping') || 'author-entry-layer');
   const [sortMode, setSortMode] = useState('entry-order');
+  const [groupTranslationsByLanguage, setGroupTranslationsByLanguage] = useState(
+    () => searchParams.get('translation_group_by_lang') === '1'
+  );
+
+  // Translation-only sub-setting: hide and reset it the moment the Translation
+  // layer itself is toggled off, so it can't linger enabled for a layer that's
+  // no longer shown.
+  useEffect(() => {
+    if (hiddenLayers.has('translation') && groupTranslationsByLanguage) {
+      setGroupTranslationsByLanguage(false);
+    }
+  }, [hiddenLayers, groupTranslationsByLanguage]);
 
   useEffect(() => {
     const p = {};
@@ -2315,8 +2517,9 @@ export default function ArtifactDisplay() {
     if (hiddenLayers.size)    p.hidden_layers    = [...hiddenLayers].join(',');
     if (hiddenLanguages.size) p.hidden_languages = [...hiddenLanguages].join(',');
     if (grouping !== 'entry-layer-author') p.grouping = grouping;
+    if (groupTranslationsByLanguage) p.translation_group_by_lang = '1';
     setSearchParams(p, { replace: true });
-  }, [hiddenAuthors, hiddenLayers, hiddenLanguages, grouping]);
+  }, [hiddenAuthors, hiddenLayers, hiddenLanguages, grouping, groupTranslationsByLanguage]);
 
   const [lineOverrides, setLineOverrides]   = useState({});
   const [editLog, setEditLog]               = useState([]);
@@ -2429,6 +2632,10 @@ export default function ArtifactDisplay() {
     setHiddenLanguages(prev => { const n = new Set(prev); n.has(code) ? n.delete(code) : n.add(code); return n; });
   }, []);
 
+  const toggleGroupTranslationsByLanguage = useCallback(() => {
+    setGroupTranslationsByLanguage(v => !v);
+  }, []);
+
 
   if (!artifact) return <div className="loading-wrap">Loading…</div>;
 
@@ -2518,6 +2725,8 @@ export default function ArtifactDisplay() {
             allLanguages={allLanguages}
             hiddenLanguages={hiddenLanguages}
             onToggleLang={toggleLanguage}
+            groupTranslationsByLanguage={groupTranslationsByLanguage}
+            onToggleGroupTranslationsByLanguage={toggleGroupTranslationsByLanguage}
           />
 
           <div className={`v2-text-display ${hideClasses}`}>
@@ -2527,6 +2736,7 @@ export default function ArtifactDisplay() {
                 colorMap={colorMap} grouping={grouping} editProps={editProps}
                 lineRegionsByContentId={lineRegionsByContentId} seqRank={seqRank}
                 hiddenLanguages={hiddenLanguages}
+                groupTranslationsByLanguage={groupTranslationsByLanguage}
               />
             ) : (grouping === 'layer-entry-author' || grouping === 'layer-author-entry') ? (
               <LayerFirstView
@@ -2534,6 +2744,7 @@ export default function ArtifactDisplay() {
                 sourceIds={displaySourceIds} colorMap={colorMap} editProps={editProps}
                 lineRegionsByContentId={lineRegionsByContentId} seqRank={seqRank}
                 hiddenLanguages={hiddenLanguages}
+                groupTranslationsByLanguage={groupTranslationsByLanguage}
               />
             ) : (
               sortedOmenSeqs.map(seq => {
@@ -2547,6 +2758,7 @@ export default function ArtifactDisplay() {
                     grouping={grouping} editProps={editProps}
                     lineRegionsByContentId={lineRegionsByContentId}
                     hiddenLanguages={hiddenLanguages}
+                    groupTranslationsByLanguage={groupTranslationsByLanguage}
                   />
                 );
               })
