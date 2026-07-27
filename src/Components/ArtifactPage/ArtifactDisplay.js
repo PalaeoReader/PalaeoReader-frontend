@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { CButton } from '@coreui/react';
 import { useParams, useSearchParams, Link } from 'react-router-dom';
 import IconButton from '../common/IconButton';
 import Pill from '../common/Pill';
@@ -112,6 +111,32 @@ function layerLineKey(seq, sourceId, layerKey, contentType) {
 function srcLabel(src, id) {
   if (!src) return `Source ${id}`;
   return src.shortname || src.author.split(' ').pop();
+}
+
+// One source's outline for the Contents browser: its own sets (top-level
+// entries, e.g. "Omen 1") each with the divisions that live underneath them.
+function buildSourceOutline(sourceId, sets) {
+  const sourceSets = sets
+    .filter(s => String(s.source_id) === String(sourceId))
+    .sort((a, b) => (a.seq ?? 0) - (b.seq ?? 0));
+
+  return sourceSets.map(set => {
+    const seenDivIds = new Set();
+    const divisions = [];
+    (set.contents || []).forEach(c => {
+      (c.divisions || []).forEach(div => {
+        if (seenDivIds.has(div.id)) return;
+        if (!(div.selections || []).some(s => s.uri)) return;
+        seenDivIds.add(div.id);
+        divisions.push(div);
+      });
+    });
+    return {
+      seq: set.seq,
+      label: set.type === 'omen' ? `Omen ${set.seq}` : `Line ${set.seq}`,
+      divisions,
+    };
+  });
 }
 
 function MorphInterlinear({ morphs }) {
@@ -289,9 +314,11 @@ function EditableText({ lineKey, sourceId, layerKey, layerLabel, sourceLabel, co
 
   const langTip = contentLangLabel(contentType);
   const langCode = layerKey === 'translation' ? contentLangShort(contentType) : null;
+  const highlighted = editProps?.highlightedLine === lineKey;
   return (
     <div
-      className="editable-text-wrap"
+      id={`el-${lineKey}`}
+      className={`editable-text-wrap${highlighted ? ' line-highlighted' : ''}`}
       title={langTip ? `Language: ${langTip}` : undefined}
       style={plain ? {
         borderRadius: 2,
@@ -553,6 +580,7 @@ function EditableLine({ lineKey, sourceId, color, layerKey, text, isEdited, sour
 
   return (
     <div
+      id={`el-${lineKey}`}
       className={`author-line author-${sourceId}${isEdited ? ' line-edited' : ''}${highlighted ? ' line-highlighted' : ''}${pinProps ? ' has-pin' : ''}${pinProps?.pinnedKey != null ? ' line-dimmed' : ''}`}
       title={langTip ? `Language: ${langTip}` : undefined}
       style={{
@@ -1744,14 +1772,145 @@ function AuthorLayerView({ sets, sources, sourceIds, colorMap, grouping, editPro
   });
 }
 
-const THUMB_VISIBLE = 3;
+// Tracks the actual on-screen rectangle occupied by an <img>'s pixel content
+// -- excluding padding, and accounting for any object-fit letterboxing (contain)
+// or cropping (cover) -- so percentage-based selection boxes (top/left/width/
+// height are fractions of the image's own pixels, per the backend Selection
+// model) line up exactly no matter how the surrounding layout scales or crops
+// the element. Also returns the element's visible (padding-excluded) viewport,
+// since under `cover` the image rect itself extends beyond what's visible.
+function useImageContentBox(imgRef, src, fit = 'contain') {
+  const [box, setBox] = useState(null);
 
-function ManuscriptPanel({ artifact, groups, hiddenAuthors, activeSourceIds, sources }) {
-  const [activeImgObj, setActiveImgObj]         = useState(null);
+  useEffect(() => {
+    const img = imgRef.current;
+    if (!img) return;
+    setBox(null);
+
+    const recompute = () => {
+      if (!img.naturalWidth || !img.naturalHeight || !img.clientWidth || !img.clientHeight) return;
+      const cs = window.getComputedStyle(img);
+      const padL = parseFloat(cs.paddingLeft) || 0;
+      const padR = parseFloat(cs.paddingRight) || 0;
+      const padT = parseFloat(cs.paddingTop) || 0;
+      const padB = parseFloat(cs.paddingBottom) || 0;
+      const contentW = img.clientWidth - padL - padR;
+      const contentH = img.clientHeight - padT - padB;
+      if (contentW <= 0 || contentH <= 0) return;
+
+      const scaleToFitW = contentW / img.naturalWidth;
+      const scaleToFitH = contentH / img.naturalHeight;
+      const scale = fit === 'cover' ? Math.max(scaleToFitW, scaleToFitH) : Math.min(scaleToFitW, scaleToFitH);
+      const renderW = img.naturalWidth * scale;
+      const renderH = img.naturalHeight * scale;
+      setBox({
+        left: padL + (contentW - renderW) / 2,
+        top: padT + (contentH - renderH) / 2,
+        width: renderW,
+        height: renderH,
+        viewW: contentW,
+        viewH: contentH,
+      });
+    };
+
+    if (img.complete) recompute();
+    img.addEventListener('load', recompute);
+    const ro = new ResizeObserver(recompute);
+    ro.observe(img);
+    return () => { img.removeEventListener('load', recompute); ro.disconnect(); };
+  }, [imgRef, src, fit]);
+
+  return box;
+}
+
+const SELECTION_TOOLTIP_W = 160;
+const SELECTION_TOOLTIP_H_EST = 46;
+
+// A manuscript image with its line/omen selection regions overlaid. All regions
+// sit at a low-opacity resting outline as soon as the image loads; hovering one
+// brightens it and shows a detail tooltip (fetched live from the division's real
+// text, nothing hardcoded); clicking jumps the text panel to that exact line.
+function SelectionOverlay({ src, alt, selections, divisionMetaById, onJumpToLine, imgClassName, imgStyle, onImgError, fit = 'contain', wrapperStyle, highlightedDivisionId }) {
+  const imgRef = useRef(null);
+  const box = useImageContentBox(imgRef, src, fit);
+  const [hoveredId, setHoveredId] = useState(null);
+
+  const sels = Array.isArray(selections) ? selections.filter(s => s.top != null && s.left != null) : [];
+  const hoveredSel = sels.find(s => s.id === hoveredId) || null;
+  const meta = hoveredSel?.division_id != null ? divisionMetaById?.[hoveredSel.division_id] : null;
+
+  const handleClick = (sel) => {
+    const m = sel.division_id != null ? divisionMetaById?.[sel.division_id] : null;
+    if (m && onJumpToLine) onJumpToLine(m.seq, m.sourceId, m.layerKey, m.contentType);
+  };
+
+  let tooltipStyle = null;
+  if (box && hoveredSel && meta) {
+    const anchorX = box.left + hoveredSel.left * box.width;
+    const rectTop = box.top + hoveredSel.top * box.height;
+    const rectBottom = box.top + (hoveredSel.top + hoveredSel.height) * box.height;
+    const spaceBelow = box.viewH - rectBottom;
+    const showBelow = spaceBelow >= SELECTION_TOOLTIP_H_EST || rectTop < SELECTION_TOOLTIP_H_EST;
+    const rawTop = showBelow ? rectBottom + 6 : rectTop - 6 - SELECTION_TOOLTIP_H_EST;
+    tooltipStyle = {
+      left: Math.max(0, Math.min(anchorX, box.viewW - SELECTION_TOOLTIP_W)),
+      top: Math.max(0, Math.min(rawTop, box.viewH - SELECTION_TOOLTIP_H_EST)),
+    };
+  }
+
+  return (
+    <div
+      className="ms-overlay-wrap"
+      style={{
+        position: 'relative',
+        display: imgStyle?.height ? 'block' : 'inline-block',
+        width: imgStyle?.width,
+        height: imgStyle?.height,
+        overflow: fit === 'cover' ? 'hidden' : undefined,
+        ...wrapperStyle,
+      }}
+      onMouseLeave={() => setHoveredId(null)}
+    >
+      <img ref={imgRef} className={imgClassName} src={src} alt={alt}
+        style={imgStyle} onError={onImgError} />
+      {box && sels.map(sel => {
+        const m = sel.division_id != null ? divisionMetaById?.[sel.division_id] : null;
+        const isHovered = sel.id === hoveredId;
+        const isJumpHighlighted = highlightedDivisionId != null && sel.division_id === highlightedDivisionId;
+        return (
+          <div
+            key={sel.id}
+            className={`ms-selection-rect${(isHovered || isJumpHighlighted) ? ' active' : ''}`}
+            style={{
+              left: box.left + sel.left * box.width,
+              top: box.top + sel.top * box.height,
+              width: sel.width * box.width,
+              height: sel.height * box.height,
+              cursor: m ? 'pointer' : 'default',
+            }}
+            onMouseEnter={() => setHoveredId(sel.id)}
+            onMouseLeave={() => setHoveredId(prev => (prev === sel.id ? null : prev))}
+            onClick={() => handleClick(sel)}
+          />
+        );
+      })}
+      {hoveredSel && meta && tooltipStyle && (
+        <div className="ms-selection-tooltip" style={{ ...tooltipStyle, width: SELECTION_TOOLTIP_W }}>
+          <div className="ms-tooltip-title">
+            {meta.omenType === 'omen' ? 'Omen' : 'Line'} {meta.seq}
+          </div>
+          {meta.label && <div className="ms-tooltip-label">{meta.label}</div>}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ManuscriptPanel({ artifact, groups, hiddenAuthors, activeSourceIds, sources, colorMap, divisionMetaById, onJumpToLine, activeImgObj, onActiveImgObjChange, highlightedDivisionId }) {
   const [fullscreen, setFullscreen]             = useState(false);
   const [openSources, setOpenSources]           = useState(new Set());
   const [openGroups, setOpenGroups]             = useState(new Set());
-  const [groupThumbOffsets, setGroupThumbOffsets] = useState({});
+  const [zoomLevel, setZoomLevel]               = useState(1);
 
   const groupList = Array.isArray(groups) ? groups : [];
 
@@ -1811,92 +1970,66 @@ function ManuscriptPanel({ artifact, groups, hiddenAuthors, activeSourceIds, sou
   const toggleGroup = gid => setOpenGroups(prev => {
     const n = new Set(prev); n.has(gid) ? n.delete(gid) : n.add(gid); return n;
   });
-  const setGroupOffset = (gid, off) => setGroupThumbOffsets(prev => ({ ...prev, [gid]: off }));
 
+  // Flattened, ordered list of every image currently on offer (respecting the
+  // active-author filter), sorted group-seq-then-image-order -- same shape
+  // regardless of which of the three display modes below is active. goPrev/
+  // goNext walk this instead of a single group's images, so paging now works
+  // across group and source boundaries instead of stopping at the group edge.
+  const flatImages = [];
+  if (!hasSourceInfo) {
+    sortedGroups.forEach(g => (g.images || []).forEach(img => flatImages.push(img)));
+  } else if (isSingleSource) {
+    (groupsBySource[activeSourcesWithImages[0]] || [])
+      .sort((a, b) => (a.seq ?? 0) - (b.seq ?? 0))
+      .forEach(g => (g.images || []).forEach(img => flatImages.push(img)));
+  } else {
+    activeSourcesWithImages.forEach(sid => {
+      (groupsBySource[sid] || [])
+        .sort((a, b) => (a.seq ?? 0) - (b.seq ?? 0))
+        .forEach(g => (g.images || []).forEach(img => flatImages.push(img)));
+    });
+  }
+  const curFlatIdx = flatImages.findIndex(img => img.id === currentImgObj?.id);
+  const canPrev = curFlatIdx > 0;
+  const canNext = curFlatIdx >= 0 && curFlatIdx < flatImages.length - 1;
+  const goPrev = () => { if (canPrev) onActiveImgObjChange(flatImages[curFlatIdx - 1]); };
+  const goNext = () => { if (canNext) onActiveImgObjChange(flatImages[curFlatIdx + 1]); };
+
+  const zoomIn    = () => setZoomLevel(z => Math.min(3,   Math.round((z + 0.25) * 100) / 100));
+  const zoomOut   = () => setZoomLevel(z => Math.max(0.5, Math.round((z - 0.25) * 100) / 100));
+  const zoomReset = () => setZoomLevel(1);
+
+  // One group's thumbnails, stacked vertically in the rail (replaces the old
+  // horizontal 3-visible paged strip -- the rail itself scrolls now).
   const renderLineGroup = (g, indent) => {
-    const isOpen    = openGroups.has(g.id);
-    const allImgs   = g.images || [];
-    const thumbOff  = groupThumbOffsets[g.id] ?? 0;
-    const maxOff    = Math.max(0, allImgs.length - THUMB_VISIBLE);
-    const visible   = allImgs.slice(thumbOff, thumbOff + THUMB_VISIBLE);
-    const curIdx    = allImgs.findIndex(img => img.id === currentImgObj?.id);
-    const btnBase   = { background: 'none', border: 'none', padding: '0 3px', fontSize: 14, lineHeight: 1, flexShrink: 0, color: 'var(--text-tertiary, #999)', cursor: 'pointer' };
-
-    const canPrev = curIdx > 0;
-    const canNext = curIdx < allImgs.length - 1;
-    const goPrev = e => {
-      e.stopPropagation();
-      if (!canPrev) return;
-      const next = allImgs[curIdx - 1];
-      setActiveImgObj(next);
-      setGroupOffset(g.id, Math.min(thumbOff, curIdx - 1));
-    };
-    const goNext = e => {
-      e.stopPropagation();
-      if (!canNext) return;
-      const next = allImgs[curIdx + 1];
-      setActiveImgObj(next);
-      setGroupOffset(g.id, Math.max(thumbOff, curIdx + 1 - THUMB_VISIBLE + 1));
-    };
+    const isOpen  = openGroups.has(g.id);
+    const allImgs = g.images || [];
 
     return (
-      <div key={g.id} style={{ padding: '3px 6px' }}>
-        <CButton
-          color="light"
+      <div key={g.id} className="v2-rail-group">
+        <button
+          type="button"
+          className="v2-rail-group-header"
+          style={{ paddingLeft: 8 + (indent || 0) }}
           onClick={() => toggleGroup(g.id)}
-          style={{
-            display: 'flex', alignItems: 'center', gap: 5, width: '100%',
-            padding: `5px 8px 5px ${8 + (indent || 0)}px`,
-            borderRadius: 5, textAlign: 'left',
-          }}
         >
-          <i className={`fas fa-chevron-${isOpen ? 'down' : 'right'}`} style={{ fontSize: 11, color: 'var(--text-tertiary, #888)', flexShrink: 0 }} />
-          <span style={{ fontSize: 11, fontWeight: 500, color: 'var(--text-primary, #222)', flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-            {g.name}
-          </span>
-          {allImgs.length > 0 && (
-            <span style={{ fontSize: 10, color: 'var(--text-tertiary, #888)', background: '#fff', border: '0.5px solid #ddd', borderRadius: 10, padding: '0 6px', flexShrink: 0 }}>
-              {allImgs.length}
-            </span>
-          )}
-        </CButton>
+          <i className={`fas fa-chevron-${isOpen ? 'down' : 'right'}`} />
+          <span className="v2-rail-group-name">{g.name}</span>
+          {allImgs.length > 0 && <span className="v2-rail-count-badge">{allImgs.length}</span>}
+        </button>
         {isOpen && allImgs.length > 0 && (
-          <div style={{ padding: '4px 8px 8px' }}>
-            {/* thumbnail strip */}
-            <div style={{ display: 'flex', alignItems: 'center' }}>
-              <button onClick={e => { e.stopPropagation(); setGroupOffset(g.id, Math.max(0, thumbOff - 1)); }}
-                style={{ ...btnBase, opacity: thumbOff > 0 ? 1 : 0.3 }}>
-                <i className="fas fa-chevron-left" />
-              </button>
-              <div style={{ flex: 1, overflow: 'hidden', display: 'flex', gap: 5 }}>
-                {visible.map(img => (
-                  <img key={img.id} src={`/api/images/${img.uri}`} alt=""
-                    onClick={() => setActiveImgObj(img)}
-                    onError={e => { e.target.style.display = 'none'; }}
-                    style={{
-                      flex: 1, minWidth: 0, height: 52, objectFit: 'cover', borderRadius: 3, cursor: 'pointer',
-                      border: img.id === currentImgObj?.id ? '1.5px solid #C9A84C' : '0.5px solid var(--border-tertiary, #ddd)',
-                    }}
-                  />
-                ))}
-              </div>
-              <button onClick={e => { e.stopPropagation(); setGroupOffset(g.id, Math.min(maxOff, thumbOff + 1)); }}
-                style={{ ...btnBase, opacity: thumbOff < maxOff ? 1 : 0.3 }}>
-                <i className="fas fa-chevron-right" />
-              </button>
-            </div>
-            {/* prev / counter / next */}
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 4 }}>
-              <button onClick={goPrev} style={{ ...btnBase, fontSize: 11, opacity: canPrev ? 1 : 0.3, padding: '1px 4px', display: 'flex', alignItems: 'center', gap: 2 }}>
-                <i className="fas fa-chevron-left" style={{ fontSize: 10 }} /> Prev
-              </button>
-              <span style={{ fontSize: 10, color: 'var(--text-tertiary, #999)' }}>
-                {curIdx >= 0 ? `${curIdx + 1} of ${allImgs.length}` : `${allImgs.length}`}
-              </span>
-              <button onClick={goNext} style={{ ...btnBase, fontSize: 11, opacity: canNext ? 1 : 0.3, padding: '1px 4px', display: 'flex', alignItems: 'center', gap: 2 }}>
-                Next <i className="fas fa-chevron-right" style={{ fontSize: 10 }} />
-              </button>
-            </div>
+          <div className="v2-rail-thumbs-vert">
+            {allImgs.map(img => (
+              <img
+                key={img.id}
+                src={`/api/images/${img.uri}`}
+                alt=""
+                className={`v2-rail-thumb${img.id === currentImgObj?.id ? ' active' : ''}`}
+                onClick={() => onActiveImgObjChange(img)}
+                onError={e => { e.target.style.display = 'none'; }}
+              />
+            ))}
           </div>
         )}
       </div>
@@ -1907,78 +2040,84 @@ function ManuscriptPanel({ artifact, groups, hiddenAuthors, activeSourceIds, sou
     <>
       {fullscreen && currentImgSrc && (
         <div className="img-fullscreen-overlay" onClick={() => setFullscreen(false)}>
-          <img src={currentImgSrc} alt={artifact.label} className="img-fullscreen-img" onClick={e => e.stopPropagation()} />
+          <div onClick={e => e.stopPropagation()}>
+            <SelectionOverlay
+              src={currentImgSrc} alt={artifact.label}
+              selections={selections} divisionMetaById={divisionMetaById}
+              onJumpToLine={onJumpToLine ? (...args) => { setFullscreen(false); onJumpToLine(...args); } : undefined}
+              imgClassName="img-fullscreen-img" imgStyle={{ display: 'block' }}
+              highlightedDivisionId={highlightedDivisionId}
+            />
+          </div>
           <button className="img-fullscreen-close" onClick={() => setFullscreen(false)}>✕</button>
         </div>
       )}
-      <div className="v2-manuscript-panel">
-        <div className="v2-panel-header">
-          Manuscript
-          {isSingleSource && (
-            <span style={{ fontSize: 10, color: 'var(--text-tertiary, #999)', marginLeft: 6, fontWeight: 400 }}>
-              {srcLabel(sources[activeSourcesWithImages[0]], activeSourcesWithImages[0])} images
-            </span>
+
+      <div className="v2-manuscript-rail">
+        <div className="v2-rail-nav">
+          <button type="button" className="v2-rail-nav-btn" onClick={goPrev} disabled={!canPrev} title="Previous image">‹</button>
+          <span className="v2-rail-nav-count">{curFlatIdx >= 0 ? `${curFlatIdx + 1} of ${flatImages.length}` : flatImages.length}</span>
+          <button type="button" className="v2-rail-nav-btn" onClick={goNext} disabled={!canNext} title="Next image">›</button>
+        </div>
+        {isSingleSource && (
+          <div className="v2-rail-single-source">
+            {srcLabel(sources[activeSourcesWithImages[0]], activeSourcesWithImages[0])} images
+          </div>
+        )}
+        <div className="v2-rail-scroll">
+          {!hasSourceInfo ? (
+            sortedGroups.map(g => renderLineGroup(g, 0))
+          ) : isSingleSource ? (
+            (groupsBySource[activeSourcesWithImages[0]] || [])
+              .sort((a, b) => (a.seq ?? 0) - (b.seq ?? 0))
+              .map(g => renderLineGroup(g, 0))
+          ) : (
+            activeSourcesWithImages.map(sid => {
+              const isSourceOpen = openSources.has(sid);
+              const srcGroups = (groupsBySource[sid] || []).sort((a, b) => (a.seq ?? 0) - (b.seq ?? 0));
+              const totalImgs = srcGroups.reduce((n, g) => n + (g.images?.length ?? 0), 0);
+              const label = srcLabel(sources[sid], sid);
+              return (
+                <div key={sid} className="v2-rail-source">
+                  <button type="button" className="v2-rail-source-header" onClick={() => toggleSource(sid)}>
+                    <i className={`fas fa-chevron-${isSourceOpen ? 'down' : 'right'}`} />
+                    <span className="v2-rail-source-name">{label}</span>
+                    <span className="v2-rail-count-badge">{totalImgs}</span>
+                  </button>
+                  {isSourceOpen && srcGroups.map(g => renderLineGroup(g, 10))}
+                </div>
+              );
+            })
           )}
         </div>
+      </div>
+
+      <div className="v2-main-image-area">
+        <button type="button" className="v2-full-viewer-btn" onClick={() => setFullscreen(true)}>⛶ Full viewer</button>
 
         {currentImgSrc ? (
-          <div className="img-wrapper" style={{ position: 'relative' }}>
-            <img className="v2-manuscript-img" src={currentImgSrc} alt={artifact.label}
-              style={{ display: 'block', width: '100%' }}
-              onError={e => { e.target.style.display = 'none'; }} />
-            {selections.map(sel => (
-              <div key={sel.id} style={{
-                position: 'absolute',
-                top: `${sel.top * 100}%`, left: `${sel.left * 100}%`,
-                width: `${sel.width * 100}%`, height: `${sel.height * 100}%`,
-                pointerEvents: 'none',
-              }} />
-            ))}
-            <button className="img-fullscreen-btn" onClick={() => setFullscreen(true)} title="Fullscreen">⛶</button>
+          <div className="v2-main-img-zoom-wrap" style={{ transform: `scale(${zoomLevel})` }}>
+            <SelectionOverlay
+              src={currentImgSrc} alt={artifact.label}
+              selections={selections} divisionMetaById={divisionMetaById}
+              onJumpToLine={onJumpToLine}
+              imgClassName="v2-manuscript-img" imgStyle={{ display: 'block', width: '100%', height: '100%', objectFit: 'contain' }}
+              onImgError={e => { e.target.style.display = 'none'; }}
+              highlightedDivisionId={highlightedDivisionId}
+            />
           </div>
         ) : (
           <div className="v2-img-placeholder">No image available</div>
         )}
 
-        {(hasSourceInfo ? activeSourcesWithImages.length > 0 : sortedGroups.length > 0) && (
-          <div style={{ marginTop: 6, borderTop: '0.5px solid var(--border-tertiary, #eee)' }}>
-            {!hasSourceInfo ? (
-              sortedGroups.map(g => renderLineGroup(g, 0))
-            ) : isSingleSource ? (
-              (groupsBySource[activeSourcesWithImages[0]] || [])
-                .sort((a, b) => (a.seq ?? 0) - (b.seq ?? 0))
-                .map(g => renderLineGroup(g, 0))
-            ) : (
-              activeSourcesWithImages.map(sid => {
-                const isSourceOpen = openSources.has(sid);
-                const srcGroups = (groupsBySource[sid] || []).sort((a, b) => (a.seq ?? 0) - (b.seq ?? 0));
-                const totalImgs = srcGroups.reduce((n, g) => n + (g.images?.length ?? 0), 0);
-                const label = srcLabel(sources[sid], sid);
-                return (
-                  <div key={sid} style={{ padding: '3px 6px' }}>
-                    <CButton
-                      color="light"
-                      onClick={() => toggleSource(sid)}
-                      style={{
-                        display: 'flex', alignItems: 'center', gap: 5, width: '100%',
-                        padding: '5px 8px', borderRadius: 5, textAlign: 'left',
-                      }}
-                    >
-                      <i className={`fas fa-chevron-${isSourceOpen ? 'down' : 'right'}`} style={{ fontSize: 11, color: 'var(--text-tertiary, #888)', flexShrink: 0 }} />
-                      <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-primary, #222)', flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        {label}
-                      </span>
-                      <span style={{ fontSize: 10, color: 'var(--text-tertiary, #888)', background: '#fff', border: '0.5px solid #ddd', borderRadius: 10, padding: '0 6px', flexShrink: 0 }}>
-                        {totalImgs}
-                      </span>
-                    </CButton>
-                    {isSourceOpen && srcGroups.map(g => renderLineGroup(g, 10))}
-                  </div>
-                );
-              })
-            )}
-          </div>
-        )}
+        <div className="v2-zoom-toolbar">
+          <button type="button" className="v2-zoom-btn" onClick={zoomOut} title="Zoom out">−</button>
+          <button type="button" className="v2-zoom-btn" onClick={zoomReset} title="Reset zoom">↺</button>
+          <button type="button" className="v2-zoom-btn" onClick={zoomIn} title="Zoom in">+</button>
+          {currentImgSrc && (
+            <a className="v2-zoom-btn" href={currentImgSrc} download title="Download image">⬇</a>
+          )}
+        </div>
       </div>
     </>
   );
@@ -2313,7 +2452,84 @@ function ArtifactBreadcrumb({ artifactLabel }) {
   );
 }
 
-function ArtifactHeader({ artifact, allArtifacts, sourceIds, sources, entryCount, headerRef }) {
+// Flush-left, full-width accordion header (heading-weight title + a "+"/"−"
+// glyph) with an always-mounted body that's toggled purely via a CSS class --
+// never conditional-rendered away, so ids inside it (jump targets) stay
+// queryable by getElementById even while the section reads as "closed".
+function AccordionSection({ id, title, isOpen, onToggle, children }) {
+  return (
+    <div className="art-accordion-section">
+      <button type="button" className="art-accordion-header" onClick={onToggle} aria-expanded={isOpen}>
+        <span className="art-accordion-title">{title}</span>
+        <span className="art-accordion-glyph">{isOpen ? '−' : '+'}</span>
+      </button>
+      <div className={`art-accordion-body${isOpen ? '' : ' art-accordion-body-closed'}`} id={`art-accordion-body-${id}`}>
+        {children}
+      </div>
+    </div>
+  );
+}
+
+// Per-source outline browser shown inside the "Contents" accordion: a row of
+// source tabs, and below it that source's own division tree (entry -> its
+// divisions), each division a click-to-jump link into the manuscript image.
+function ContentsOutline({ sourceIds, sources, sets, onJumpToDivision }) {
+  const [activeSourceId, setActiveSourceId] = useState(sourceIds[0] || null);
+
+  useEffect(() => {
+    if ((!activeSourceId || !sourceIds.includes(activeSourceId)) && sourceIds.length > 0) {
+      setActiveSourceId(sourceIds[0]);
+    }
+  }, [sourceIds.join(','), activeSourceId]);
+
+  if (sourceIds.length === 0) {
+    return <div className="art-contents-empty-placeholder">Nothing here.</div>;
+  }
+
+  const outline = buildSourceOutline(activeSourceId, sets);
+
+  return (
+    <div className="art-contents-outline">
+      <div className="art-contents-source-tabs">
+        {sourceIds.map(id => (
+          <button
+            key={id}
+            type="button"
+            className={`art-contents-source-tab${id === activeSourceId ? ' active' : ''}`}
+            onClick={() => setActiveSourceId(id)}
+          >
+            {srcLabel(sources[id], id)}
+          </button>
+        ))}
+      </div>
+
+      <div className="art-contents-outline-tree">
+        {outline.length === 0 && <div className="art-contents-empty-placeholder">Nothing here.</div>}
+        {outline.map(entry => (
+          <div key={entry.seq} className="art-contents-outline-entry">
+            <div className="art-contents-outline-entry-title">{entry.label}</div>
+            {entry.divisions.length > 0 && (
+              <div className="art-contents-outline-divisions">
+                {entry.divisions.map(div => (
+                  <button
+                    key={div.id}
+                    type="button"
+                    className="art-contents-outline-division-link"
+                    onClick={() => onJumpToDivision(div.id)}
+                  >
+                    {div.label || div.type}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function ArtifactHeader({ artifact, allArtifacts, sourceIds, sources, entryCount, headerRef, divisionMetaById, onJumpToLine, isOverviewOpen, onToggleOverview }) {
   const [showScrollHint, setShowScrollHint] = useState(true);
 
   useEffect(() => {
@@ -2360,29 +2576,11 @@ function ArtifactHeader({ artifact, allArtifacts, sourceIds, sources, entryCount
   ].filter(([, v]) => v);
 
   return (
-    <div className="art-header" ref={headerRef}>
-      <div className="art-header-left">
-        <div className="art-header-top">
-          <h1 className="art-header-title">{artifact.label}</h1>
-          <div className="art-header-meta">
-            {summaryParts.length > 0 && <span>{summaryParts.join(' · ')}</span>}
-          </div>
-          <div className="art-meta-details">
-            {fullMeta.map(([k, v]) => (
-              <div key={k} className="art-meta-row">
-                <span className="art-meta-key">{k}</span>
-                <span className="art-meta-val">{v}</span>
-              </div>
-            ))}
-            {sourceIds.length > 0 && (
-              <div className="art-meta-row">
-                <span className="art-meta-key">Sources</span>
-                <span className="art-meta-val">
-                  {sourceIds.map(id => sources[id]?.shortname || `Source ${id}`).join(', ')}
-                </span>
-              </div>
-            )}
-          </div>
+    <>
+      <div className="art-title-block" ref={headerRef}>
+        <h1 className="art-header-title">{artifact.label}</h1>
+        <div className="art-header-meta">
+          {summaryParts.length > 0 && <span>{summaryParts.join(' · ')}</span>}
         </div>
         <div className={`art-scroll-hint${showScrollHint ? '' : ' art-scroll-hint-hidden'}`}>
           <span>Scroll to explore the analysis</span>
@@ -2414,14 +2612,37 @@ function ArtifactHeader({ artifact, allArtifacts, sourceIds, sources, entryCount
           </div>
         )}
       </div>
-      <div className="art-header-right">
-        {coverUri
-          ? <img src={coverUri} alt={artifact.label} className="art-header-img"
-              onError={e => { e.target.style.display = 'none'; }} />
-          : <div className="art-header-placeholder"><i className="ti ti-photo" /></div>
-        }
-      </div>
-    </div>
+
+      <AccordionSection id="overview" title="Overview" isOpen={isOverviewOpen} onToggle={onToggleOverview}>
+        <div className="art-overview-cover">
+          {coverUri
+            ? <img
+                src={coverUri} alt={artifact.label}
+                className="art-header-img"
+                style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center', display: 'block' }}
+                onError={e => { e.target.style.display = 'none'; }}
+              />
+            : <div className="art-header-placeholder"><i className="ti ti-photo" /></div>
+          }
+        </div>
+        <div className="art-meta-details">
+          {fullMeta.map(([k, v]) => (
+            <div key={k} className="art-meta-row">
+              <span className="art-meta-key">{k}</span>
+              <span className="art-meta-val">{v}</span>
+            </div>
+          ))}
+          {sourceIds.length > 0 && (
+            <div className="art-meta-row">
+              <span className="art-meta-key">Sources</span>
+              <span className="art-meta-val">
+                {sourceIds.map(id => sources[id]?.shortname || `Source ${id}`).join(', ')}
+              </span>
+            </div>
+          )}
+        </div>
+      </AccordionSection>
+    </>
   );
 }
 
@@ -2447,13 +2668,32 @@ export default function ArtifactDisplay() {
   // `sets` instead of depending on a `page`-type division existing for this
   // artifact — many artifacts (e.g. Memorial 118) only have `line` divisions.
   const lineRegionsByContentId = {};
+  // Metadata for the manuscript-image hover overlay: divisionId -> the real
+  // entry/author/layer this selection belongs to, so the tooltip and the
+  // "jump to this line" click can pull live data instead of anything hardcoded.
+  const divisionMetaById = {};
+  // divisionId -> the uri of the manuscript image its crop selection lives on,
+  // so the Contents outline can jump straight to that image on click.
+  const divisionImageUriById = {};
   sets.forEach(set => {
     (set.contents || []).forEach(c => {
+      const layerKey = contentTypeToLayer(c.type);
       (c.divisions || []).forEach(div => {
         if (!div.selections || div.selections.length === 0) return;
         const cid = div.start_content_id;
         if (!lineRegionsByContentId[cid]) lineRegionsByContentId[cid] = [];
         lineRegionsByContentId[cid].push(div);
+        divisionMetaById[div.id] = {
+          seq: set.seq,
+          omenType: set.type,
+          sourceId: String(set.source_id),
+          label: div.label,
+          divType: div.type,
+          layerKey,
+          contentType: c.type,
+        };
+        const imgSel = div.selections.find(s => s.uri);
+        if (imgSel) divisionImageUriById[div.id] = imgSel.uri;
       });
     });
   });
@@ -2575,6 +2815,9 @@ export default function ArtifactDisplay() {
     setEditLog(prev => prev.map(e => e.id === id ? { ...e, flagged: !e.flagged } : e));
   }, []);
 
+  // The scholarly analysis (where these ids live) is a plain always-mounted,
+  // always-visible section now -- not tucked inside a collapsible accordion
+  // body -- so these stay exactly as simple as they were before the reflow.
   const viewInText = useCallback((logEntry) => {
     const el = document.getElementById(`omen-${logEntry.omenSeq}`);
     if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -2582,12 +2825,72 @@ export default function ArtifactDisplay() {
     setTimeout(() => setHighlightedLine(null), 2000);
   }, []);
 
-  const headerRef      = useRef(null);
-  const [leftExpanded,  setLeftExpanded]  = useState(false);
-  const [rightExpanded, setRightExpanded] = useState(false);
+  // Clicking a manuscript-image selection region jumps the text panel to the
+  // exact entry/author/layer line that region belongs to.
+  const jumpToLine = useCallback((seq, sourceId, layerKey, contentType) => {
+    const lineKey = layerLineKey(seq, sourceId, layerKey || 'script', contentType);
+    const el = document.getElementById(`el-${lineKey}`) || document.getElementById(`omen-${seq}`);
+    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    setHighlightedLine(lineKey);
+    setTimeout(() => setHighlightedLine(null), 2000);
+  }, []);
+
+  // The reverse of jumpToLine -- clicking a division in the Contents outline
+  // switches the manuscript panel to whichever image its crop selection lives
+  // on and briefly highlights that region.
+  const [activeImgObj, setActiveImgObj] = useState(null);
+  const [highlightedDivisionId, setHighlightedDivisionId] = useState(null);
+  const jumpToImageSelection = (divisionId) => {
+    const uri = divisionImageUriById[divisionId];
+    if (!uri) return;
+    let matchedImg = null;
+    for (const g of imageGroups) {
+      const img = (g.images || []).find(i => i.uri === uri);
+      if (img) { matchedImg = img; break; }
+    }
+    if (!matchedImg) return;
+    setActiveImgObj(matchedImg);
+    setHighlightedDivisionId(divisionId);
+    setTimeout(() => setHighlightedDivisionId(null), 2000);
+  };
+
+  const headerRef = useRef(null);
+  // Drives just the landing accordion (Overview populated; Contents/
+  // References/History are empty placeholder shells for now -- the real
+  // analysis lives below them, unconditionally rendered, same as always).
+  const [openSections, setOpenSections] = useState({ overview: true, contents: false, references: false, history: false });
+  const toggleSection = useCallback(key => {
+    setOpenSections(prev => ({ ...prev, [key]: !prev[key] }));
+  }, []);
+
+  const [historyPanelOpen, setHistoryPanelOpen] = useState(false);
+  const [historyPanelWidth, setHistoryPanelWidth] = useState(240);
+  const historyResizeRef = useRef(false);
+
+  const startHistoryResize = useCallback((e) => {
+    e.preventDefault();
+    historyResizeRef.current = true;
+  }, []);
+
+  useEffect(() => {
+    const onMove = (e) => {
+      if (!historyResizeRef.current) return;
+      const wrap = document.querySelector('.art-analysis-body');
+      if (!wrap) return;
+      const rect = wrap.getBoundingClientRect();
+      const next = Math.max(160, Math.min(420, rect.right - e.clientX));
+      setHistoryPanelWidth(next);
+    };
+    const onUp = () => { historyResizeRef.current = false; };
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+    return () => {
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+    };
+  }, []);
 
   const openHistory = useCallback((lineKey, meta) => {
-    setRightExpanded(true);
     if (!lineKey) { setHistoryFilter(null); return; }
     const entryLabel = `Entry ${parseInt(lineKey.split('-')[0])}`;
     setHistoryFilter(prev => prev?.lineKey === lineKey ? null : { lineKey, entryLabel, ...meta });
@@ -2609,16 +2912,6 @@ export default function ArtifactDisplay() {
     defaultContributor: user ? (user.full_name || user.email) : '',
     promptAuth: () => setShowAuthPrompt(true),
   };
-
-  useEffect(() => {
-    const onKey = e => {
-      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
-      if (e.key === '[') setLeftExpanded(v => !v);
-      else if (e.key === ']') setRightExpanded(v => !v);
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, []);
 
   const toggleAuthor = useCallback(id => {
     setHiddenAuthors(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
@@ -2688,85 +2981,28 @@ export default function ArtifactDisplay() {
   return (
     <div className="art-viewer-wrap">
       <ArtifactBreadcrumb artifactLabel={artifact.label} />
-      <ArtifactHeader
-        artifact={artifact}
-        allArtifacts={allArtifacts}
-        sourceIds={sourceIds}
-        sources={sources}
-        entryCount={omenSeqs.length}
-        headerRef={headerRef}
-      />
-      <div className="art-panel-wrap">
-        <div className={`v2-side-panel v2-side-panel-left${leftExpanded ? ' expanded' : ''}`}>
-          <div className="v2-panel-rail" onClick={() => setLeftExpanded(v => !v)} title="Toggle manuscript panel ([ )">
-            <i className="ti ti-photo" style={{ fontSize: 15 }} />
-            <span className="v2-rail-label">Manuscript</span>
-          </div>
-          <div className="v2-side-panel-content">
-            <ManuscriptPanel artifact={artifact} groups={imageGroups} hiddenAuthors={hiddenAuthors} activeSourceIds={activeSourceIds} sources={sources} />
-          </div>
-        </div>
-
-        <div className="v2-center-panel">
-          <FiltersPanel
-            entryCount={omenSeqs.length}
-            sortMode={sortMode}
-            onSortChange={setSortMode}
+      <div className="art-2col-grid">
+        <div className="art-2col-left">
+          <ArtifactHeader
+            artifact={artifact}
+            allArtifacts={allArtifacts}
             sourceIds={sourceIds}
             sources={sources}
-            hiddenAuthors={hiddenAuthors}
-            onToggleAuthor={toggleAuthor}
-            hiddenLayers={hiddenLayers}
-            onToggleLayer={toggleLayer}
-            grouping={grouping}
-            onGroupingChange={setGrouping}
-            colorMap={colorMap}
-            sourcesWithImages={sourcesWithImages}
-            allLanguages={allLanguages}
-            hiddenLanguages={hiddenLanguages}
-            onToggleLang={toggleLanguage}
-            groupTranslationsByLanguage={groupTranslationsByLanguage}
-            onToggleGroupTranslationsByLanguage={toggleGroupTranslationsByLanguage}
+            entryCount={omenSeqs.length}
+            headerRef={headerRef}
+            divisionMetaById={divisionMetaById}
+            onJumpToLine={jumpToLine}
+            isOverviewOpen={openSections.overview}
+            onToggleOverview={() => toggleSection('overview')}
           />
 
-          <div className={`v2-text-display ${hideClasses}`}>
-            {(grouping === 'author-layer' || grouping === 'author-entry-layer') ? (
-              <AuthorLayerView
-                sets={activeSets} sources={sources} sourceIds={displaySourceIds}
-                colorMap={colorMap} grouping={grouping} editProps={editProps}
-                lineRegionsByContentId={lineRegionsByContentId} seqRank={seqRank}
-                hiddenLanguages={hiddenLanguages}
-                groupTranslationsByLanguage={groupTranslationsByLanguage}
-              />
-            ) : (grouping === 'layer-entry-author' || grouping === 'layer-author-entry') ? (
-              <LayerFirstView
-                grouping={grouping} sets={activeSets} sources={sources}
-                sourceIds={displaySourceIds} colorMap={colorMap} editProps={editProps}
-                lineRegionsByContentId={lineRegionsByContentId} seqRank={seqRank}
-                hiddenLanguages={hiddenLanguages}
-                groupTranslationsByLanguage={groupTranslationsByLanguage}
-              />
-            ) : (
-              sortedOmenSeqs.map(seq => {
-                const seqSets = activeSets
-                  .filter(s => s.seq === seq)
-                  .sort((a, b) => sourceIds.indexOf(String(a.source_id)) - sourceIds.indexOf(String(b.source_id)));
-                return (
-                  <OmenBlock
-                    key={seq} omenSeq={seq} omenType={seqSets[0]?.type || 'omen'}
-                    sets={seqSets} sources={sources} colorMap={colorMap}
-                    grouping={grouping} editProps={editProps}
-                    lineRegionsByContentId={lineRegionsByContentId}
-                    hiddenLanguages={hiddenLanguages}
-                    groupTranslationsByLanguage={groupTranslationsByLanguage}
-                  />
-                );
-              })
-            )}
+          <AccordionSection id="contents" title="Contents" isOpen={openSections.contents} onToggle={() => toggleSection('contents')}>
+            <ContentsOutline sourceIds={sourceIds} sources={sources} sets={sets} onJumpToDivision={jumpToImageSelection} />
+          </AccordionSection>
 
+          <AccordionSection id="references" title="References" isOpen={openSections.references} onToggle={() => toggleSection('references')}>
             {sourceIds.length > 0 && (
               <div className="v2-references">
-                <div className="v2-references-title">References</div>
                 {sourceIds.map(id => {
                   const src = sources[id];
                   if (!src) return null;
@@ -2780,20 +3016,113 @@ export default function ArtifactDisplay() {
                 })}
               </div>
             )}
-          </div>
+          </AccordionSection>
         </div>
 
-        <div className={`v2-side-panel v2-side-panel-right${rightExpanded ? ' expanded' : ''}`}>
-          <div className="v2-side-panel-content">
-            <DetailsPanel sources={sources} sourceIds={sourceIds} colorMap={colorMap}
-              editLog={editLog} lineOverrides={lineOverrides}
-              onUndoEdit={undoEdit} onFlagEdit={flagEdit} onViewInText={viewInText} onRestore={restoreVersion}
-              historyFilter={historyFilter} onClearHistoryFilter={() => setHistoryFilter(null)} />
+        <div className="art-2col-right">
+          <ManuscriptPanel artifact={artifact} groups={imageGroups} hiddenAuthors={hiddenAuthors} activeSourceIds={activeSourceIds} sources={sources}
+            colorMap={colorMap} divisionMetaById={divisionMetaById} onJumpToLine={jumpToLine}
+            activeImgObj={activeImgObj} onActiveImgObjChange={setActiveImgObj}
+            highlightedDivisionId={highlightedDivisionId} />
+        </div>
+      </div>
+
+      <div className="art-analysis-section">
+        <div className="art-analysis-header">
+          <h2 className="art-analysis-title">Analysis</h2>
+          <button
+            type="button"
+            className="art-history-toggle-btn"
+            aria-label="History"
+            onClick={() => setHistoryPanelOpen(o => !o)}
+          >
+            <i className="fas fa-clock" />
+          </button>
+        </div>
+
+        <div className="art-analysis-body">
+          <div className="art-analysis-main">
+            <FiltersPanel
+              entryCount={omenSeqs.length}
+              sortMode={sortMode}
+              onSortChange={setSortMode}
+              sourceIds={sourceIds}
+              sources={sources}
+              hiddenAuthors={hiddenAuthors}
+              onToggleAuthor={toggleAuthor}
+              hiddenLayers={hiddenLayers}
+              onToggleLayer={toggleLayer}
+              grouping={grouping}
+              onGroupingChange={setGrouping}
+              colorMap={colorMap}
+              sourcesWithImages={sourcesWithImages}
+              allLanguages={allLanguages}
+              hiddenLanguages={hiddenLanguages}
+              onToggleLang={toggleLanguage}
+              groupTranslationsByLanguage={groupTranslationsByLanguage}
+              onToggleGroupTranslationsByLanguage={toggleGroupTranslationsByLanguage}
+            />
+
+            <div className={`v2-text-display ${hideClasses}`}>
+              {(grouping === 'author-layer' || grouping === 'author-entry-layer') ? (
+                <AuthorLayerView
+                  sets={activeSets} sources={sources} sourceIds={displaySourceIds}
+                  colorMap={colorMap} grouping={grouping} editProps={editProps}
+                  lineRegionsByContentId={lineRegionsByContentId} seqRank={seqRank}
+                  hiddenLanguages={hiddenLanguages}
+                  groupTranslationsByLanguage={groupTranslationsByLanguage}
+                />
+              ) : (grouping === 'layer-entry-author' || grouping === 'layer-author-entry') ? (
+                <LayerFirstView
+                  grouping={grouping} sets={activeSets} sources={sources}
+                  sourceIds={displaySourceIds} colorMap={colorMap} editProps={editProps}
+                  lineRegionsByContentId={lineRegionsByContentId} seqRank={seqRank}
+                  hiddenLanguages={hiddenLanguages}
+                  groupTranslationsByLanguage={groupTranslationsByLanguage}
+                />
+              ) : (
+                sortedOmenSeqs.map(seq => {
+                  const seqSets = activeSets
+                    .filter(s => s.seq === seq)
+                    .sort((a, b) => sourceIds.indexOf(String(a.source_id)) - sourceIds.indexOf(String(b.source_id)));
+                  return (
+                    <OmenBlock
+                      key={seq} omenSeq={seq} omenType={seqSets[0]?.type || 'omen'}
+                      sets={seqSets} sources={sources} colorMap={colorMap}
+                      grouping={grouping} editProps={editProps}
+                      lineRegionsByContentId={lineRegionsByContentId}
+                      hiddenLanguages={hiddenLanguages}
+                      groupTranslationsByLanguage={groupTranslationsByLanguage}
+                    />
+                  );
+                })
+              )}
+            </div>
           </div>
-          <div className="v2-panel-rail v2-panel-rail-right" onClick={() => setRightExpanded(v => !v)} title="Toggle history panel (] )">
-            <i className="ti ti-history" style={{ fontSize: 15 }} />
-            <span className="v2-rail-label">History</span>
-          </div>
+
+          {historyPanelOpen && (
+            <>
+              <div
+                className="art-history-resize-handle"
+                onMouseDown={startHistoryResize}
+              />
+              <div
+                className="art-history-panel"
+                style={{ width: historyPanelWidth }}
+              >
+                <div className="art-history-panel-header">
+                  <span>History</span>
+                  <button type="button" aria-label="Close history" onClick={() => setHistoryPanelOpen(false)}>✕</button>
+                </div>
+                <DetailsPanel
+                  sources={sources} sourceIds={sourceIds} colorMap={colorMap}
+                  editLog={editLog} lineOverrides={lineOverrides}
+                  onUndoEdit={undoEdit} onFlagEdit={flagEdit} onViewInText={viewInText} onRestore={restoreVersion}
+                  historyFilter={historyFilter} onClearHistoryFilter={() => setHistoryFilter(null)}
+                />
+              </div>
+            </>
+          )}
         </div>
       </div>
       {showAuthPrompt && <AuthPromptModal onClose={() => setShowAuthPrompt(false)} />}
