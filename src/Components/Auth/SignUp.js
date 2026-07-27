@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../Auth/AuthContext';
+import config from '../../config';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -49,7 +50,7 @@ function SignUp() {
 
   return (
     <div className="auth-card">
-      <Link to="/" className="auth-card-logo">Digital Palaeography</Link>
+      <Link to="/" className="auth-card-logo">{config.projectName}</Link>
       <div className="auth-card-heading">Create an account</div>
       <div className="auth-card-subtitle">Contribute analyses, fix transcriptions, and track your edits.</div>
 

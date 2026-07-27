@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import config from '../../config';
 
 const RUNES = '𐰚 𐰇 𐰀 𐰼 𐰢 𐰤 𐰏 𐰉 𐰆 𐰕 𐰴 𐰣 𐱅 𐰾 𐰃 𐰋 𐰓 𐰞 𐰺 𐱁 𐰭 𐰘 𐰲 𐰿 𐰍 𐱃 𐰙 𐰑 𐰯 𐰱'.split(' ');
 
@@ -74,7 +75,7 @@ function MainPage() {
       <section className="hp-hero">
         <RunicGrid />
         <div className="hp-hero-content">
-          <h1 className="hp-title">Digital Palaeography</h1>
+          <h1 className="hp-title">{config.projectName}</h1>
           <p className="hp-desc">
             Browse, read, and analyse ancient inscriptions and manuscripts with multi-source scholarly commentary and morphological annotation.
           </p>
@@ -126,7 +127,7 @@ function MainPage() {
 
       {/* footer */}
       <footer className="hp-footer">
-        <span>Digital Palaeography</span>
+        <span>{config.projectName}</span>
         <span>Open source</span>
       </footer>
 

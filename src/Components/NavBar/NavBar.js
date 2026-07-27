@@ -1,6 +1,7 @@
 import React, { Component } from 'react';
 import { NavMenu } from './NavMenu';
 import { useAuth } from '../../Auth/AuthContext';
+import config from '../../config';
 
 function initials(user) {
   const name = user.full_name || user.email || '';
@@ -70,7 +71,7 @@ class NavBar extends Component {
     const path = window.location.pathname;
     return (
       <nav className="NavbarItems">
-        <h1 className="NavbarLogo"><a href="/">Digital Palaeography</a></h1>
+        <h1 className="NavbarLogo"><a href="/">{config.projectName}</a></h1>
         <ul className={this.state.clicked ? 'nav-menu active' : 'nav-menu'}>
           {NavMenu.map((item, index) => {
             const isActive = path === item.url || (item.url !== '/' && path.startsWith(item.url));

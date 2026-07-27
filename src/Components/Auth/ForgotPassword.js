@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
+import config from '../../config';
 
 function ForgotPassword() {
   const [email, setEmail] = useState('');
@@ -13,7 +14,7 @@ function ForgotPassword() {
 
   return (
     <div className="auth-card">
-      <Link to="/" className="auth-card-logo">Digital Palaeography</Link>
+      <Link to="/" className="auth-card-logo">{config.projectName}</Link>
       <div className="auth-card-heading">Reset your password</div>
       <div className="auth-card-subtitle">Enter your email and we'll send you a reset link.</div>
 

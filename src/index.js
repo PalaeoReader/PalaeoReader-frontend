@@ -23,6 +23,9 @@ import {
   Route,
   Navigate,
 } from 'react-router-dom';
+import config from './config';
+
+document.title = config.projectName;
 
 document.body.innerHTML = '<div id="root"></div>';
 const domNode = document.getElementById('root');

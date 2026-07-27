@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../Auth/AuthContext';
+import config from '../../config';
 
 function SignIn() {
   const { login } = useAuth();
@@ -27,7 +28,7 @@ function SignIn() {
 
   return (
     <div className="auth-card">
-      <Link to="/" className="auth-card-logo">Digital Palaeography</Link>
+      <Link to="/" className="auth-card-logo">{config.projectName}</Link>
       <div className="auth-card-heading">Sign in</div>
       <div className="auth-card-subtitle">Access your contributions and edit history.</div>
 
