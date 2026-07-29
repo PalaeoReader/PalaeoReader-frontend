@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { apiUrl } from '../../config';
 
 function useFetch(url) {
   const [data, setData] = useState(null);
@@ -36,7 +37,7 @@ export default function ConcordancePage() {
   const [debounced, setDebounced] = useState('');
 
   // data
-  const allArtifacts = useFetch('/api/artifacts/') || [];
+  const allArtifacts = useFetch(apiUrl('/api/artifacts/')) || [];
   const [setsMap, setSetsMap]       = useState({}); // artifactId -> sets
   const [sourcesMap, setSourcesMap] = useState({}); // sourceId -> source
 
@@ -55,13 +56,13 @@ export default function ConcordancePage() {
   useEffect(() => {
     allArtifacts.forEach(a => {
       if (setsMap[a.id]) return;
-      fetch(`/api/artifacts/${a.id}/sets`)
+      fetch(apiUrl(`/api/artifacts/${a.id}/sets`))
         .then(r => r.json())
         .then(sets => {
           setSetsMap(prev => ({ ...prev, [a.id]: sets }));
           [...new Set(sets.map(s => s.source_id))].forEach(sid => {
             if (sourcesMap[sid]) return;
-            fetch(`/api/sources/${sid}`).then(r => r.json())
+            fetch(apiUrl(`/api/sources/${sid}`)).then(r => r.json())
               .then(src => setSourcesMap(prev => ({ ...prev, [sid]: src })))
               .catch(() => {});
           });

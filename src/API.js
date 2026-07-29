@@ -1,10 +1,11 @@
 import React from 'react';
+import { apiUrl } from './config';
 
 export default function fetchAccess () {
   const [username] = useState("");
   const [password] = useState("");
 
-  var fetchData = fetch('/api/login/access-token', {
+  var fetchData = fetch(apiUrl('/api/login/access-token'), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded',
@@ -28,7 +29,7 @@ export default function fetchAccess () {
 
 function fetchArtifactImage () {
   var fetchData = fetch(
-    '/api/{dir}/{image_uri}',
+    apiUrl('/api/{dir}/{image_uri}'),
     {method: 'GET'}
   );
   return fetchData;

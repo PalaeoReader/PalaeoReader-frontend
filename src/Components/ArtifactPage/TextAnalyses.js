@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { apiUrl } from '../../config';
 
 function useGet(url) {
   const [data, setData]       = useState(null);
@@ -118,7 +119,7 @@ function TypeToggles({ available, visible, onChange }) {
 function SetBlock({ setId, seq, type, visibleTypes }) {
   const [open, setOpen]             = useState(true);
   const [selectedToken, setSelected] = useState(null);
-  const { data, loading, error }    = useGet(`/api/content/sets/${setId}`);
+  const { data, loading, error }    = useGet(apiUrl(`/api/content/sets/${setId}`));
 
   if (loading) return <div style={{ padding: '0.5rem 1rem', color: 'var(--text-muted)', fontSize: '0.82rem', fontStyle: 'italic' }}>Loading…</div>;
   if (error)   return <div className="error-wrap" style={{ margin: '0.3rem 0' }}>Could not load set {setId}.</div>;
@@ -206,7 +207,7 @@ function SetBlock({ setId, seq, type, visibleTypes }) {
 }
 
 function SourcePanel({ sets, sourceId }) {
-  const { data: src } = useGet(`/api/sources/${sourceId}`);
+  const { data: src } = useGet(apiUrl(`/api/sources/${sourceId}`));
 
   /* collect all content types available in these sets — we need to peek */
   const [allTypes, setAllTypes]   = useState([]);
@@ -214,7 +215,7 @@ function SourcePanel({ sets, sourceId }) {
 
   /* once first set loads, populate type list */
   const FirstSetProbe = ({ setId }) => {
-    const { data } = useGet(`/api/content/sets/${setId}`);
+    const { data } = useGet(apiUrl(`/api/content/sets/${setId}`));
     useEffect(() => {
       if (!data?.contents?.length) return;
       const types = [...new Set(data.contents.map(c => c.type))];
@@ -280,7 +281,7 @@ function SourcePanel({ sets, sourceId }) {
 
 export const TextAnalyses = ({ artifactId }) => {
   const { data: sets, loading, error } = useGet(
-    artifactId ? `/api/artifacts/${artifactId}/sets` : null
+    artifactId ? apiUrl(`/api/artifacts/${artifactId}/sets`) : null
   );
   const [activeSource, setActiveSource] = useState(null);
 
@@ -312,7 +313,7 @@ function SourceTabBar({ sourceIds, current, onSelect }) {
   const [names, setNames] = useState({});
   useEffect(() => {
     sourceIds.forEach(id => {
-      fetch(`/api/sources/${id}`)
+      fetch(apiUrl(`/api/sources/${id}`))
         .then(r => r.json())
         .then(src => setNames(n => ({ ...n, [id]: src.author })))
         .catch(() => {});

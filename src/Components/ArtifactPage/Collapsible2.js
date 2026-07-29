@@ -4,6 +4,7 @@ import useSWR from 'swr';
 import Lightbox from 'yet-another-react-lightbox';
 import "yet-another-react-lightbox/styles.css";
 import { APIgetArtifacts } from '../../APIurls';
+import { apiUrl } from '../../config';
 import Captions from "yet-another-react-lightbox/plugins/captions";
 import Download from "yet-another-react-lightbox/plugins/download";
 import Fullscreen from "yet-another-react-lightbox/plugins/fullscreen";
@@ -42,7 +43,7 @@ function Collapsible2() {
     const imageList = data.map((artifact) => (
                         artifact.images.map((img) => (
                             {
-                                src: "/api/images/"+img.uri,
+                                src: apiUrl("/api/images/"+img.uri),
                                 alt: (img.alt),
                                 downloadUrl: (img.uri),
                                 description: (img.caption)

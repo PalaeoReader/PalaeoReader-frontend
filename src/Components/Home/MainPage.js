@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import config from '../../config';
+import config, { apiUrl } from '../../config';
 
 const RUNES = '𐰚 𐰇 𐰀 𐰼 𐰢 𐰤 𐰏 𐰉 𐰆 𐰕 𐰴 𐰣 𐱅 𐰾 𐰃 𐰋 𐰓 𐰞 𐰺 𐱁 𐰭 𐰘 𐰲 𐰿 𐰍 𐱃 𐰙 𐰑 𐰯 𐰱'.split(' ');
 
@@ -14,7 +14,7 @@ function RunicGrid() {
 
 function ArtifactCard({ artifact }) {
   const coverUri = artifact.cover_image?.uri
-    ? `/api/images/${artifact.cover_image.uri}`
+    ? apiUrl(`/api/images/${artifact.cover_image.uri}`)
     : null;
 
   const tags = [
@@ -54,7 +54,7 @@ function MainPage() {
   const [artifacts, setArtifacts] = useState([]);
 
   useEffect(() => {
-    fetch('/api/artifacts/')
+    fetch(apiUrl('/api/artifacts/'))
       .then(r => r.json())
       .then(setArtifacts)
       .catch(() => {});

@@ -1,5 +1,6 @@
 import React from 'react';
 import useSWR from 'swr';
+import { apiUrl } from '../../config';
 
 const fetcher = url => fetch(url).then(r => r.json());
 
@@ -7,7 +8,7 @@ const SOURCE_IDS = [1, 2, 3, 4];
 
 function SourceCard({ id }) {
   const { data, error } = useSWR(
-    `/api/sources/${id}`,
+    apiUrl(`/api/sources/${id}`),
     fetcher
   );
   if (error || !data) return null;

@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { apiUrl } from '../config';
 
 // wraps the existing JWT auth backend. it logs people in by `username`, but
 // this UI only ever asks for an email, so we just send the email as the
@@ -9,7 +10,7 @@ const AuthContext = createContext(null);
 const TOKEN_KEY = 'dp_auth_token';
 
 async function fetchMe(token) {
-  const res = await fetch('/api/users/me', {
+  const res = await fetch(apiUrl('/api/users/me'), {
     headers: { Authorization: `Bearer ${token}` },
   });
   if (!res.ok) return null;
@@ -42,7 +43,7 @@ export function AuthProvider({ children }) {
 
   const login = useCallback(async (email, password) => {
     // the token endpoint wants form-encoded OAuth2 fields, not json
-    const res = await fetch('/api/login/access-token', {
+    const res = await fetch(apiUrl('/api/login/access-token'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       body: new URLSearchParams({ username: email, password }),
@@ -61,7 +62,7 @@ export function AuthProvider({ children }) {
   }, []);
 
   const register = useCallback(async (name, email, password) => {
-    const res = await fetch('/api/users/signup', {
+    const res = await fetch(apiUrl('/api/users/signup'), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({

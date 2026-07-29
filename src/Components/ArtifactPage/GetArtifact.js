@@ -2,6 +2,7 @@ import React from 'react';
 import useSWR from 'swr';
 import { useCollapse } from 'react-collapsed';
 import { APIgetArtifacts } from '../../APIurls';
+import { apiUrl } from '../../config';
 import { useParams } from 'react-router-dom';
 
   // created function to handle API request
@@ -30,7 +31,7 @@ import { useParams } from 'react-router-dom';
 
           
               <div>
-                <li key={artifact.id}> <img className="artifact-image-on-page" src={"/api/images/"+artifact.cover_image} alt="cover-image" height="225" width="350"/></li>
+                <li key={artifact.id}> <img className="artifact-image-on-page" src={apiUrl("/api/images/"+artifact.cover_image)} alt="cover-image" height="225" width="350"/></li>
                 <li key={artifact.id}> <h4 className="artifact-name">{artifact.label}</h4> </li>
                 <li key={artifact.id}> <p className="artifact-description" dangerouslySetInnerHTML={{ __html:artifact.description}}></p> </li>
                 <li key={artifact.id}> <div className="original-date"><span className='artifact_metadata_titles'>Document date:</span> {artifact.origin_date}</div></li>

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import '../Selections.css';
+import { apiUrl } from '../../config';
 
 function useFetch(url) {
   const [data, setData]       = useState(null);
@@ -22,15 +23,15 @@ const COLORS = ['#e74c3c', '#3498db', '#2ecc71', '#f39c12', '#9b59b6', '#1abc9c'
 export default function DivisionView() {
   const { id } = useParams();
 
-  const { data: division, loading: divLoading }  = useFetch(`/api/content/divisions/${id}`);
-  const { data: subdivisions, loading: subLoading } = useFetch(`/api/content/divisions/${id}/subdivisions`);
+  const { data: division, loading: divLoading }  = useFetch(apiUrl(`/api/content/divisions/${id}`));
+  const { data: subdivisions, loading: subLoading } = useFetch(apiUrl(`/api/content/divisions/${id}/subdivisions`));
 
   // Pick the first image referenced by any subdivision's selections
   const firstImageId = (subdivisions || [])
     .flatMap(s => s.selections || [])
     .find(sel => sel.image_id)?.image_id ?? null;
 
-  const { data: imageData } = useFetch(firstImageId != null ? `/api/images/${firstImageId}` : null);
+  const { data: imageData } = useFetch(firstImageId != null ? apiUrl(`/api/images/${firstImageId}`) : null);
 
   if (divLoading || subLoading) return <div className="loading">Loading…</div>;
   if (!division) return <div className="failed">Division not found.</div>;
@@ -62,7 +63,7 @@ export default function DivisionView() {
           <div className="selectedImage" style={{ flex: '1 1 0', minWidth: 0 }}>
             <img
               className="selectedImageImage"
-              src={`/api/images/${imageData.uri}`}
+              src={apiUrl(`/api/images/${imageData.uri}`)}
               alt={imageData.alt || division.label || ''}
             />
             {subs.map((sub, i) =>

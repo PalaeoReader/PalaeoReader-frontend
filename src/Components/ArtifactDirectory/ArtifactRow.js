@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { apiUrl } from '../../config';
 
 function useData(url) {
   const [data, setData]       = useState(null);
@@ -22,7 +23,7 @@ const RUNES = '𐰚 𐰇 𐰀 𐰼 𐰢 𐰤 𐰏 𐰉 𐰆 𐰕 𐰴 𐰣 𐱅 
 
 function ArtifactCard({ artifact }) {
   const coverUri = artifact.cover_image?.uri
-    ? `/api/images/${artifact.cover_image.uri}`
+    ? apiUrl(`/api/images/${artifact.cover_image.uri}`)
     : null;
   const tags = [
     artifact.script?.split(',')[0]?.trim(),
@@ -89,7 +90,7 @@ export const ArtifactRow = () => {
   const [listView, setListView] = useState(false);
   const timerRef = useRef(null);
 
-  const { data, loading, error } = useData('/api/artifacts/');
+  const { data, loading, error } = useData(apiUrl('/api/artifacts/'));
 
   useEffect(() => {
     clearTimeout(timerRef.current);
@@ -170,7 +171,7 @@ export const ArtifactRow = () => {
         ) : listView ? (
           <div className="browse-list">
             {filtered.map(a => {
-              const coverUri = a.cover_image?.uri ? `/api/images/${a.cover_image.uri}` : null;
+              const coverUri = a.cover_image?.uri ? apiUrl(`/api/images/${a.cover_image.uri}`) : null;
               const tags = [a.script?.split(',')[0]?.trim(), a.material?.split(',')[0]?.trim()].filter(Boolean);
               return (
                 <a key={a.id} href={`/artifact/${a.shortname}`} className="browse-list-row">

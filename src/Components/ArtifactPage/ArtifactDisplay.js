@@ -4,6 +4,7 @@ import IconButton from '../common/IconButton';
 import Pill from '../common/Pill';
 import AddPopover from '../common/AddPopover';
 import { useAuth } from '../../Auth/AuthContext';
+import { apiUrl } from '../../config';
 
 
 function useFetch(url) {
@@ -1109,7 +1110,7 @@ function ImageCropRow({ color, sels, dir, bare, style }) {
       ...style,
     }}>
       {sels.map((sel, j) => (
-        <ResizableCrop key={j} src={`/api/images/${sel.uri}`} sel={sel} color={color} label={sel.label || ''} />
+        <ResizableCrop key={j} src={apiUrl(`/api/images/${sel.uri}`)} sel={sel} color={color} label={sel.label || ''} />
       ))}
     </div>
   );
@@ -1957,9 +1958,9 @@ function ManuscriptPanel({ artifact, groups, hiddenAuthors, activeSourceIds, sou
     ? (groupsBySource[activeSourcesWithImages[0]] || []).sort((a, b) => (a.seq ?? 0) - (b.seq ?? 0))[0]?.images?.[0] ?? null
     : sortedGroups[0]?.images?.[0] ?? null;
   const currentImgObj = activeImgObj || firstAvailableImg;
-  const currentImgSrc = currentImgObj ? `/api/images/${currentImgObj.uri}` : null;
+  const currentImgSrc = currentImgObj ? apiUrl(`/api/images/${currentImgObj.uri}`) : null;
 
-  const { data: rawSelections } = useFetch(currentImgObj ? `/api/images/${currentImgObj.id}/selections` : null);
+  const { data: rawSelections } = useFetch(currentImgObj ? apiUrl(`/api/images/${currentImgObj.id}/selections`) : null);
   const selections = Array.isArray(rawSelections) ? rawSelections : [];
 
   const isSingleSource = activeSourcesWithImages.length === 1;
@@ -2023,7 +2024,7 @@ function ManuscriptPanel({ artifact, groups, hiddenAuthors, activeSourceIds, sou
             {allImgs.map(img => (
               <img
                 key={img.id}
-                src={`/api/images/${img.uri}`}
+                src={apiUrl(`/api/images/${img.uri}`)}
                 alt=""
                 className={`v2-rail-thumb${img.id === currentImgObj?.id ? ' active' : ''}`}
                 onClick={() => onActiveImgObjChange(img)}
@@ -2546,14 +2547,14 @@ function ArtifactHeader({ artifact, allArtifacts, sourceIds, sources, entryCount
   useEffect(() => {
     setCurrentLocation(null);
     if (!artifact.current_location_id) return;
-    fetch(`/api/artifacts/location/${artifact.current_location_id}`)
+    fetch(apiUrl(`/api/artifacts/location/${artifact.current_location_id}`))
       .then(r => r.json())
       .then(setCurrentLocation)
       .catch(() => {});
   }, [artifact.current_location_id]);
 
   const coverUri = artifact.cover_image?.uri
-    ? `/api/images/${artifact.cover_image.uri}`
+    ? apiUrl(`/api/images/${artifact.cover_image.uri}`)
     : null;
 
   const currentIdx = Array.isArray(allArtifacts)
@@ -2591,7 +2592,7 @@ function ArtifactHeader({ artifact, allArtifacts, sourceIds, sources, entryCount
             {prevArtifact ? (
               <a href={`/artifact/${prevArtifact.shortname}`} className="art-header-nav-btn">
                 {prevArtifact.cover_image?.uri && (
-                  <img src={`/api/images/${prevArtifact.cover_image.uri}`} alt=""
+                  <img src={apiUrl(`/api/images/${prevArtifact.cover_image.uri}`)} alt=""
                     className="art-nav-thumb"
                     onError={e => { e.target.style.display = 'none'; }} />
                 )}
@@ -2602,7 +2603,7 @@ function ArtifactHeader({ artifact, allArtifacts, sourceIds, sources, entryCount
             {nextArtifact ? (
               <a href={`/artifact/${nextArtifact.shortname}`} className="art-header-nav-btn">
                 {nextArtifact.cover_image?.uri && (
-                  <img src={`/api/images/${nextArtifact.cover_image.uri}`} alt=""
+                  <img src={apiUrl(`/api/images/${nextArtifact.cover_image.uri}`)} alt=""
                     className="art-nav-thumb"
                     onError={e => { e.target.style.display = 'none'; }} />
                 )}
@@ -2651,13 +2652,13 @@ export default function ArtifactDisplay() {
   const [searchParams, setSearchParams] = useSearchParams();
   const { user } = useAuth();
 
-  const { data: allArtifacts } = useFetch('/api/artifacts/');
+  const { data: allArtifacts } = useFetch(apiUrl('/api/artifacts/'));
   const artifact = Array.isArray(allArtifacts) ? allArtifacts.find(a => a.shortname === shortName) || null : null;
 
-  const { data: allSets } = useFetch(artifact ? `/api/artifacts/${artifact.id}/sets` : null);
+  const { data: allSets } = useFetch(artifact ? apiUrl(`/api/artifacts/${artifact.id}/sets`) : null);
   const sets = Array.isArray(allSets) ? allSets : [];
 
-  const { data: rawGroups } = useFetch(artifact ? `/api/artifacts/${artifact.shortname}/image_groups` : null);
+  const { data: rawGroups } = useFetch(artifact ? apiUrl(`/api/artifacts/${artifact.shortname}/image_groups`) : null);
   const imageGroups = Array.isArray(rawGroups) ? rawGroups : [];
   const sourcesWithImages = new Set(
     imageGroups.flatMap(g => (g.images || []).map(img => String(img.source_id)).filter(s => s && s !== 'null' && s !== 'undefined'))
@@ -2703,7 +2704,7 @@ export default function ArtifactDisplay() {
   useEffect(() => {
     sourceIds.forEach(id => {
       if (sources[id]) return;
-      fetch(`/api/sources/${id}`).then(r => r.json()).then(src => setSources(p => ({ ...p, [id]: src }))).catch(() => {});
+      fetch(apiUrl(`/api/sources/${id}`)).then(r => r.json()).then(src => setSources(p => ({ ...p, [id]: src }))).catch(() => {});
     });
   }, [sourceIds.join(',')]);
 
