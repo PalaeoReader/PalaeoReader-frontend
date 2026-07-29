@@ -10,6 +10,7 @@ import ArtifactDisplay from './Components/ArtifactPage/ArtifactDisplay';
 import MapPage from './Components/Map/MapPage';
 import DictionaryPage from './Components/Dictionary/DictionaryPage';
 import SourcesPage from './Components/Sources/SourcesPage';
+import AboutPage from './Components/About/AboutPage';
 import ConcordancePage from './Components/Concordance/ConcordancePage';
 import DivisionView from './Components/DivisionView/DivisionView';
 import SignIn from './Components/Auth/SignIn';
@@ -46,6 +47,7 @@ function App() {
             <Route path="/map"                 element={<MapPage />}        />
             <Route path="/dictionary"          element={<DictionaryPage />} />
             <Route path="/sources"             element={<SourcesPage />}    />
+            <Route path="/about"               element={<AboutPage />}      />
             <Route path="/concordance"         element={<ConcordancePage />}/>
             <Route path="/signin"              element={<SignIn />}         />
             <Route path="/signup"              element={<SignUp />}         />

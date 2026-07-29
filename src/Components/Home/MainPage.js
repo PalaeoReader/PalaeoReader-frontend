@@ -77,7 +77,7 @@ function MainPage() {
         <div className="hp-hero-content">
           <h1 className="hp-title">{config.projectName}</h1>
           <p className="hp-desc">
-            Browse, read, and analyse ancient inscriptions and manuscripts with multi-source scholarly commentary and morphological annotation.
+            {config.tagline}
           </p>
           <div className="hp-hero-btns">
             <a href="/directory" className="hp-btn-primary">Browse corpus</a>
@@ -129,6 +129,7 @@ function MainPage() {
       <footer className="hp-footer">
         <span>{config.projectName}</span>
         <span>Open source</span>
+        <span>Powered by Palaeoreader</span>
       </footer>
 
     </div>

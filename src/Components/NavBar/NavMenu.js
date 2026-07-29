@@ -4,6 +4,7 @@ export const NavMenu = [
   { title: 'Map',         url: '/map',         cName: 'nav-links' },
   { title: 'Dictionary',  url: '/dictionary',  cName: 'nav-links' },
   { title: 'Sources',     url: '/sources',     cName: 'nav-links' },
+  { title: 'About',       url: '/about',       cName: 'nav-links' },
 ];
 
 export default NavMenu;
