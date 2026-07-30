@@ -119,9 +119,7 @@ function setLabel(set, seq, type) {
   return set?.label || (type === 'omen' ? `Omen ${seq}` : `Line ${seq}`);
 }
 
-// Some divisions are labeled with a bare number in the database (e.g. "1",
-// "2") rather than a descriptive string -- read as "Line 1" etc. instead of
-// an unlabeled digit. Non-numeric curated labels pass through untouched.
+// read as "Line 1" etc. instead of an unlabeled digit. Non-numeric curated labels pass through untouched.
 function divisionLabel(div) {
   if (!div?.label) return div?.type;
   if (/^\d+$/.test(div.label.trim())) {
@@ -1137,7 +1135,10 @@ function ImageCropRow({ color, sels, dir, bare, style }) {
 function OmenBlock({ omenSeq, omenType, sets, sources, colorMap, grouping, editProps, lineRegionsByContentId, hiddenLanguages, groupTranslationsByLanguage }) {
   const firstSet = sets[0];
   const label = setLabel(firstSet, omenSeq, omenType);
-  const morphs = firstSet?.morphs || [];
+  
+  
+  const morphSet = sets.find(s => (s.morphs || []).length > 0) || firstSet;
+  const morphs = morphSet?.morphs || [];
   const contentLayers = LAYERS.filter(l => !l.isMorph);
 
   // Build both structures up front
@@ -1199,9 +1200,9 @@ function OmenBlock({ omenSeq, omenType, sets, sources, colorMap, grouping, editP
             );
           })}
           {morphs.length > 0 && (() => {
-            const morphColor = colorMap[String(firstSet?.source_id)] || COLOR_SLOTS[0];
-            const morphLineKey = `${omenSeq}-morph-${firstSet?.source_id}`;
-            const morphSourceLabel = srcLabel(sources[String(firstSet?.source_id)], String(firstSet?.source_id));
+            const morphColor = colorMap[String(morphSet?.source_id)] || COLOR_SLOTS[0];
+            const morphLineKey = `${omenSeq}-morph-${morphSet?.source_id}`;
+            const morphSourceLabel = srcLabel(sources[String(morphSet?.source_id)], String(morphSet?.source_id));
             return (
               <div className="v2-layer-row-group layer-morph-transcr layer-morph-gloss"
                 style={{ borderLeftColor: morphColor.border }}>
@@ -1209,7 +1210,7 @@ function OmenBlock({ omenSeq, omenType, sets, sources, colorMap, grouping, editP
                 <div className="v2-layer-authors">
                   <EditableMorphLine
                     lineKey={morphLineKey}
-                    sourceId={String(firstSet?.source_id)}
+                    sourceId={String(morphSet?.source_id)}
                     color={morphColor}
                     morphs={morphs}
                     sourceLabel={morphSourceLabel}
@@ -1226,7 +1227,7 @@ function OmenBlock({ omenSeq, omenType, sets, sources, colorMap, grouping, editP
           const srcId = String(set.source_id);
           const { color, contentsByLayer } = bySrc[srcId];
           const author = srcLabel(sources[srcId], srcId);
-          const isMorphAuthor = srcId === String(firstSet?.source_id);
+          const isMorphAuthor = srcId === String(morphSet?.source_id);
           const imgSels = getImgSels(set, lineRegionsByContentId);
           return (
             <div key={srcId} className={`author-block author-${srcId}`}>
@@ -1283,11 +1284,11 @@ function OmenBlock({ omenSeq, omenType, sets, sources, colorMap, grouping, editP
                   <EditableMorphLine
                     bare
                     plain
-                    lineKey={`${omenSeq}-morph-${firstSet?.source_id}`}
-                    sourceId={String(firstSet?.source_id)}
-                    color={colorMap[String(firstSet?.source_id)] || COLOR_SLOTS[0]}
+                    lineKey={`${omenSeq}-morph-${morphSet?.source_id}`}
+                    sourceId={String(morphSet?.source_id)}
+                    color={colorMap[String(morphSet?.source_id)] || COLOR_SLOTS[0]}
                     morphs={morphs}
-                    sourceLabel={srcLabel(sources[String(firstSet?.source_id)], String(firstSet?.source_id))}
+                    sourceLabel={srcLabel(sources[String(morphSet?.source_id)], String(morphSet?.source_id))}
                     editProps={editProps}
                   />
                 </div>
@@ -1602,8 +1603,11 @@ function AuthorLayerView({ sets, sources, sourceIds, colorMap, grouping, editPro
   const contentLayers = LAYERS.filter(l => !l.isMorph);
   // Independent of `sourceIds`' display order (which "Author A-Z" may have
   // resorted alphabetically) -- morph authorship is a stable data fact, not a
-  // reflection of whichever author currently sorts first.
-  const morphAuthorId = String(sets[0]?.source_id);
+  // reflection of whichever author currently sorts first. It's also not
+  // necessarily whichever set happens to be sets[0]: look for the set that
+  // actually carries morph data instead of assuming array order lines up
+  // with authorship.
+  const morphAuthorId = String(sets.find(s => (s.morphs || []).length > 0)?.source_id ?? sets[0]?.source_id);
   const bySeq = (seq) => seqRank?.get(seq) ?? seq;
 
   return sourceIds.map(srcId => {
