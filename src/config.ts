@@ -2,15 +2,15 @@ import { Config } from './types';
 import logo from './assets/logo.png';
 
 const config = {
-  projectName: 'PalaeoReader',
+  projectName: 'PalæoReader',
    // short description shown under the project name on the homepage
   tagline: 'Browse, read, and analyse ancient inscriptions and manuscripts with multi-source scholarly commentary and morphological annotation.',
 
   // text for the About page (placeholder for now)
-  about: 'this is the about page',
+  about: 'Visit <a href="https://github.com/PalaeoReader/">PalæoReader</a> on GitHub for more information.',
 
    // backend server address; uses env var if set, else local default
-  apiBaseUrl: process.env.REACT_APP_API_URL || 'http://127.0.0.1:8001',
+  apiBaseUrl: process.env.REACT_APP_API_URL || 'http://127.0.0.1:8000',
 
   // logo shown in the navbar (Przewalski's horse / takhi, see PalaeoReader-logo repo)
   logo: logo,
