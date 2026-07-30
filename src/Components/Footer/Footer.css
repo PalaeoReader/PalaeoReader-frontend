@@ -1,0 +1,15 @@
+.site-footer {
+  display: flex;
+  justify-content: flex-end;
+  padding: 1.25rem;
+}
+
+.PoweredByBadge {
+  height: 64px;
+  width: auto;
+  opacity: 0.85;
+}
+
+.PoweredByBadge:hover {
+  opacity: 1;
+}

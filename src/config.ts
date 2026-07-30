@@ -12,7 +12,7 @@ const config = {
    // backend server address; uses env var if set, else local default
   apiBaseUrl: process.env.REACT_APP_API_URL || 'http://127.0.0.1:8001',
 
-  // logo shown in the navbar (Przewalski's horse / takhi, see PalaeoReader-logo repo)
+  // logo shown in the navbar
   logo: logo,
 } as Config;
 

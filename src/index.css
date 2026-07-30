@@ -3362,16 +3362,6 @@ button { cursor: pointer; font-family: 'Inter', sans-serif; }
   font-family: 'Inter', sans-serif;
 }
 
-/* hp footer */
-.hp-footer {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 18px 40px;
-  font-size: 11px;
-  color: var(--text-muted);
-}
-
 /* stacked view rows */
 .stk-omen {
   padding: 1rem 0;

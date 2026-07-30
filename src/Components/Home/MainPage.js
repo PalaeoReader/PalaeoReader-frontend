@@ -125,13 +125,6 @@ function MainPage() {
         ))}
       </div>
 
-      {/* footer */}
-      <footer className="hp-footer">
-        <span>{config.projectName}</span>
-        <span>Open source</span>
-        <span>Powered by Palaeoreader</span>
-      </footer>
-
     </div>
   );
 }

@@ -4,6 +4,7 @@ import '@coreui/coreui/dist/css/coreui.min.css';
 import './index.css';
 import './Components/NavBar/NavBar.css';
 import NavBar from './Components/NavBar/NavBar';
+import Footer from './Components/Footer/Footer';
 import MainPage from './Components/Home/MainPage';
 import ArtifactList from './Components/ArtifactDirectory/ArtifactList';
 import ArtifactDisplay from './Components/ArtifactPage/ArtifactDisplay';
@@ -56,6 +57,7 @@ function App() {
             <Route path="/login"               element={<Navigate to="/signin" replace />} />
             <Route path="/divisions/:id"       element={<DivisionView />}   />
           </Routes>
+          <Footer />
         </Router>
       </AuthProvider>
     </div>
