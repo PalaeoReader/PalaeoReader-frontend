@@ -114,6 +114,23 @@ function srcLabel(src, id) {
   return src.shortname || src.author.split(' ').pop();
 }
 
+
+function setLabel(set, seq, type) {
+  return set?.label || (type === 'omen' ? `Omen ${seq}` : `Line ${seq}`);
+}
+
+// Some divisions are labeled with a bare number in the database (e.g. "1",
+// "2") rather than a descriptive string -- read as "Line 1" etc. instead of
+// an unlabeled digit. Non-numeric curated labels pass through untouched.
+function divisionLabel(div) {
+  if (!div?.label) return div?.type;
+  if (/^\d+$/.test(div.label.trim())) {
+    const typeName = div.type ? div.type.charAt(0).toUpperCase() + div.type.slice(1) : 'Line';
+    return `${typeName} ${div.label.trim()}`;
+  }
+  return div.label;
+}
+
 // One source's outline for the Contents browser: its own sets (top-level
 // entries, e.g. "Omen 1") each with the divisions that live underneath them.
 function buildSourceOutline(sourceId, sets) {
@@ -134,7 +151,7 @@ function buildSourceOutline(sourceId, sets) {
     });
     return {
       seq: set.seq,
-      label: set.type === 'omen' ? `Omen ${set.seq}` : `Line ${set.seq}`,
+      label: setLabel(set, set.seq, set.type),
       divisions,
     };
   });
@@ -1118,8 +1135,8 @@ function ImageCropRow({ color, sels, dir, bare, style }) {
 
 // Unified omen block supports entry-layer-author and entry-author-layer grouping modes.
 function OmenBlock({ omenSeq, omenType, sets, sources, colorMap, grouping, editProps, lineRegionsByContentId, hiddenLanguages, groupTranslationsByLanguage }) {
-  const label = omenType === 'omen' ? `Omen ${omenSeq}` : `Line ${omenSeq}`;
   const firstSet = sets[0];
+  const label = setLabel(firstSet, omenSeq, omenType);
   const morphs = firstSet?.morphs || [];
   const contentLayers = LAYERS.filter(l => !l.isMorph);
 
@@ -1350,7 +1367,7 @@ function LayerFirstView({ grouping, sets, sources, sourceIds, colorMap, editProp
             .sort((a, b) => sourceIds.indexOf(String(a.source_id)) - sourceIds.indexOf(String(b.source_id)));
           const rows = seqSets.map(s => ({ sourceId: String(s.source_id), color: colorMap[String(s.source_id)] || COLOR_SLOTS[0], sels: getImgSels(s, lineRegionsByContentId), dir: getSetDir(s) })).filter(r => r.sels.length > 0);
           if (!rows.length) return null;
-          const entryLabel = seqSets[0]?.type === 'omen' ? `Omen ${seq}` : `Line ${seq}`;
+          const entryLabel = setLabel(seqSets[0], seq, seqSets[0]?.type);
           return (
             <div key={seq} className="layer-section-entry">
               <div className="layer-section-entry-label-wrap">
@@ -1374,7 +1391,7 @@ function LayerFirstView({ grouping, sets, sources, sourceIds, colorMap, editProp
         {sourceIds.map(srcId => {
           const color = colorMap[srcId] || COLOR_SLOTS[0];
           const authorSets = sets.filter(s => String(s.source_id) === srcId).sort((a, b) => bySeq(a.seq) - bySeq(b.seq));
-          const entries = authorSets.map(s => ({ seq: s.seq, type: s.type, sels: getImgSels(s, lineRegionsByContentId), dir: getSetDir(s) })).filter(e => e.sels.length > 0);
+          const entries = authorSets.map(s => ({ seq: s.seq, type: s.type, label: s.label, sels: getImgSels(s, lineRegionsByContentId), dir: getSetDir(s) })).filter(e => e.sels.length > 0);
           if (!entries.length) return null;
           const sourceLabel = srcLabel(sources[srcId], srcId);
           return (
@@ -1384,7 +1401,7 @@ function LayerFirstView({ grouping, sets, sources, sourceIds, colorMap, editProp
               </div>
               {entries.map(e => (
                 <div key={e.seq} className="v2-layer-row-group author-block-row">
-                  <span className="v2-layer-row-label">{e.type === 'omen' ? `Omen ${e.seq}` : `Line ${e.seq}`}</span>
+                  <span className="v2-layer-row-label">{setLabel(e, e.seq, e.type)}</span>
                   <ImageCropRow bare color={color} sels={e.sels} dir={e.dir} />
                 </div>
               ))}
@@ -1408,7 +1425,7 @@ function LayerFirstView({ grouping, sets, sources, sourceIds, colorMap, editProp
       const allRows = [];
       sets.forEach(s => {
         const color = colorMap[String(s.source_id)] || COLOR_SLOTS[0];
-        getContents(s).forEach(c => allRows.push({ seq: s.seq, type: s.type, sourceId: String(s.source_id), color, ...c }));
+        getContents(s).forEach(c => allRows.push({ seq: s.seq, type: s.type, label: s.label, sourceId: String(s.source_id), color, ...c }));
       });
       if (!allRows.length) return null;
 
@@ -1425,7 +1442,7 @@ function LayerFirstView({ grouping, sets, sources, sourceIds, colorMap, editProp
                     const seqRows = g.rows.filter(r => r.seq === seq)
                       .sort((a, b) => sourceIds.indexOf(a.sourceId) - sourceIds.indexOf(b.sourceId));
                     if (!seqRows.length) return null;
-                    const entryLabel = seqRows[0].type === 'omen' ? `Omen ${seq}` : `Line ${seq}`;
+                    const entryLabel = setLabel(seqRows[0], seq, seqRows[0].type);
                     return (
                       <LayerEntryGroup key={seq}
                         seq={seq} entryLabel={entryLabel} rows={seqRows}
@@ -1458,7 +1475,7 @@ function LayerFirstView({ grouping, sets, sources, sourceIds, colorMap, editProp
                     </div>
                     {authorRows.map((r, i) => (
                       <div key={i} className="v2-layer-row-group author-block-row">
-                        <span className="v2-layer-row-label">{r.type === 'omen' ? `Omen ${r.seq}` : `Line ${r.seq}`}</span>
+                        <span className="v2-layer-row-label">{setLabel(r, r.seq, r.type)}</span>
                         <div className="v2-layer-authors">
                           <EditableText
                             plain
@@ -1503,7 +1520,7 @@ function LayerFirstView({ grouping, sets, sources, sourceIds, colorMap, editProp
               return getContents(s).map(c => ({ sourceId: String(s.source_id), color, ...c }));
             });
             if (!rows.length) return null;
-            const entryLabel = seqSets[0]?.type === 'omen' ? `Omen ${seq}` : `Line ${seq}`;
+            const entryLabel = setLabel(seqSets[0], seq, seqSets[0]?.type);
             return (
               <LayerEntryGroup key={seq}
                 seq={seq} entryLabel={entryLabel} rows={rows}
@@ -1533,7 +1550,7 @@ function LayerFirstView({ grouping, sets, sources, sourceIds, colorMap, editProp
               getContents(s).forEach(c => {
                 if (!seqIndex.has(s.seq)) {
                   seqIndex.set(s.seq, entryGroups.length);
-                  entryGroups.push({ seq: s.seq, type: s.type, items: [] });
+                  entryGroups.push({ seq: s.seq, type: s.type, label: s.label, items: [] });
                 }
                 entryGroups[seqIndex.get(s.seq)].items.push(c);
               });
@@ -1547,7 +1564,7 @@ function LayerFirstView({ grouping, sets, sources, sourceIds, colorMap, editProp
                 </div>
                 {entryGroups.map(g => (
                   <div key={g.seq} className="v2-layer-row-group author-block-row">
-                    <span className="v2-layer-row-label">{g.type === 'omen' ? `Omen ${g.seq}` : `Line ${g.seq}`}</span>
+                    <span className="v2-layer-row-label">{setLabel(g, g.seq, g.type)}</span>
                     <div className="v2-layer-authors">
                       {g.items.map((item, i) => (
                         <EditableText
@@ -1605,7 +1622,7 @@ function AuthorLayerView({ sets, sources, sourceIds, colorMap, grouping, editPro
       // Author -> Layer: group all entries under each layer heading
       const morphs = isMorphAuthor ? authorSets.flatMap(s => s.morphs || []) : [];
       const imageEntries = authorSets
-        .map(s => ({ seq: s.seq, sels: getImgSels(s, lineRegionsByContentId), dir: getSetDir(s) }))
+        .map(s => ({ seq: s.seq, type: s.type, label: s.label, sels: getImgSels(s, lineRegionsByContentId), dir: getSetDir(s) }))
         .filter(e => e.sels.length > 0);
       const layerHasAny = contentLayers.some(l =>
         authorSets.some(s => (s.contents || []).some(c => contentTypeToLayer(c.type) === l.key))
@@ -1620,7 +1637,7 @@ function AuthorLayerView({ sets, sources, sourceIds, colorMap, grouping, editPro
               <div className="v2-layer-authors">
                 {imageEntries.map(e => (
                   <div key={e.seq} className="author-line-flat">
-                    <span className="entry-seq-tag">{e.seq}.</span>
+                    <span className="entry-seq-tag">{setLabel(e, e.seq, e.type)}</span>
                     <ImageCropRow bare color={color} sels={e.sels} dir={e.dir} />
                   </div>
                 ))}
@@ -1630,12 +1647,12 @@ function AuthorLayerView({ sets, sources, sourceIds, colorMap, grouping, editPro
           {contentLayers.map(l => {
             const entries = authorSets.flatMap(s =>
               pickContentsForLayer(s.contents, l.key, hiddenLanguages)
-                .map(c => ({ seq: s.seq, type: s.type, ...c })));
+                .map(c => ({ seq: s.seq, type: s.type, label: s.label, ...c })));
             if (!entries.length) return null;
             const byLang = l.key === 'translation' && groupTranslationsByLanguage;
             const renderEntry = (e, i) => (
               <div key={i} className="author-line-flat">
-                <span className="entry-seq-tag">{e.seq}.</span>
+                <span className="entry-seq-tag">{setLabel(e, e.seq, e.type)}</span>
                 <EditableText
                   plain
                   lineKey={layerLineKey(e.seq, srcId, l.key, e.contentType)}
@@ -1693,7 +1710,7 @@ function AuthorLayerView({ sets, sources, sourceIds, colorMap, grouping, editPro
       <div key={srcId} className={`author-section author-${srcId}`}>
         {header}
         {authorSets.map(set => {
-          const label = set.type === 'omen' ? `Omen ${set.seq}` : `Line ${set.seq}`;
+          const label = setLabel(set, set.seq, set.type);
           const contentsByLayer = {};
           contentLayers.forEach(l => {
             contentsByLayer[l.key] = pickContentsForLayer(set.contents, l.key, hiddenLanguages);
@@ -2518,7 +2535,7 @@ function ContentsOutline({ sourceIds, sources, sets, onJumpToDivision }) {
                     className="art-contents-outline-division-link"
                     onClick={() => onJumpToDivision(div.id)}
                   >
-                    {div.label || div.type}
+                    {divisionLabel(div)}
                   </button>
                 ))}
               </div>
@@ -2688,7 +2705,7 @@ export default function ArtifactDisplay() {
           seq: set.seq,
           omenType: set.type,
           sourceId: String(set.source_id),
-          label: div.label,
+          label: divisionLabel(div),
           divType: div.type,
           layerKey,
           contentType: c.type,

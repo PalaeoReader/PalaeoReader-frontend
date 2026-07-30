@@ -4651,8 +4651,9 @@ button { cursor: pointer; font-family: 'Inter', sans-serif; }
 
 .art-contents-outline-divisions {
   display: flex;
-  flex-wrap: wrap;
-  gap: 4px 14px;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
 }
 
 .art-contents-outline-division-link {
@@ -4663,6 +4664,7 @@ button { cursor: pointer; font-family: 'Inter', sans-serif; }
   font-size: 13px;
   color: var(--v2-link, #3a6ea5);
   text-decoration: underline;
+  text-align: left;
 }
 .art-contents-outline-division-link:hover {
   color: var(--v2-link-hover, #24507f);
