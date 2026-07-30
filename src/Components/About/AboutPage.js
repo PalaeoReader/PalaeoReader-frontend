@@ -9,9 +9,10 @@ function AboutPage() {
           About
         </h2>
       </div>
-      <p style={{ color: 'var(--text-md)', fontSize: '0.95rem' }}>
-        {config.about}
-      </p>
+      <div
+        style={{ color: 'var(--text-md)', fontSize: '0.95rem' }}
+        dangerouslySetInnerHTML={{ __html: config.about }}
+      />
     </div>
   );
 }

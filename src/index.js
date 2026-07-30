@@ -35,28 +35,30 @@ export const root = createRoot(domNode);
 
 function App() {
   return (
-    <div>
+    <div className="site-root">
       <AuthProvider>
         <Router>
           <header className="site-header">
             <NavBar />
           </header>
-          <Routes>
-            <Route path="/"                    element={<MainPage />}       />
-            <Route path="/directory"           element={<ArtifactList />}   />
-            <Route path="/artifact/:shortName" element={<ArtifactDisplay />}/>
-            <Route path="/map"                 element={<MapPage />}        />
-            <Route path="/dictionary"          element={<DictionaryPage />} />
-            <Route path="/sources"             element={<SourcesPage />}    />
-            <Route path="/about"               element={<AboutPage />}      />
-            <Route path="/concordance"         element={<ConcordancePage />}/>
-            <Route path="/signin"              element={<SignIn />}         />
-            <Route path="/signup"              element={<SignUp />}         />
-            <Route path="/forgot-password"     element={<ForgotPassword />} />
-            <Route path="/settings"            element={<Settings />}       />
-            <Route path="/login"               element={<Navigate to="/signin" replace />} />
-            <Route path="/divisions/:id"       element={<DivisionView />}   />
-          </Routes>
+          <main className="site-main">
+            <Routes>
+              <Route path="/"                    element={<MainPage />}       />
+              <Route path="/directory"           element={<ArtifactList />}   />
+              <Route path="/artifact/:shortName" element={<ArtifactDisplay />}/>
+              <Route path="/map"                 element={<MapPage />}        />
+              <Route path="/dictionary"          element={<DictionaryPage />} />
+              <Route path="/sources"             element={<SourcesPage />}    />
+              <Route path="/about"               element={<AboutPage />}      />
+              <Route path="/concordance"         element={<ConcordancePage />}/>
+              <Route path="/signin"              element={<SignIn />}         />
+              <Route path="/signup"              element={<SignUp />}         />
+              <Route path="/forgot-password"     element={<ForgotPassword />} />
+              <Route path="/settings"            element={<Settings />}       />
+              <Route path="/login"               element={<Navigate to="/signin" replace />} />
+              <Route path="/divisions/:id"       element={<DivisionView />}   />
+            </Routes>
+          </main>
           <Footer />
         </Router>
       </AuthProvider>

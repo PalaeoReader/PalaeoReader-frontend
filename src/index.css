@@ -57,12 +57,26 @@
   --border-danger: rgba(155,35,53,0.35);
 }
 
+html, body, #root {
+  height: 100%;
+}
+
 body {
   background: var(--surface-0);
   color: var(--text-primary);
   font-family: var(--font-body);
   font-size: 14px;
   line-height: 1.65;
+}
+
+.site-root {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+.site-main {
+  flex: 1 0 auto;
 }
 
 a { color: var(--link); text-decoration: none; }
