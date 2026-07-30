@@ -3,4 +3,5 @@ export interface Config {
   tagline: string;
   about: string;
   apiBaseUrl: string;
+  logo: string;
 }

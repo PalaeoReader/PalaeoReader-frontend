@@ -71,7 +71,12 @@ class NavBar extends Component {
     const path = window.location.pathname;
     return (
       <nav className="NavbarItems">
-        <h1 className="NavbarLogo"><a href="/">{config.projectName}</a></h1>
+        <h1 className="NavbarLogo">
+          <a href="/">
+            <img src={config.logo} alt={config.projectName} className="NavbarLogoImg" />
+            {config.projectName}
+          </a>
+        </h1>
         <ul className={this.state.clicked ? 'nav-menu active' : 'nav-menu'}>
           {NavMenu.map((item, index) => {
             const isActive = path === item.url || (item.url !== '/' && path.startsWith(item.url));
