@@ -2495,14 +2495,26 @@ function AccordionSection({ id, title, isOpen, onToggle, children }) {
 // Per-source outline browser shown inside the "Contents" accordion: a row of
 // source tabs, and below it that source's own division tree (entry -> its
 // divisions), each division a click-to-jump link into the manuscript image.
-function ContentsOutline({ sourceIds, sources, sets, onJumpToDivision }) {
+function ContentsOutline({ sourceIds, sources, sets, divisionMetaById, onJumpToDivision, onJumpToLine }) {
   const [activeSourceId, setActiveSourceId] = useState(sourceIds[0] || null);
+  const [openDivId, setOpenDivId] = useState(null);
+  const ref = useRef(null);
 
   useEffect(() => {
     if ((!activeSourceId || !sourceIds.includes(activeSourceId)) && sourceIds.length > 0) {
       setActiveSourceId(sourceIds[0]);
     }
   }, [sourceIds.join(','), activeSourceId]);
+
+  useEffect(() => { setOpenDivId(null); }, [activeSourceId]);
+
+  useEffect(() => {
+    const onDown = e => {
+      if (ref.current && !ref.current.contains(e.target)) setOpenDivId(null);
+    };
+    document.addEventListener('mousedown', onDown);
+    return () => document.removeEventListener('mousedown', onDown);
+  }, []);
 
   if (sourceIds.length === 0) {
     return <div className="art-contents-empty-placeholder">Nothing here.</div>;
@@ -2511,7 +2523,7 @@ function ContentsOutline({ sourceIds, sources, sets, onJumpToDivision }) {
   const outline = buildSourceOutline(activeSourceId, sets);
 
   return (
-    <div className="art-contents-outline">
+    <div className="art-contents-outline" ref={ref}>
       <div className="art-contents-source-tabs">
         {sourceIds.map(id => (
           <button
@@ -2532,16 +2544,42 @@ function ContentsOutline({ sourceIds, sources, sets, onJumpToDivision }) {
             <div className="art-contents-outline-entry-title">{entry.label}</div>
             {entry.divisions.length > 0 && (
               <div className="art-contents-outline-divisions">
-                {entry.divisions.map(div => (
-                  <button
-                    key={div.id}
-                    type="button"
-                    className="art-contents-outline-division-link"
-                    onClick={() => onJumpToDivision(div.id)}
-                  >
-                    {divisionLabel(div)}
-                  </button>
-                ))}
+                {entry.divisions.map(div => {
+                  const meta = divisionMetaById?.[div.id];
+                  const isOpen = openDivId === div.id;
+                  return (
+                    <div key={div.id} className="art-contents-outline-division-wrap">
+                      <button
+                        type="button"
+                        className={`art-contents-outline-division-link${isOpen ? ' active' : ''}`}
+                        onClick={() => setOpenDivId(isOpen ? null : div.id)}
+                      >
+                        {divisionLabel(div)}
+                      </button>
+                      {isOpen && (
+                        <div className="art-contents-outline-division-menu">
+                          <button
+                            type="button"
+                            className="art-contents-outline-division-menu-item"
+                            onClick={() => { onJumpToDivision(div.id); setOpenDivId(null); }}
+                          >
+                            <i className="fas fa-image" /> View in gallery
+                          </button>
+                          <button
+                            type="button"
+                            className="art-contents-outline-division-menu-item"
+                            onClick={() => {
+                              onJumpToLine(entry.seq, meta?.sourceId ?? activeSourceId, meta?.layerKey, meta?.contentType);
+                              setOpenDivId(null);
+                            }}
+                          >
+                            <i className="fas fa-align-left" /> Jump to analysis
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             )}
           </div>
@@ -3019,7 +3057,7 @@ export default function ArtifactDisplay() {
           />
 
           <AccordionSection id="contents" title="Contents" isOpen={openSections.contents} onToggle={() => toggleSection('contents')}>
-            <ContentsOutline sourceIds={sourceIds} sources={sources} sets={sets} onJumpToDivision={jumpToImageSelection} />
+            <ContentsOutline sourceIds={sourceIds} sources={sources} sets={sets} divisionMetaById={divisionMetaById} onJumpToDivision={jumpToImageSelection} onJumpToLine={jumpToLine} />
           </AccordionSection>
 
           <AccordionSection id="references" title="References" isOpen={openSections.references} onToggle={() => toggleSection('references')}>

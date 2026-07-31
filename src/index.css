@@ -4656,6 +4656,10 @@ button { cursor: pointer; font-family: 'Inter', sans-serif; }
   gap: 4px;
 }
 
+.art-contents-outline-division-wrap {
+  position: relative;
+}
+
 .art-contents-outline-division-link {
   border: none;
   background: none;
@@ -4666,8 +4670,44 @@ button { cursor: pointer; font-family: 'Inter', sans-serif; }
   text-decoration: underline;
   text-align: left;
 }
-.art-contents-outline-division-link:hover {
+.art-contents-outline-division-link:hover,
+.art-contents-outline-division-link.active {
   color: var(--v2-link-hover, #24507f);
+}
+
+.art-contents-outline-division-menu {
+  position: absolute;
+  z-index: 20;
+  top: calc(100% + 4px);
+  left: 0;
+  display: flex;
+  flex-direction: column;
+  min-width: 160px;
+  background: var(--white, #fff);
+  border: 1px solid var(--border, #e3e1d6);
+  border-radius: 6px;
+  box-shadow: var(--shadow-sm, 0 2px 8px rgba(0,0,0,0.12));
+  overflow: hidden;
+}
+
+.art-contents-outline-division-menu-item {
+  border: none;
+  background: none;
+  cursor: pointer;
+  padding: 7px 12px;
+  font-size: 12.5px;
+  text-align: left;
+  color: var(--dark, #2a2a2a);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+.art-contents-outline-division-menu-item:hover {
+  background: var(--surface-2, rgba(0, 0, 0, 0.05));
+}
+.art-contents-outline-division-menu-item + .art-contents-outline-division-menu-item {
+  border-top: 1px solid var(--border-lt, #eee);
 }
 
 /* ── Accordion (Overview / Contents / References / History) ── */
