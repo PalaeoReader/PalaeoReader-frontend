@@ -4,14 +4,7 @@ import { apiUrl } from '../../config';
 
 const fetcher = url => fetch(url).then(r => r.json());
 
-const SOURCE_IDS = [1, 2, 3, 4];
-
-function SourceCard({ id }) {
-  const { data, error } = useSWR(
-    apiUrl(`/api/sources/${id}`),
-    fetcher
-  );
-  if (error || !data) return null;
+function SourceCard({ data }) {
   return (
     <div style={{
       background: 'var(--white)',
@@ -32,11 +25,22 @@ function SourceCard({ id }) {
         {data.date_published && <span>Published: {data.date_published}</span>}
         {data.publisher && <span>{data.publisher}</span>}
       </div>
+      {data.notes && (
+        <div
+          style={{ marginTop: '0.6rem', fontSize: '0.85rem', color: 'var(--text-md)', borderTop: '1px solid var(--border)', paddingTop: '0.6rem' }}
+          dangerouslySetInnerHTML={{ __html: data.notes }}
+        />
+      )}
     </div>
   );
 }
 
 function SourcesPage() {
+  const { data: sources, error } = useSWR(
+    apiUrl('/api/sources/'),
+    fetcher
+  );
+
   return (
     <div style={{ maxWidth: '820px', margin: '0 auto', padding: '2.5rem 2rem' }}>
       <div style={{ borderBottom: '2px solid var(--border)', paddingBottom: '1rem', marginBottom: '2rem' }}>
@@ -47,7 +51,8 @@ function SourcesPage() {
           Academic sources whose analyses are included in this corpus
         </p>
       </div>
-      {SOURCE_IDS.map(id => <SourceCard key={id} id={id} />)}
+      {error && <p style={{ color: 'var(--text-muted)' }}>Failed to load sources.</p>}
+      {sources && sources.map(source => <SourceCard key={source.id} data={source} />)}
     </div>
   );
 }
