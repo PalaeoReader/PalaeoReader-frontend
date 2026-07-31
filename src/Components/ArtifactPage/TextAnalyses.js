@@ -163,7 +163,7 @@ function SetBlock({ setId, seq, type, visibleTypes }) {
                   return (
                     <tr key={c.id}>
                       <td className="tri-label">{rowLabel}</td>
-                      <td className={cls}>{c.text}</td>
+                      <td className={cls} dangerouslySetInnerHTML={{ __html: c.text }} />
                     </tr>
                   );
                 })}

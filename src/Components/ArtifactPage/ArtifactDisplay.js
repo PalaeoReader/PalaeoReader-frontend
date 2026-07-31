@@ -185,8 +185,8 @@ function MorphInterlinear({ morphs }) {
           ? <span key={i} className="morph-sep" />
           : (
             <span key={i} className="morph-unit">
-              <span className="morph-form layer-morph-transcr">{cell.form}</span>
-              <span className="morph-gloss layer-morph-gloss">{cell.gloss}</span>
+              <span className="morph-form layer-morph-transcr" dangerouslySetInnerHTML={{ __html: cell.form }} />
+              <span className="morph-gloss layer-morph-gloss" dangerouslySetInnerHTML={{ __html: cell.gloss }} />
             </span>
           )
       )}
@@ -255,7 +255,7 @@ function EditableMorphLine({ lineKey, sourceId, color, morphs, sourceLabel, edit
       >
         {isEdited && <span className="line-edited-dot" />}
         {isEdited
-          ? <span className="v2-layer-text">{overrideText}</span>
+          ? <span className="v2-layer-text" dangerouslySetInnerHTML={{ __html: overrideText }} />
           : <MorphInterlinear morphs={morphs} />
         }
         {editProps && (
@@ -288,7 +288,7 @@ function EditableMorphLine({ lineKey, sourceId, color, morphs, sourceLabel, edit
       {isEdited && <span className="line-edited-dot" />}
       <span className="author-dot" style={{ color: color.border, paddingTop: '0.2rem' }}>●</span>
       {isEdited
-        ? <span className="v2-layer-text" style={{ paddingTop: '0.2rem' }}>{overrideText}</span>
+        ? <span className="v2-layer-text" style={{ paddingTop: '0.2rem' }} dangerouslySetInnerHTML={{ __html: overrideText }} />
         : <MorphInterlinear morphs={morphs} />
       }
       {editProps && (
@@ -351,7 +351,7 @@ function EditableText({ lineKey, sourceId, layerKey, layerLabel, sourceLabel, co
     >
       {isEdited && <span className="line-edited-dot" />}
       {langCode && <span className="v2-lang-badge">{langCode}</span>}
-      <span className={className} dir={effectiveDir}>{displayText}</span>
+      <span className={className} dir={effectiveDir} dangerouslySetInnerHTML={{ __html: displayText }} />
       {editProps && (
         <div className="line-btn-group">
           <IconButton className="clock-btn" icon="fa-clock"
@@ -614,7 +614,7 @@ function EditableLine({ lineKey, sourceId, color, layerKey, text, isEdited, sour
       {langCode && <span className="v2-lang-badge">{langCode}</span>}
       {showDiff
         ? <InlineDiff refText={pinProps.pinnedText} otherText={text} layerKey={layerKey} dir={dir} />
-        : <span className={`v2-layer-text v2-text-${layerKey}`} dir={dir}>{text}</span>
+        : <span className={`v2-layer-text v2-text-${layerKey}`} dir={dir} dangerouslySetInnerHTML={{ __html: text }} />
       }
       {langMismatch && pinProps?.pinnedKey != null && (
         <span style={{ fontSize: '0.65rem', color: 'var(--text-muted, #aaa)', fontStyle: 'italic', marginLeft: '0.4rem', flexShrink: 0 }}>

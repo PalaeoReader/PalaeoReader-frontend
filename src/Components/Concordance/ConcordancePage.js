@@ -20,15 +20,15 @@ function contentTypeToLayer(type) {
 
 // wraps the matched keyword in a <mark> tag inline
 function Highlighted({ text, query }) {
-  if (!query) return <>{text}</>;
+  if (!query) return <span dangerouslySetInnerHTML={{ __html: text }} />;
   const idx = text.toLowerCase().indexOf(query.toLowerCase());
-  if (idx === -1) return <>{text}</>;
+  if (idx === -1) return <span dangerouslySetInnerHTML={{ __html: text }} />;
   return (
-    <>
-      {text.slice(0, idx)}
-      <mark className="conc-mark">{text.slice(idx, idx + query.length)}</mark>
-      {text.slice(idx + query.length)}
-    </>
+    <span>
+      <span dangerouslySetInnerHTML={{ __html: text.slice(0, idx) }} />
+      <mark className="conc-mark" dangerouslySetInnerHTML={{ __html: text.slice(idx, idx + query.length) }} />
+      <span dangerouslySetInnerHTML={{ __html: text.slice(idx + query.length) }} />
+    </span>
   );
 }
 
