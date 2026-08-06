@@ -1177,6 +1177,44 @@ button { cursor: pointer; font-family: 'Inter', sans-serif; }
   color: rgba(255,255,255,0.35);
 }
 
+.map-body {
+  flex: 1;
+  display: flex;
+  min-height: 0;
+}
+
+.map-sidebar {
+  width: 260px;
+  flex-shrink: 0;
+  overflow-y: auto;
+  border-right: 1px solid var(--border-lt);
+}
+
+.map-sidebar-search {
+  margin: 0.7rem 1rem;
+  width: calc(100% - 2rem);
+}
+
+.map-sidebar-item {
+  padding: 0.7rem 1rem;
+  border-bottom: 1px solid var(--border-lt);
+  cursor: pointer;
+}
+.map-sidebar-item:hover {
+  background: var(--surface-0);
+}
+
+.map-sidebar-name {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--dark);
+}
+.map-sidebar-meta {
+  font-size: 0.76rem;
+  color: var(--text-muted);
+  margin-top: 0.1rem;
+}
+
 .map-container {
   flex: 1;
 }
