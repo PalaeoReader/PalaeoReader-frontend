@@ -3237,6 +3237,17 @@ button { cursor: pointer; font-family: 'Inter', sans-serif; }
 }
 .hp-stat:last-child { border-right: none; }
 
+.hp-stat-link {
+  color: inherit;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.hp-stat-link:hover {
+  background: var(--surface-2);
+  text-decoration: none;
+}
+
 .hp-stat-n {
   font-size: 28px;
   font-weight: 400;

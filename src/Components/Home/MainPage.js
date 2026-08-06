@@ -61,11 +61,11 @@ function MainPage() {
   }, []);
 
   const stats = [
-    [artifacts.length || '—', 'Artifacts'],
-    ['10',      'Scholarly sources'],
-    ['428',     'Annotated words'],
-    ['254',     'Morpheme entries'],
-    ['732–1291','Date range CE'],
+    [artifacts.length || '—', 'Artifacts', '/directory'],
+    ['10',      'Scholarly sources', '/sources'],
+    ['428',     'Annotated words', '/concordance'],
+    ['254',     'Morpheme entries', '/dictionary'],
+    ['732–1291','Date range CE', null],
   ];
 
   return (
@@ -89,12 +89,17 @@ function MainPage() {
 
       {/* ── Stats strip ── */}
       <div className="hp-stats">
-        {stats.map(([n, l]) => (
-          <div key={l} className="hp-stat">
-            <span className="hp-stat-n">{n}</span>
-            <span className="hp-stat-l">{l}</span>
-          </div>
-        ))}
+        {stats.map(([n, l, href]) => {
+          const content = (
+            <>
+              <span className="hp-stat-n">{n}</span>
+              <span className="hp-stat-l">{l}</span>
+            </>
+          );
+          return href
+            ? <a key={l} href={href} className="hp-stat hp-stat-link">{content}</a>
+            : <div key={l} className="hp-stat">{content}</div>;
+        })}
       </div>
 
       {/* ── Artifacts ── */}
